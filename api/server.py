@@ -62,6 +62,7 @@ async def start_mission(
         "foto_path": str(foto_path),
         "brief": brief,
         "logs": [],
+        "results": None,
         "output_dir": None,
         "started_at": datetime.now().isoformat(),
     }
@@ -86,7 +87,16 @@ async def _run_mission(job_id: str, foto_path: Path, brief: str):
         )
         async for line in proc.stdout:
             text = line.decode("utf-8", errors="replace").rstrip()
-            if text:
+            if not text:
+                continue
+            # Cattura risultati strutturati
+            if text.startswith("__RESULTS_JSON__:"):
+                try:
+                    import json
+                    jobs[job_id]["results"] = json.loads(text[len("__RESULTS_JSON__:"):])
+                except Exception:
+                    pass
+            else:
                 jobs[job_id]["logs"].append(text)
 
         await proc.wait()
@@ -129,6 +139,7 @@ def get_status(job_id: str):
     return {
         "status": job["status"],
         "logs": job["logs"],
+        "results": job.get("results"),
     }
 
 

@@ -272,29 +272,31 @@ export default function Home() {
           es.close();
 
           if (payload.status === 'done') {
-            // Segna tutti done
             INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
             setOverallProgress(100);
 
-            // Recupera risultati
             fetch(`${API_URL}/mission/${jobId}/status`)
               .then(r => r.json())
               .then(data => {
-                const allLogs: string = data.logs?.join('\n') || '';
-                setResults({
-                  analisi:  estrai(allLogs, '01_ANALISI') || '# Analisi completata\nVedi cartella output sul server.',
-                  shooting: estrai(allLogs, '02_SHOOTING') || '# Prompt shooting generati\nVedi cartella output sul server.',
-                  reel:     estrai(allLogs, '03_REEL') || '# Script Reel generato\nVedi cartella output sul server.',
-                  copy:     estrai(allLogs, '04_COPY') || '# Copy generato\nVedi cartella output sul server.',
-                  hashtag:  estrai(allLogs, 'hashtag') || '# Hashtag generati\nVedi cartella output sul server.',
-                  piano:    estrai(allLogs, 'piano') || '# Piano editoriale generato\nVedi cartella output sul server.',
-                });
+                if (data.results) {
+                  setResults(data.results);
+                } else {
+                  // fallback se results non disponibili
+                  setResults({
+                    analisi:  '# Analisi completata\nVedi cartella output sul server.',
+                    shooting: '# Prompt shooting generati\nVedi cartella output sul server.',
+                    reel:     '# Script Reel generato\nVedi cartella output sul server.',
+                    copy:     '# Copy generato\nVedi cartella output sul server.',
+                    hashtag:  '# Hashtag generati\nVedi cartella output sul server.',
+                    piano:    '# Piano editoriale generato\nVedi cartella output sul server.',
+                  });
+                }
                 setMissionState('complete');
                 addLog('SISTEMA', 'Missione completata. Kit marketing pronto.', 'success');
               });
           } else {
             setMissionState('error');
-            addLog('SISTEMA', 'Errore durante la missione. Controlla le API keys.', 'warn');
+            addLog('SISTEMA', 'Errore durante la missione. Controlla le API keys su Render.', 'warn');
           }
         }
       } catch {
