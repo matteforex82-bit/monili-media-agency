@@ -145,6 +145,16 @@ const SIMULATION: Array<{
   },
 ];
 
+// ── CONFIG ────────────────────────────────────────────────────────
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-media-agency.onrender.com';
+
+// Estrae sezioni di testo dai log grezzi del backend
+function estrai(logs: string, keyword: string): string {
+  const lines = logs.split('\n');
+  const relevant = lines.filter(l => l.toLowerCase().includes(keyword.toLowerCase()));
+  return relevant.length > 0 ? relevant.join('\n') : '';
+}
+
 // ── HELPER ────────────────────────────────────────────────────────
 function now() {
   return new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -180,61 +190,152 @@ export default function Home() {
     setLogs(prev => [...prev, { time: now(), agent, msg, type }]);
   }, []);
 
-  const runSimulation = useCallback(async () => {
+  const runReal = useCallback(async () => {
+    if (!photo) return;
     setMissionState('running');
     setLogs([]);
     setOverallProgress(0);
 
-    for (let step = 0; step < SIMULATION.length; step++) {
-      const { agentIdx, duration, logs: stepLogs } = SIMULATION[step];
-      const agentName = INITIAL_AGENTS[agentIdx].name;
+    // ── Invia foto + brief al backend ──
+    const formData = new FormData();
+    formData.append('foto', photo);
+    formData.append('brief', brief);
 
-      updateAgent(agentIdx, { status: 'active', progress: 0 });
-
-      stepLogs.forEach(({ delay, msg, type }) => {
-        setTimeout(() => addLog(agentName, msg, type), delay);
-      });
-
-      const startTime = Date.now();
-      await new Promise<void>(resolve => {
-        const tick = () => {
-          const elapsed = Date.now() - startTime;
-          const p = Math.min(100, (elapsed / duration) * 100);
-          updateAgent(agentIdx, { progress: p });
-          if (elapsed < duration) requestAnimationFrame(tick);
-          else resolve();
-        };
-        requestAnimationFrame(tick);
-      });
-
-      updateAgent(agentIdx, { status: 'done', progress: 100 });
-      setOverallProgress(Math.round(((step + 1) / SIMULATION.length) * 100));
-
-      if (step < SIMULATION.length - 1) await new Promise(r => setTimeout(r, 300));
+    let jobId: string;
+    try {
+      const res = await fetch(`${API_URL}/mission/start`, { method: 'POST', body: formData });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      jobId = data.job_id;
+    } catch (err) {
+      addLog('SISTEMA', `Errore connessione backend: ${err}`, 'warn');
+      setMissionState('error');
+      return;
     }
 
-    setResults({
-      analisi: `# Scheda Prodotto\n\n**Categoria:** Bijoux → Orecchini → Cerchio\n**Materiale:** Metallo dorato, superficie liscia\n**Colori:** #D4AF37, #FAD5A5\n**Dimensione:** ~4cm diametro\n**Mood:** Elegante minimal, boho chic\n**Stagione:** P/E 2026\n**Formato:** REEL\n\n**Descrizione AI:**\n"Gold hoop earrings, large circle 4cm, smooth polished gold metal, butterfly clasp, elegant minimal style, women's fashion jewelry P/E 2026"`,
-      shooting: `# 8 Prompt Shooting Professionali\n\n**[1] HERO SHOT**\n\`Gold hoop earrings product photography, studio white background, soft diffused lighting, 8K sharp, --cref [original_photo]\`\n\n**[2] DETTAGLIO**\n\`Macro close-up gold earring texture, bokeh background, morning light, jewelry detail shot\`\n\n**[3] MODELLA LIFESTYLE**\n\`Woman wearing gold hoop earrings, Ravenna historic center background, golden hour, candid elegant, 25-35 years old\`\n\n**[4] FLAT LAY P/E**\n\`Flat lay gold earrings with spring flowers, linen fabric, terracotta accents, top view, natural light\`\n\n_...e altri 4 prompt in 02_SHOOTING/prompts_gemini.md_`,
-      reel: `# Script Reel Instagram\n\n**Durata:** 15 secondi\n**Audio consigliato:** "Espresso" — Sabrina Carpenter\n\n---\n\n**FRAME 1 — HOOK (0-3s)**\nTesto overlay: *"Questi orecchini hanno già scelto il tuo outfit"*\nVisual: close-up lento sull'orecchino, luce dorata\n\n**FRAME 2 (3-7s)**\nModella che indossa — movimento naturale, sorriso\nTesto: *"Nuovi arrivi P/E 2026"*\n\n**FRAME 3 (7-11s)**\nDettaglio texture oro — macro shot\n\n**FRAME 4 — LIFESTYLE (11-14s)**\nCentro storico Ravenna, outfit completo\n\n**FRAME 5 — CTA (14-15s)**\nTesto: *"Solo da I Monili · Ravenna centro"*`,
-      copy: `# Caption Instagram — 3 Varianti\n\n---\n\n**CASUAL**\nQuesti orecchini hanno già scelto il tuo outfit 🌿\nLeggeri come l'aria di primavera, si abbinano a tutto — dall'aperitivo alla serata.\nTi aspettiamo in negozio, qui a Ravenna ✨\n\n*#imoniliravenna #ravenna #romagnastyle*\n\n---\n\n**ELEGANTE**\nOro che accarezza. Luce che racconta.\nNuovi cerchi dorati, pensati per chi sa che i dettagli fanno la differenza.\nPassaci a trovarci nel cuore di Ravenna.\n\n---\n\n**URGENCY**\nNuovi arrivi — solo pochi pezzi disponibili ✨\nOrecchini cerchio dorati P/E 2026 · 22€\nVieni oggi, prima che finiscano 👇\n\n---\n\n**WHATSAPP BROADCAST**\nCiao! Sono appena arrivati i nuovi orecchini cerchio dorati 🌿 bellissimi per la primavera. Passa quando vuoi!\n\n**GMB POST**\nNuovi arrivi bijoux primavera/estate 2026 da I Monili Ravenna, centro storico. Orecchini cerchio dorati, 22€. Visita il nostro negozio in via XX Settembre.`,
-      hashtag: `# Set 30 Hashtag — I Monili Ravenna\n\n**TIER 1 — Broad (5)**\n#bijouxdonna #gioielli #moda #fashion #jewelry\n\n**TIER 2 — Niche (10)**\n#orecchinihandmade #bijouxitalia #gioiellidonna #anelliargento #accessorimoda #orecchini #bijoux #goldearrings #hoopearrings #fashionjewelry\n\n**TIER 3 — Local (10)**\n#ravenna #romagnastyle #imoniliravenna #emiliaromagna #ravennacentro #visitravenna #modaemiliana #negozioravenna #boutique #primaveraestate\n\n**TIER 4 — Brand (5)**\n#imoniliravenna #moniliravenna #imonili #gioielliravenna #bijouxravenna\n\n---\n\n**Scommessa settimana**\n#cerchiodoro · #hoop2026 · #goldhoops`,
-      piano: `# Piano Editoriale — 2 Settimane\n\n**MAR 22 → DOM 5 APR 2026**\n\n| Data | Ora | Formato | Prodotto | Copy |\n|------|-----|---------|----------|------|\n| Gio 26/03 | 19:00 | REEL | Orecchini cerchio dorati | Variante Casual |\n| Mar 31/03 | 18:30 | POST | Abbinamento P/E | Elegante |\n| Sab 04/04 | 19:30 | REEL | Nuovo arrivo (da definire) | — |\n| Mar 07/04 | 18:30 | STORIES | Behind the scenes | — |\n\n**Note strategiche:**\n- Giovedì sera → picco engagement storico\n- Intercala REEL e post statici 1:1\n- Storie il giorno prima di ogni post → preview prodotto`,
-    });
+    addLog('SISTEMA', `Missione avviata (job: ${jobId})`, 'info');
 
-    setMissionState('complete');
-    addLog('SISTEMA', 'Missione completata. Kit marketing pronto.', 'success');
+    // ── SSE stream: aggiornamenti in tempo reale ──
+    const agentKeywords: [string, number][] = [
+      ['SUPERVISOR',    0], ['Trend',      1], ['Analisi',    2],
+      ['SHOOTING',      3], ['Gemini',     4], ['Reel',       5],
+      ['Caption',       6], ['Hashtag',    7], ['Calendario', 8],
+      ['performance',   9],
+    ];
+
+    let currentAgentIdx = 0;
+    let progressInterval: ReturnType<typeof setInterval>;
+
+    const startAgentProgress = (idx: number) => {
+      if (progressInterval) clearInterval(progressInterval);
+      updateAgent(idx, { status: 'active', progress: 0 });
+      let p = 0;
+      progressInterval = setInterval(() => {
+        p = Math.min(p + 2, 95);
+        updateAgent(idx, { progress: p });
+      }, 300);
+    };
+
+    startAgentProgress(0);
+
+    const es = new EventSource(`${API_URL}/mission/${jobId}/stream`);
+
+    es.onmessage = (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+
+        if (payload.type === 'log') {
+          const msg: string = payload.msg;
+
+          // Rileva quale agente è attivo dal testo del log
+          for (const [keyword, idx] of agentKeywords) {
+            if (msg.toLowerCase().includes(keyword.toLowerCase()) && idx !== currentAgentIdx) {
+              updateAgent(currentAgentIdx, { status: 'done', progress: 100 });
+              currentAgentIdx = idx;
+              startAgentProgress(idx);
+              setOverallProgress(Math.round((idx / INITIAL_AGENTS.length) * 100));
+              break;
+            }
+          }
+
+          // Classifica il tipo di log
+          const type: LogEntry['type'] =
+            msg.includes('✅') || msg.includes('completat') ? 'success' :
+            msg.includes('❌') || msg.includes('errore')    ? 'warn'    :
+            msg.match(/#\w+|trend|reach|\d+€/)             ? 'data'    : 'info';
+
+          addLog(INITIAL_AGENTS[currentAgentIdx]?.name || 'SISTEMA', msg, type);
+        }
+
+        if (payload.type === 'status') {
+          clearInterval(progressInterval);
+          es.close();
+
+          if (payload.status === 'done') {
+            // Segna tutti done
+            INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
+            setOverallProgress(100);
+
+            // Recupera risultati
+            fetch(`${API_URL}/mission/${jobId}/status`)
+              .then(r => r.json())
+              .then(data => {
+                const allLogs: string = data.logs?.join('\n') || '';
+                setResults({
+                  analisi:  estrai(allLogs, '01_ANALISI') || '# Analisi completata\nVedi cartella output sul server.',
+                  shooting: estrai(allLogs, '02_SHOOTING') || '# Prompt shooting generati\nVedi cartella output sul server.',
+                  reel:     estrai(allLogs, '03_REEL') || '# Script Reel generato\nVedi cartella output sul server.',
+                  copy:     estrai(allLogs, '04_COPY') || '# Copy generato\nVedi cartella output sul server.',
+                  hashtag:  estrai(allLogs, 'hashtag') || '# Hashtag generati\nVedi cartella output sul server.',
+                  piano:    estrai(allLogs, 'piano') || '# Piano editoriale generato\nVedi cartella output sul server.',
+                });
+                setMissionState('complete');
+                addLog('SISTEMA', 'Missione completata. Kit marketing pronto.', 'success');
+              });
+          } else {
+            setMissionState('error');
+            addLog('SISTEMA', 'Errore durante la missione. Controlla le API keys.', 'warn');
+          }
+        }
+      } catch {
+        // ignora errori parse SSE
+      }
+    };
+
+    es.onerror = () => {
+      clearInterval(progressInterval);
+      es.close();
+      // Polling fallback se SSE non supportato
+      setTimeout(() => pollStatus(jobId), 2000);
+    };
+  }, [photo, brief, updateAgent, addLog]);
+
+  const pollStatus = useCallback(async (jobId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/mission/${jobId}/status`);
+      const data = await res.json();
+      if (data.status === 'running') {
+        setTimeout(() => pollStatus(jobId), 2000);
+      } else {
+        INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
+        setOverallProgress(100);
+        setMissionState('complete');
+        addLog('SISTEMA', 'Missione completata.', 'success');
+      }
+    } catch {
+      setTimeout(() => pollStatus(jobId), 3000);
+    }
   }, [updateAgent, addLog]);
 
   const handleLaunch = useCallback(() => {
     if (!photo) return;
     setCountdown(3);
     const tick = (n: number) => {
-      if (n <= 0) { setCountdown(null); runSimulation(); return; }
+      if (n <= 0) { setCountdown(null); runReal(); return; }
       setTimeout(() => { setCountdown(n - 1); tick(n - 1); }, 800);
     };
     tick(3);
-  }, [photo, runSimulation]);
+  }, [photo, runReal]);
 
   const handleReset = useCallback(() => {
     setMissionState('idle');
