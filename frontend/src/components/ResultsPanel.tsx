@@ -9,12 +9,11 @@ interface Props {
 }
 
 const TABS = [
-  { id: 'analisi',  label: 'Analisi',     icon: '🔍' },
-  { id: 'shooting', label: 'Shooting',    icon: '📷' },
-  { id: 'reel',     label: 'Reel',        icon: '🎬' },
-  { id: 'copy',     label: 'Caption',     icon: '✍️' },
-  { id: 'hashtag',  label: 'Hashtag',     icon: '#️⃣' },
-  { id: 'piano',    label: 'Calendario',  icon: '📅' },
+  { id: 'analisi',  label: 'Analisi',  icon: '🔍' },
+  { id: 'shooting', label: 'Shooting', icon: '📷' },
+  { id: 'reel',     label: 'Reel',     icon: '🎬' },
+  { id: 'copy',     label: 'Caption',  icon: '✍️' },
+  { id: 'hashtag',  label: 'Hashtag',  icon: '#️⃣' },
 ];
 
 export default function ResultsPanel({ results, activeTab, onTabChange }: Props) {

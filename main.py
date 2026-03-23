@@ -44,12 +44,15 @@ def claude(client, prompt: str, image_path: Path = None, max_tokens: int = 2048)
             "source": {"type": "base64", "media_type": media_type, "data": data},
         })
     content.append({"type": "text", "text": prompt})
-    response = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": content}],
-    )
-    return response.content[0].text
+    try:
+        response = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": content}],
+        )
+        return response.content[0].text
+    except Exception as e:
+        return f"[Errore API: {e}]"
 
 
 # ── BRAND CONTEXT ─────────────────────────────────────────────────
@@ -301,39 +304,6 @@ Formato: un hashtag per riga con breve nota sul perché.""", max_tokens=1500)
     return result
 
 
-def agent_piano(client, analisi: str) -> str:
-    log("PLANNER", "Generazione piano editoriale 2 settimane...")
-    today = datetime.now().strftime("%d/%m/%Y")
-    result = claude(client, f"""Sei un social media manager esperto per I Monili Ravenna.
-{BRAND}
-Analisi prodotto attuale: {analisi[:400]}
-Data oggi: {today}
-
-Crea il piano editoriale per le prossime 2 settimane:
-
-## CALENDARIO
-
-| Data | Giorno | Ora | Formato | Tema/Prodotto | Variante Copy | Note |
-|------|--------|-----|---------|---------------|---------------|------|
-[compila 6-8 righe con date reali partendo da oggi]
-
-## STRATEGIA GENERALE
-- Mix formati consigliato
-- Tema della settimana 1
-- Tema della settimana 2
-
-## REMINDER IMPORTANTI
-- Giorni/orari da evitare
-- Festività/eventi locali Ravenna da sfruttare
-- Prodotto consigliato per il prossimo post dopo questo
-
-## NOTE OPERATIVE
-[suggerimenti pratici per chi gestisce il profilo da sola]
-
-Tutto in italiano, date reali.""", max_tokens=1500)
-    log("PLANNER", "Piano 2 settimane con date reali generato", "success")
-    return result
-
 
 # ── MAIN ─────────────────────────────────────────────────────────
 
@@ -409,18 +379,19 @@ def run_agency(foto_path: str, brief: str = "") -> None:
         f"# Set 30 Hashtag\n\n{hashtag}", encoding="utf-8")
 
     # ── FOTO OTTIMIZZATE ──
-    log("PLANNER", "Ottimizzazione foto per Instagram...")
+    log("FOTO OTT.", "Ottimizzazione foto per Instagram (feed 1:1 + Stories 9:16)...")
+    image_feed = ""
+    image_stories = ""
     try:
         sys.path.insert(0, str(Path(__file__).parent / "scripts"))
         from optimize_image import optimize
-        optimize(str(foto), str(output_dir / "05_FOTO_OTTIMIZZATE"))
+        img_result = optimize(str(foto), str(output_dir / "05_FOTO_OTTIMIZZATE"))
+        output_subdir = output_dir.name
+        image_feed = f"{output_subdir}/05_FOTO_OTTIMIZZATE/feed_1080x1080.jpg"
+        image_stories = f"{output_subdir}/05_FOTO_OTTIMIZZATE/stories_1080x1920.jpg"
+        log("FOTO OTT.", "Feed 1080x1080 e Stories 1080x1920 salvate", "success")
     except Exception as e:
-        log("PLANNER", f"Ottimizzazione foto non riuscita: {e}", "warn")
-
-    # ── PIANO EDITORIALE ──
-    piano = agent_piano(client, analisi)
-    (output_dir / "piano_2settimane.md").write_text(
-        f"# Piano Editoriale\n\n{piano}", encoding="utf-8")
+        log("FOTO OTT.", f"Ottimizzazione non riuscita: {e}", "warn")
 
     # ── MEMORY ──
     log("MEMORIA", "Aggiornamento performance_log.json...")
@@ -444,12 +415,13 @@ def run_agency(foto_path: str, brief: str = "") -> None:
     print(f"📁 Output: {output_dir}", flush=True)
 
     results = {
-        "analisi":  f"# Scheda Prodotto\n\n{analisi}",
-        "shooting": f"# Prompt Shooting Professionali\n\n{shooting}",
-        "reel":     f"# Script Reel Instagram\n\n{reel}",
-        "copy":     f"# Copy Completo\n\n{copy}",
-        "hashtag":  f"# Set 30 Hashtag\n\n{hashtag}",
-        "piano":    f"# Piano Editoriale\n\n{piano}",
+        "analisi":       f"# Scheda Prodotto\n\n{analisi}",
+        "shooting":      f"# Prompt Shooting Professionali\n\n{shooting}",
+        "reel":          f"# Script Reel Instagram\n\n{reel}",
+        "copy":          f"# Copy Completo\n\n{copy}",
+        "hashtag":       f"# Set 30 Hashtag\n\n{hashtag}",
+        "image_feed":    image_feed,
+        "image_stories": image_stories,
     }
     # Stampa risultati come JSON — il server li cattura
     print(f"__RESULTS_JSON__:{json.dumps(results, ensure_ascii=False)}", flush=True)

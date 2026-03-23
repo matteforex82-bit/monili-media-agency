@@ -37,7 +37,7 @@ const INITIAL_AGENTS: AgentDef[] = [
   { id: 'directing-reels',       name: 'REEL DIR.',   role: 'Video AI',           icon: '🎬', status: 'offline', progress: 0 },
   { id: 'writing-copy',          name: 'COPY',        role: 'Testi & Caption',    icon: '📝', status: 'offline', progress: 0 },
   { id: 'optimizing-hashtags',   name: 'HASHTAG',     role: 'Strategy',           icon: '📌', status: 'offline', progress: 0 },
-  { id: 'planning-content',      name: 'PLANNER',     role: 'Calendario',         icon: '📅', status: 'offline', progress: 0 },
+  { id: 'optimizing-photos',     name: 'FOTO OTT.',   role: 'Foto Instagram',     icon: '🖼️', status: 'offline', progress: 0 },
   { id: 'updating-memory',       name: 'MEMORIA',     role: 'Auto-Learning',      icon: '🧠', status: 'offline', progress: 0 },
 ];
 
@@ -128,12 +128,12 @@ const SIMULATION: Array<{
     ],
   },
   {
-    agentIdx: 8, duration: 1500,
+    agentIdx: 8, duration: 1400,
     logs: [
-      { delay: 0,    msg: 'Generazione piano editoriale 2 settimane...', type: 'info' },
-      { delay: 600,  msg: 'Post 1 → Giovedì 26/03 ore 19:00 — REEL orecchini', type: 'data' },
-      { delay: 1000, msg: 'Post 2 → Martedì 31/03 ore 18:30 — Story abbinamenti', type: 'data' },
-      { delay: 1300, msg: 'Calendario 2 settimane salvato', type: 'success' },
+      { delay: 0,    msg: 'Ottimizzazione foto per Instagram...', type: 'info' },
+      { delay: 500,  msg: 'Feed 1080x1080 con padding bianco generata', type: 'data' },
+      { delay: 900,  msg: 'Stories 1080x1920 con sfondo blurrato generata', type: 'data' },
+      { delay: 1200, msg: 'Feed e Stories salvate in 05_FOTO_OTTIMIZZATE', type: 'success' },
     ],
   },
   {
@@ -217,9 +217,9 @@ export default function Home() {
 
     // ── SSE stream: aggiornamenti in tempo reale ──
     const agentKeywords: [string, number][] = [
-      ['SUPERVISOR',    0], ['Trend',      1], ['Analisi',    2],
-      ['SHOOTING',      3], ['Gemini',     4], ['Reel',       5],
-      ['Caption',       6], ['Hashtag',    7], ['Calendario', 8],
+      ['SUPERVISOR',    0], ['Trend',       1], ['Analisi',  2],
+      ['SHOOTING',      3], ['Gemini',      4], ['Reel',     5],
+      ['Caption',       6], ['Hashtag',     7], ['FOTO OTT', 8],
       ['performance',   9],
     ];
 
@@ -524,7 +524,7 @@ export default function Home() {
                   Team di 10 specialisti AI — pronti
                 </div>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
-                  Supervisor · Trend · Analista · Foto · Visual · Reel · Copy · Hashtag · Planner · Memoria
+                  Supervisor · Trend · Analista · Foto · Visual · Reel · Copy · Hashtag · Foto Ott. · Memoria
                 </div>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
@@ -611,7 +611,7 @@ export default function Home() {
                   {overallProgress}%
                 </div>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', marginTop: 2 }}>
-                  {doneCount} di 10 completati
+                  {doneCount} di 9 completati
                 </div>
               </div>
             </div>
@@ -663,7 +663,7 @@ export default function Home() {
                   Il kit marketing è pronto!
                 </h2>
                 <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--espresso-mid)', margin: '4px 0 0' }}>
-                  Analisi, foto AI, script reel, caption, hashtag e piano editoriale — tutto pronto da usare.
+                  Analisi, prompt shooting, script reel, caption, hashtag e foto ottimizzate — tutto pronto da usare.
                 </p>
               </div>
               <button
@@ -678,7 +678,7 @@ export default function Home() {
             {/* Agent recap */}
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Il team — 10/10 completati
+                Il team — 9/9 completati
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                 {agents.map((agent, i) => (
@@ -688,6 +688,57 @@ export default function Home() {
             </div>
 
             <div className="hr-warm" style={{ marginBottom: 28 }} />
+
+            {/* Foto ottimizzate */}
+            {(results.image_feed || results.image_stories) && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Foto ottimizzate per Instagram
+                </div>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                  {results.image_feed && (
+                    <div className="card" style={{ padding: 16, textAlign: 'center', flex: '1 1 220px', minWidth: 0 }}>
+                      <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                        Feed 1:1
+                      </div>
+                      <img
+                        src={`${API_URL}/files/${results.image_feed}`}
+                        alt="Feed Instagram"
+                        style={{ width: '100%', maxWidth: 220, borderRadius: 8, border: '1px solid var(--border)', display: 'block', margin: '0 auto' }}
+                      />
+                      <a
+                        href={`${API_URL}/files/${results.image_feed}`}
+                        download="feed_1080x1080.jpg"
+                        className="btn-secondary"
+                        style={{ display: 'inline-block', marginTop: 10, padding: '5px 14px', fontSize: 12, textDecoration: 'none' }}
+                      >
+                        ↓ Scarica
+                      </a>
+                    </div>
+                  )}
+                  {results.image_stories && (
+                    <div className="card" style={{ padding: 16, textAlign: 'center', flex: '1 1 140px', minWidth: 0 }}>
+                      <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                        Stories 9:16
+                      </div>
+                      <img
+                        src={`${API_URL}/files/${results.image_stories}`}
+                        alt="Stories Instagram"
+                        style={{ width: '100%', maxWidth: 140, borderRadius: 8, border: '1px solid var(--border)', display: 'block', margin: '0 auto' }}
+                      />
+                      <a
+                        href={`${API_URL}/files/${results.image_stories}`}
+                        download="stories_1080x1920.jpg"
+                        className="btn-secondary"
+                        style={{ display: 'inline-block', marginTop: 10, padding: '5px 14px', fontSize: 12, textDecoration: 'none' }}
+                      >
+                        ↓ Scarica
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Results */}
             <div>

@@ -15,6 +15,7 @@ from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Monili Media Agency API")
 
@@ -31,6 +32,8 @@ INPUT_DIR    = PROJECT_ROOT / "input"
 OUTPUT_DIR   = PROJECT_ROOT / "output"
 INPUT_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
+
+app.mount("/files", StaticFiles(directory=str(OUTPUT_DIR)), name="files")
 
 # In-memory job store
 jobs: dict[str, dict] = {}
