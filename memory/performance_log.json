@@ -1,0 +1,25 @@
+{
+  "meta": {
+    "negozio": "I Monili Ravenna",
+    "versione": "1.0",
+    "ultimo_aggiornamento": null,
+    "totale_sessioni": 0
+  },
+  "sessioni": [],
+  "hashtag_performance": {
+    "top_reach": [],
+    "top_engagement": [],
+    "da_evitare": []
+  },
+  "caption_performance": {
+    "variante_migliore_storica": null,
+    "note": "casual | elegante | urgency"
+  },
+  "orari_performance": {
+    "martedi_1830": null,
+    "giovedi_1830": null,
+    "sabato_1830": null
+  },
+  "prodotti_top": [],
+  "insight_brand": []
+}
