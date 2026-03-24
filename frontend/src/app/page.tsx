@@ -170,7 +170,6 @@ export default function Home() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [overallProgress, setOverallProgress] = useState(0);
   const [results, setResults] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState('analisi');
   const [countdown, setCountdown] = useState<number | null>(null);
   const briefRef = useRef<HTMLTextAreaElement>(null);
 
@@ -708,64 +707,8 @@ export default function Home() {
 
             <div className="hr-warm" style={{ marginBottom: 28 }} />
 
-            {/* Foto ottimizzate */}
-            {(results.image_feed || results.image_stories) && (
-              <div style={{ marginBottom: 28 }}>
-                <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Foto ottimizzate per Instagram
-                </div>
-                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                  {results.image_feed && (
-                    <div className="card" style={{ padding: 16, textAlign: 'center', flex: '1 1 220px', minWidth: 0 }}>
-                      <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
-                        Feed 1:1
-                      </div>
-                      <img
-                        src={`${API_URL}/files/${results.image_feed}`}
-                        alt="Feed Instagram"
-                        style={{ width: '100%', maxWidth: 220, borderRadius: 8, border: '1px solid var(--border)', display: 'block', margin: '0 auto' }}
-                      />
-                      <a
-                        href={`${API_URL}/files/${results.image_feed}`}
-                        download="feed_1080x1080.jpg"
-                        className="btn-secondary"
-                        style={{ display: 'inline-block', marginTop: 10, padding: '5px 14px', fontSize: 12, textDecoration: 'none' }}
-                      >
-                        ↓ Scarica
-                      </a>
-                    </div>
-                  )}
-                  {results.image_stories && (
-                    <div className="card" style={{ padding: 16, textAlign: 'center', flex: '1 1 140px', minWidth: 0 }}>
-                      <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
-                        Stories 9:16
-                      </div>
-                      <img
-                        src={`${API_URL}/files/${results.image_stories}`}
-                        alt="Stories Instagram"
-                        style={{ width: '100%', maxWidth: 140, borderRadius: 8, border: '1px solid var(--border)', display: 'block', margin: '0 auto' }}
-                      />
-                      <a
-                        href={`${API_URL}/files/${results.image_stories}`}
-                        download="stories_1080x1920.jpg"
-                        className="btn-secondary"
-                        style={{ display: 'inline-block', marginTop: 10, padding: '5px 14px', fontSize: 12, textDecoration: 'none' }}
-                      >
-                        ↓ Scarica
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Results */}
-            <div>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                I tuoi contenuti
-              </div>
-              <ResultsPanel results={results} activeTab={activeTab} onTabChange={setActiveTab} />
-            </div>
+            {/* Results — download center */}
+            <ResultsPanel results={results} apiUrl={API_URL} />
           </div>
         )}
       </main>
