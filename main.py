@@ -8,6 +8,7 @@ import sys
 import os
 import json
 import base64
+import traceback
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
@@ -340,75 +341,106 @@ def run_agency(foto_path: str, brief: str = "") -> None:
     log("SUPERVISOR", "Missione ricevuta. Avvio orchestrazione team.")
     log("SUPERVISOR", "9 agenti specializzati in standby — pronti.", "data")
 
+    # Variabili con fallback — la pipeline non si blocca mai
+    trend    = ""
+    analisi  = ""
+    shooting = ""
+    reel     = ""
+    copy     = ""
+    hashtag  = ""
+    image_feed    = ""
+    image_stories = ""
+
+    def safe_write(path: Path, content: str):
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        except Exception as e:
+            log("SISTEMA", f"Scrittura file fallita ({path.name}): {e}", "warn")
+
     # ── TREND ──
-    trend = agent_trend(client)
-    (output_dir / "00_TREND").mkdir(exist_ok=True)
-    (output_dir / "00_TREND" / "trend_report.md").write_text(
-        f"# Trend Report P/E 2026\n\n{trend}", encoding="utf-8")
+    try:
+        trend = agent_trend(client)
+        safe_write(output_dir / "00_TREND" / "trend_report.md",
+                   f"# Trend Report P/E 2026\n\n{trend}")
+    except Exception as e:
+        log("TREND", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     # ── ANALISI ──
-    analisi = agent_analisi(client, foto, brief)
-    (output_dir / "01_ANALISI").mkdir(exist_ok=True)
-    (output_dir / "01_ANALISI" / "product_card.md").write_text(
-        f"# Scheda Prodotto\n\n{analisi}", encoding="utf-8")
+    try:
+        analisi = agent_analisi(client, foto, brief)
+        safe_write(output_dir / "01_ANALISI" / "product_card.md",
+                   f"# Scheda Prodotto\n\n{analisi}")
+    except Exception as e:
+        log("ANALISTA", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     # ── SHOOTING ──
-    shooting = agent_shooting(client, foto, analisi)
-    (output_dir / "02_SHOOTING").mkdir(exist_ok=True)
-    (output_dir / "02_SHOOTING" / "prompts_shooting.md").write_text(
-        f"# Prompt Shooting Professionali\n\n{shooting}", encoding="utf-8")
+    try:
+        shooting = agent_shooting(client, foto, analisi)
+        safe_write(output_dir / "02_SHOOTING" / "prompts_shooting.md",
+                   f"# Prompt Shooting Professionali\n\n{shooting}")
+    except Exception as e:
+        log("FOTO DIR.", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     # ── VISUAL GEN ──
-    agent_visual_gen(output_dir, shooting)
+    try:
+        agent_visual_gen(output_dir, shooting)
+    except Exception as e:
+        log("VISUAL GEN", f"ERRORE: {e}", "warn")
 
     # ── REEL ──
-    reel = agent_reel(client, analisi, trend)
-    (output_dir / "03_REEL").mkdir(exist_ok=True)
-    (output_dir / "03_REEL" / "reel_script.md").write_text(
-        f"# Script Reel Instagram\n\n{reel}", encoding="utf-8")
+    try:
+        reel = agent_reel(client, analisi, trend)
+        safe_write(output_dir / "03_REEL" / "reel_script.md",
+                   f"# Script Reel Instagram\n\n{reel}")
+    except Exception as e:
+        log("REEL DIR.", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     # ── COPY ──
-    copy = agent_copy(client, foto, analisi, brief)
-    (output_dir / "04_COPY").mkdir(exist_ok=True)
-    (output_dir / "04_COPY" / "copy_completo.md").write_text(
-        f"# Copy Completo\n\n{copy}", encoding="utf-8")
+    try:
+        copy = agent_copy(client, foto, analisi, brief)
+        safe_write(output_dir / "04_COPY" / "copy_completo.md",
+                   f"# Copy Completo\n\n{copy}")
+    except Exception as e:
+        log("COPY", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     # ── HASHTAG ──
-    hashtag = agent_hashtag(client, analisi, trend)
-    (output_dir / "04_COPY" / "hashtag_30.md").write_text(
-        f"# Set 30 Hashtag\n\n{hashtag}", encoding="utf-8")
+    try:
+        hashtag = agent_hashtag(client, analisi, trend)
+        safe_write(output_dir / "04_COPY" / "hashtag_30.md",
+                   f"# Set 30 Hashtag\n\n{hashtag}")
+    except Exception as e:
+        log("HASHTAG", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     # ── FOTO OTTIMIZZATE ──
     log("FOTO OTT.", "Ottimizzazione foto per Instagram (feed 1:1 + Stories 9:16)...")
-    image_feed = ""
-    image_stories = ""
     try:
         sys.path.insert(0, str(Path(__file__).parent / "scripts"))
         from optimize_image import optimize
-        img_result = optimize(str(foto), str(output_dir / "05_FOTO_OTTIMIZZATE"))
+        optimize(str(foto), str(output_dir / "05_FOTO_OTTIMIZZATE"))
         output_subdir = output_dir.name
-        image_feed = f"{output_subdir}/05_FOTO_OTTIMIZZATE/feed_1080x1080.jpg"
+        image_feed    = f"{output_subdir}/05_FOTO_OTTIMIZZATE/feed_1080x1080.jpg"
         image_stories = f"{output_subdir}/05_FOTO_OTTIMIZZATE/stories_1080x1920.jpg"
         log("FOTO OTT.", "Feed 1080x1080 e Stories 1080x1920 salvate", "success")
     except Exception as e:
-        log("FOTO OTT.", f"Ottimizzazione non riuscita: {e}", "warn")
+        log("FOTO OTT.", f"Ottimizzazione non riuscita: {e}\n{traceback.format_exc()}", "warn")
 
     # ── MEMORY ──
     log("MEMORIA", "Aggiornamento performance_log.json...")
-    memory_path = Path("memory/performance_log.json")
     try:
+        memory_path = Path("memory/performance_log.json")
         log_data = json.loads(memory_path.read_text(encoding="utf-8")) if memory_path.exists() else {"sessions": []}
-    except Exception:
-        log_data = {"sessions": []}
-    log_data["sessions"].append({
-        "timestamp": datetime.now().isoformat(),
-        "foto": str(foto),
-        "brief": brief,
-        "output_dir": str(output_dir),
-    })
-    memory_path.parent.mkdir(exist_ok=True)
-    memory_path.write_text(json.dumps(log_data, indent=2, ensure_ascii=False), encoding="utf-8")
-    log("MEMORIA", "Sessione loggata. Memoria persistente aggiornata.", "success")
+        log_data["sessions"].append({
+            "timestamp": datetime.now().isoformat(),
+            "foto": str(foto),
+            "brief": brief,
+            "output_dir": str(output_dir),
+        })
+        memory_path.parent.mkdir(exist_ok=True)
+        memory_path.write_text(json.dumps(log_data, indent=2, ensure_ascii=False), encoding="utf-8")
+        log("MEMORIA", "Sessione loggata. Memoria persistente aggiornata.", "success")
+    except Exception as e:
+        log("MEMORIA", f"Log non salvato: {e}", "warn")
 
     # ── OUTPUT FINALE ──
     print(f"\n✅ MISSIONE COMPLETATA!", flush=True)
@@ -423,7 +455,6 @@ def run_agency(foto_path: str, brief: str = "") -> None:
         "image_feed":    image_feed,
         "image_stories": image_stories,
     }
-    # Stampa risultati come JSON — il server li cattura
     print(f"__RESULTS_JSON__:{json.dumps(results, ensure_ascii=False)}", flush=True)
 
 
@@ -432,7 +463,12 @@ def main():
     parser.add_argument("--foto", "-f", default="input/prodotto.jpg")
     parser.add_argument("--brief", "-b", default="")
     args = parser.parse_args()
-    run_agency(args.foto, args.brief)
+    try:
+        run_agency(args.foto, args.brief)
+    except Exception as e:
+        print(f"\n❌ CRASH FATALE: {e}", flush=True)
+        print(traceback.format_exc(), flush=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
