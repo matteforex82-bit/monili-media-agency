@@ -320,8 +320,9 @@ export default function Home() {
       } else {
         INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
         setOverallProgress(100);
-        setMissionState('complete');
-        addLog('SISTEMA', 'Missione completata.', 'success');
+        if (data.results) setResults(data.results);
+        setMissionState(data.status === 'error' ? 'error' : 'complete');
+        addLog('SISTEMA', data.status === 'error' ? 'Missione terminata con errore.' : 'Missione completata.', data.status === 'error' ? 'warn' : 'success');
       }
     } catch {
       setTimeout(() => pollStatus(jobId), 3000);
