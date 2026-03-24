@@ -638,6 +638,25 @@ export default function Home() {
           </div>
         )}
 
+        {/* ══ ERROR ═════════════════════════════════════════════ */}
+        {missionState === 'error' && (
+          <div className="fade-up" style={{ textAlign: 'center', padding: '60px 24px' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+            <h2 style={{ fontFamily: 'Playfair Display', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', marginBottom: 12 }}>
+              Qualcosa è andato storto
+            </h2>
+            <p style={{ fontFamily: 'DM Sans', fontSize: 14, color: 'var(--espresso-mid)', maxWidth: 400, margin: '0 auto 28px' }}>
+              Errore durante l'elaborazione. Controlla che le API key siano configurate su Render e riprova.
+            </p>
+            <div style={{ marginBottom: 20 }}>
+              <TerminalLog logs={logs} />
+            </div>
+            <button onClick={handleReset} className="btn-mission" style={{ padding: '14px 32px', fontSize: 14 }}>
+              Riprova con un altro prodotto
+            </button>
+          </div>
+        )}
+
         {/* ══ COMPLETE ══════════════════════════════════════════ */}
         {missionState === 'complete' && (
           <div className="fade-up">
