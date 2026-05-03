@@ -253,6 +253,68 @@ def extract_prompt_candidates(shooting_prompts: str, max_items: int = 2) -> list
     return prompts[:max_items]
 
 
+def extract_json_object(raw_text: str) -> dict:
+    if not raw_text:
+        return {}
+
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    try:
+        parsed = json.loads(cleaned)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        pass
+
+    match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
+    if not match:
+        return {}
+
+    try:
+        parsed = json.loads(match.group(0))
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
+def normalize_string_list(value: object, max_items: int = 30) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for item in value[:max_items]:
+        if isinstance(item, str):
+            v = item.strip()
+            if v:
+                out.append(v)
+    return out
+
+
+def format_publish_pack_markdown(pack: dict) -> str:
+    caption = str(pack.get("selected_caption", "")).strip()
+    hashtags = normalize_string_list(pack.get("selected_hashtags"), max_items=30)
+    whatsapp = str(pack.get("selected_whatsapp", "")).strip()
+    gmb_title = str(pack.get("selected_gmb_title", "")).strip()
+    gmb_text = str(pack.get("selected_gmb_text", "")).strip()
+    post_time = str(pack.get("selected_posting_time", "")).strip()
+    cta = str(pack.get("selected_cta", "")).strip()
+
+    hashtags_line = " ".join(tag for tag in hashtags if tag.startswith("#"))
+    if not hashtags_line and hashtags:
+        hashtags_line = " ".join(hashtags)
+
+    return (
+        "# Pronto Da Pubblicare\n\n"
+        f"## Caption Selezionata\n{caption or '-'}\n\n"
+        f"## Hashtag Selezionati\n{hashtags_line or '-'}\n\n"
+        f"## WhatsApp Broadcast\n{whatsapp or '-'}\n\n"
+        f"## Google Business Post\nTitolo: {gmb_title or '-'}\n\nTesto: {gmb_text or '-'}\n\n"
+        f"## CTA Locale\n{cta or '-'}\n\n"
+        f"## Orario Consigliato\n{post_time or '-'}\n"
+    )
+
+
 BRAND = """
 BRAND: I Monili Ravenna - negozio bijoux, accessori donna, abbigliamento
 Location: Ravenna, centro storico (Emilia-Romagna)
@@ -470,6 +532,101 @@ Preserve the exact product. Create a realistic static commercial photo, not a vi
     return []
 
 
+def agent_carousel_visual_prompts(
+    text_model: str,
+    api_key: str,
+    analisi: str,
+    strategy: str,
+    carousel: str,
+    brief: str,
+) -> str:
+    log("CAROUSEL VISUAL", "Prompt per 5 slide carousel fotorealistico...")
+    prompt = f"""Sei un visual strategist per Instagram carousel statici fotorealistici.
+{BRAND}
+Analisi prodotto: {analisi[:900]}
+Strategia: {strategy[:900]}
+Struttura carousel: {carousel[:1200]}
+Brief utente: {brief if brief else "Nessun brief"}
+
+Genera ESATTAMENTE 5 prompt in inglese per 5 slide di un carousel pronto pubblicazione.
+Ogni riga deve iniziare cosi:
+SLIDE_PROMPT_EN_1:
+SLIDE_PROMPT_EN_2:
+SLIDE_PROMPT_EN_3:
+SLIDE_PROMPT_EN_4:
+SLIDE_PROMPT_EN_5:
+
+Regole obbligatorie:
+- Use the uploaded product photo as strict reference
+- preserve exact product details, colors, shape and materials
+- photorealistic, natural daylight, authentic Italian boutique mood
+- include believable Ravenna vibe without fake landmarks
+- no text overlays, no logos, no watermark
+- if model is present, realistic adult model only
+- each slide must have different framing and purpose (hero, worn detail, context, mix&match, CTA-ready visual)
+
+Rispondi solo con le 5 righe richieste, senza altro testo."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=1600)
+    log("CAROUSEL VISUAL", "Prompt slide pronti", "success")
+    return result
+
+
+def extract_carousel_slide_prompts(raw_text: str, max_slides: int = 5) -> list[str]:
+    prompts: list[str] = []
+    for i in range(1, max_slides + 1):
+        pattern = rf"SLIDE_PROMPT_EN_{i}:\s*(.+)"
+        match = re.search(pattern, raw_text, flags=re.IGNORECASE)
+        if match:
+            prompt = match.group(1).strip()
+            if prompt:
+                prompts.append(prompt)
+    return prompts
+
+
+def generate_carousel_images(
+    output_dir: Path,
+    api_key: str,
+    selected_model: str,
+    foto: Path,
+    slide_prompts: list[str],
+) -> list[str]:
+    if not api_key:
+        log("CAROUSEL VISUAL", "OPENROUTER_API_KEY mancante - salto immagini carousel", "warn")
+        return []
+
+    if not slide_prompts:
+        log("CAROUSEL VISUAL", "Nessun prompt slide valido trovato", "warn")
+        return []
+
+    model = select_openrouter_image_model(selected_model)
+    target_dir = output_dir / "04_CAROUSEL" / "images"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    generated: list[str] = []
+    for idx, prompt in enumerate(slide_prompts, start=1):
+        try:
+            log("CAROUSEL VISUAL", f"Generazione slide {idx}/{len(slide_prompts)}", "data")
+            controlled = f"""{prompt}
+
+Use the uploaded reference photo as source-of-truth for the product.
+The result must look like a real still photo for Instagram carousel."""
+            data_urls = generate_image_with_openrouter(api_key, model, controlled, image_path=foto)
+            if not data_urls:
+                continue
+            filename = f"carousel_slide_{idx}.png"
+            file_path = target_dir / filename
+            if save_data_url_image(data_urls[0], file_path):
+                generated.append(f"{output_dir.name}/04_CAROUSEL/images/{filename}")
+        except Exception as e:
+            log("CAROUSEL VISUAL", f"Slide {idx} non generata: {e}", "warn")
+
+    if generated:
+        log("CAROUSEL VISUAL", f"{len(generated)} slide carousel generate", "success")
+    else:
+        log("CAROUSEL VISUAL", "Nessuna slide carousel generata", "warn")
+    return generated
+
+
 def agent_reel(text_model: str, api_key: str, analisi: str, trend: str) -> str:
     log("REEL DIR.", "Struttura Reel: hook 3s + scene + CTA...")
     prompt = f"""Sei un video director specializzato in Reels Instagram per brand moda.
@@ -611,6 +768,75 @@ Genera:
     return result
 
 
+def agent_publish_pack(
+    text_model: str,
+    api_key: str,
+    analisi: str,
+    strategy: str,
+    carousel: str,
+    local_visibility: str,
+    distribution: str,
+    brief: str,
+) -> dict:
+    log("PUBLISH PACK", "Selezione finale pronta da copiare e pubblicare...")
+    prompt = f"""Sei un social media manager operativo. Devi restituire SOLO un JSON valido.
+{BRAND}
+Analisi: {analisi[:900]}
+Strategia: {strategy[:900]}
+Carousel: {carousel[:900]}
+Local visibility: {local_visibility[:900]}
+Distribuzione: {distribution[:1200]}
+Brief utente: {brief if brief else "Nessun brief"}
+
+Obiettivo: ridurre confusione e consegnare output pronto da usare.
+Seleziona TU la versione migliore, non lasciare indecisione.
+
+Rispondi con un JSON esatto con queste chiavi:
+{{
+  "selected_caption": "stringa unica pronta Instagram",
+  "caption_alternatives": ["stringa opzionale 1", "stringa opzionale 2"],
+  "selected_hashtags": ["#tag1", "#tag2", "... max 18"],
+  "hashtags_alternative_set": ["#tagA", "#tagB", "... max 18"],
+  "selected_whatsapp": "messaggio broadcast pronto",
+  "selected_gmb_title": "titolo post Google Business",
+  "selected_gmb_text": "testo post Google Business",
+  "selected_story_frames": ["frame1", "frame2", "frame3"],
+  "selected_cta": "CTA locale breve",
+  "selected_posting_time": "giorno + ora locale Italia",
+  "notes_for_owner": "max 2 frasi pratiche"
+}}
+
+Regole:
+- italiano naturale
+- niente markdown
+- niente testo fuori JSON
+- niente placeholder."""
+    raw = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=1800)
+    parsed = extract_json_object(raw)
+
+    if not parsed:
+        log("PUBLISH PACK", "JSON non valido, uso fallback minimale", "warn")
+        return {
+            "selected_caption": "Nuovo arrivo da I Monili Ravenna: passa in negozio per provarlo dal vivo.",
+            "caption_alternatives": [],
+            "selected_hashtags": ["#imoniliravenna", "#ravenna", "#romagnastyle"],
+            "hashtags_alternative_set": [],
+            "selected_whatsapp": "Nuovo arrivo disponibile da I Monili Ravenna. Se vuoi ti mando foto e taglie in chat.",
+            "selected_gmb_title": "Nuovo arrivo in negozio - I Monili Ravenna",
+            "selected_gmb_text": "Prodotto disponibile in boutique, vieni a provarlo in centro a Ravenna.",
+            "selected_story_frames": ["Nuovo arrivo", "Dettaglio prodotto", "Scrivici su WhatsApp"],
+            "selected_cta": "Scrivici su WhatsApp o passa in negozio in centro a Ravenna.",
+            "selected_posting_time": "Martedi ore 19:00",
+            "notes_for_owner": "Pubblica oggi il carousel. Domani richiamo con 2 stories.",
+        }
+
+    parsed["caption_alternatives"] = normalize_string_list(parsed.get("caption_alternatives"), max_items=2)
+    parsed["selected_hashtags"] = normalize_string_list(parsed.get("selected_hashtags"), max_items=18)
+    parsed["hashtags_alternative_set"] = normalize_string_list(parsed.get("hashtags_alternative_set"), max_items=18)
+    parsed["selected_story_frames"] = normalize_string_list(parsed.get("selected_story_frames"), max_items=3)
+    return parsed
+
+
 def agent_hashtag(text_model: str, api_key: str, analisi: str, trend: str) -> str:
     log("HASHTAG", "Costruzione set 30 hashtag in 4 tier...")
     prompt = f"""Sei un esperto di hashtag strategy per Instagram moda/bijoux in Italia.
@@ -663,10 +889,14 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     carousel = ""
     local_visibility = ""
     distribution = ""
+    publish_pack: dict = {}
+    publish_pack_md = ""
     copy = ""
     hashtag = ""
     image_feed = ""
     image_stories = ""
+    carousel_visual_prompts = ""
+    carousel_images: list[str] = []
 
     def safe_write(path: Path, content: str):
         try:
@@ -713,6 +943,30 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         log("CAROUSEL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     try:
+        carousel_visual_prompts = agent_carousel_visual_prompts(
+            selected_text_model,
+            api_key,
+            analisi,
+            strategy,
+            carousel,
+            brief,
+        )
+        safe_write(
+            output_dir / "04_CAROUSEL" / "carousel_visual_prompts.txt",
+            carousel_visual_prompts,
+        )
+        slide_prompts = extract_carousel_slide_prompts(carousel_visual_prompts, max_slides=5)
+        carousel_images = generate_carousel_images(
+            output_dir,
+            api_key,
+            selected_image_model,
+            foto,
+            slide_prompts,
+        )
+    except Exception as e:
+        log("CAROUSEL VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+
+    try:
         local_visibility = agent_local_visibility(selected_text_model, api_key, analisi, strategy, brief)
         safe_write(output_dir / "05_LOCAL_VISIBILITY" / "local_visibility.md", f"# Local Visibility\n\n{local_visibility}")
     except Exception as e:
@@ -723,6 +977,24 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         safe_write(output_dir / "06_DISTRIBUZIONE" / "caption_whatsapp_piano.md", f"# Distribuzione\n\n{distribution}")
     except Exception as e:
         log("DISTRIBUZIONE", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+
+    try:
+        publish_pack = agent_publish_pack(
+            selected_text_model,
+            api_key,
+            analisi,
+            strategy,
+            carousel,
+            local_visibility,
+            distribution,
+            brief,
+        )
+        publish_pack_md = format_publish_pack_markdown(publish_pack)
+        safe_write(output_dir / "06_DISTRIBUZIONE" / "publish_pack.json", json.dumps(publish_pack, indent=2, ensure_ascii=False))
+        safe_write(output_dir / "06_DISTRIBUZIONE" / "publish_pack.md", publish_pack_md)
+        log("PUBLISH PACK", "Output pronto pubblicazione completato", "success")
+    except Exception as e:
+        log("PUBLISH PACK", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     # Backward-compatible legacy outputs while the 2.0 UI migrates.
     copy = distribution
@@ -771,10 +1043,13 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     print(f"Output: {output_dir}", flush=True)
 
     results = {
+        "publish_pack": publish_pack_md,
+        "publish_pack_json": json.dumps(publish_pack, ensure_ascii=False),
         "strategy": f"# Strategia 2.0\n\n{strategy}",
         "analisi": f"# Scheda Prodotto\n\n{analisi}",
         "shooting": f"# Guida Foto Reale\n\n{shooting}",
         "visual_prompts": f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}",
+        "carousel_visual_prompts": carousel_visual_prompts,
         "carousel": f"# Carousel Statici\n\n{carousel}",
         "local_visibility": f"# Local Visibility\n\n{local_visibility}",
         "distribution": f"# Distribuzione\n\n{distribution}",
@@ -785,6 +1060,8 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     }
     for idx, image_path in enumerate(ai_images, start=1):
         results[f"image_ai_{idx}"] = image_path
+    for idx, image_path in enumerate(carousel_images, start=1):
+        results[f"image_carousel_{idx}"] = image_path
     print(f"__RESULTS_JSON__:{json.dumps(results, ensure_ascii=False)}", flush=True)
 
 
