@@ -291,12 +291,53 @@ def normalize_string_list(value: object, max_items: int = 30) -> list[str]:
     return out
 
 
+def to_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "si", "sì", "on"}
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return False
+
+
+def strategy_plan_defaults() -> dict:
+    return {
+        "product_type": "unknown",
+        "primary_output": "single_post",
+        "secondary_output": "story_recall",
+        "needs_carousel": False,
+        "needs_worn_visual": True,
+        "needs_street_visual": True,
+        "visual_count": 3,
+        "visual_focus": ["hero_clean", "worn", "street_context"],
+        "rationale": "Piano fallback: post statico con visual realistici.",
+    }
+
+
+def strategy_plan_summary(plan: dict) -> str:
+    primary = str(plan.get("primary_output", "single_post"))
+    secondary = str(plan.get("secondary_output", "story_recall"))
+    needs_carousel = to_bool(plan.get("needs_carousel"))
+    needs_worn = to_bool(plan.get("needs_worn_visual"))
+    needs_street = to_bool(plan.get("needs_street_visual"))
+    visual_count = int(plan.get("visual_count", 3))
+    visual_focus = normalize_string_list(plan.get("visual_focus"), max_items=8)
+    return (
+        f"primary_output={primary}; secondary_output={secondary}; "
+        f"needs_carousel={needs_carousel}; needs_worn_visual={needs_worn}; "
+        f"needs_street_visual={needs_street}; visual_count={visual_count}; "
+        f"visual_focus={','.join(visual_focus) if visual_focus else '-'}"
+    )
+
+
 def format_publish_pack_markdown(pack: dict) -> str:
     caption = str(pack.get("selected_caption", "")).strip()
     hashtags = normalize_string_list(pack.get("selected_hashtags"), max_items=30)
     whatsapp = str(pack.get("selected_whatsapp", "")).strip()
     gmb_title = str(pack.get("selected_gmb_title", "")).strip()
     gmb_text = str(pack.get("selected_gmb_text", "")).strip()
+    selected_format = str(pack.get("selected_format", "")).strip()
     post_time = str(pack.get("selected_posting_time", "")).strip()
     cta = str(pack.get("selected_cta", "")).strip()
 
@@ -306,6 +347,7 @@ def format_publish_pack_markdown(pack: dict) -> str:
 
     return (
         "# Pronto Da Pubblicare\n\n"
+        f"## Formato Scelto Dallo Strategist\n{selected_format or '-'}\n\n"
         f"## Caption Selezionata\n{caption or '-'}\n\n"
         f"## Hashtag Selezionati\n{hashtags_line or '-'}\n\n"
         f"## WhatsApp Broadcast\n{whatsapp or '-'}\n\n"
@@ -423,6 +465,62 @@ Rispondi in italiano in markdown con queste sezioni:
     return result
 
 
+def agent_strategy_plan(text_model: str, api_key: str, foto: Path, analisi: str, strategy: str, brief: str) -> dict:
+    log("STRATEGIST", "Piano strutturato dinamico (JSON) in corso...")
+    prompt = f"""Sei lo strategist operativo di un'agenzia social per retail locale.
+{BRAND}
+Analisi prodotto: {analisi[:1100]}
+Strategia testuale: {strategy[:1100]}
+Brief: {brief if brief else "Nessun brief"}
+
+Restituisci SOLO JSON valido con queste chiavi:
+{{
+  "product_type": "jewelry|clothing|accessory|other",
+  "primary_output": "single_post|carousel_product|carousel_educational|gmb_post|story_pack",
+  "secondary_output": "single_post|carousel_product|carousel_educational|gmb_post|story_pack",
+  "needs_carousel": true/false,
+  "needs_worn_visual": true/false,
+  "needs_street_visual": true/false,
+  "visual_count": 2-5,
+  "visual_focus": ["hero_clean","worn","street_context","material_closeup","outfit_match","local_store_context"],
+  "rationale": "max 2 frasi"
+}}
+
+Regole:
+- Se prodotto e abbigliamento, normalmente needs_worn_visual=true.
+- Se primary_output non e carousel, needs_carousel=false.
+- Evita output ripetitivo, scegli il formato in base al prodotto.
+- Nessun testo fuori JSON."""
+    raw = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1200)
+    parsed = extract_json_object(raw)
+    if not parsed:
+        log("STRATEGIST", "Piano JSON non valido, uso fallback", "warn")
+        return strategy_plan_defaults()
+
+    base = strategy_plan_defaults()
+    base["product_type"] = str(parsed.get("product_type", base["product_type"])).strip() or base["product_type"]
+    base["primary_output"] = str(parsed.get("primary_output", base["primary_output"])).strip() or base["primary_output"]
+    base["secondary_output"] = str(parsed.get("secondary_output", base["secondary_output"])).strip() or base["secondary_output"]
+    base["needs_carousel"] = to_bool(parsed.get("needs_carousel"))
+    base["needs_worn_visual"] = to_bool(parsed.get("needs_worn_visual"))
+    base["needs_street_visual"] = to_bool(parsed.get("needs_street_visual"))
+    try:
+        base["visual_count"] = max(2, min(5, int(parsed.get("visual_count", base["visual_count"]))))
+    except Exception:
+        pass
+    focus = normalize_string_list(parsed.get("visual_focus"), max_items=8)
+    if focus:
+        base["visual_focus"] = focus
+    base["rationale"] = str(parsed.get("rationale", base["rationale"])).strip() or base["rationale"]
+
+    primary = base["primary_output"]
+    if primary not in {"carousel_product", "carousel_educational"}:
+        base["needs_carousel"] = False
+    if primary in {"carousel_product", "carousel_educational"}:
+        base["needs_carousel"] = True
+    return base
+
+
 def agent_shooting(text_model: str, api_key: str, foto: Path, analisi: str) -> str:
     log("FOTO DIR.", "Direzione foto reale e tagli statici...")
     prompt = f"""Sei un direttore fotografico specializzato in bijoux e accessori moda.
@@ -447,24 +545,32 @@ Stile: luminoso, naturale, autentico, locale."""
     return result
 
 
-def agent_visual_prompts(text_model: str, api_key: str, foto: Path, analisi: str, strategy: str, shooting: str) -> str:
+def agent_visual_prompts(
+    text_model: str,
+    api_key: str,
+    foto: Path,
+    analisi: str,
+    strategy: str,
+    shooting: str,
+    plan: dict,
+) -> str:
     log("VISUAL AI", "Brief fotorealistici per indossato, sfondo e contesto...")
+    plan_summary = strategy_plan_summary(plan)
+    visual_count = max(2, min(5, int(plan.get("visual_count", 3))))
+    focus_list = normalize_string_list(plan.get("visual_focus"), max_items=8)
+    focus_hint = ", ".join(focus_list) if focus_list else "hero_clean, worn, street_context"
     prompt = f"""Sei un art director specializzato in visual AI fotorealistici per piccoli negozi locali.
 {BRAND}
 Analisi prodotto: {analisi[:900]}
 Strategia: {strategy[:900]}
 Guida foto reale: {shooting[:700]}
+Piano strategist: {plan_summary}
 
-Genera 4 prompt in inglese per immagini statiche AI usando la foto caricata come riferimento.
+Genera {visual_count} prompt in inglese per immagini statiche AI usando la foto caricata come riferimento.
 Ogni prompt deve iniziare con "Prompt EN:".
 
 Obiettivo: far vedere il prodotto in contesto reale senza farlo sembrare finto.
-
-Prompt richiesti:
-1. Hero su sfondo pulito e migliore
-2. Indossato realistico (mano/orecchio/collo/modella/manichino in base al prodotto)
-3. Lifestyle quasi Ravenna: luce naturale, centro storico italiano, boutique locale, niente landmark inventati troppo evidenti
-4. Visual per cover carousel
+Focus prioritari richiesti: {focus_hint}
 
 Regole obbligatorie in ogni prompt:
 - preserve the exact product shape, color, material, proportions, texture and distinctive details from the reference photo
@@ -474,7 +580,7 @@ Regole obbligatorie in ogni prompt:
 - no text, no logos, no watermark
 - if worn by a model, use a realistic adult model, natural pose, product visible but not exaggerated
 
-Rispondi solo con i 4 prompt, uno per blocco, senza spiegazioni."""
+Rispondi solo con i prompt richiesti, uno per blocco, senza spiegazioni."""
     result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1600)
     log("VISUAL AI", "Prompt visual controllati pronti", "success")
     return result
@@ -733,13 +839,23 @@ Scrivi in italiano, pratico e pronto da usare."""
     return result
 
 
-def agent_distribution(text_model: str, api_key: str, analisi: str, strategy: str, carousel: str) -> str:
+def agent_distribution(
+    text_model: str,
+    api_key: str,
+    analisi: str,
+    strategy: str,
+    strategy_plan: dict,
+    carousel: str,
+) -> str:
     log("DISTRIBUZIONE", "Caption, WhatsApp e piano 7 giorni...")
+    plan_summary = strategy_plan_summary(strategy_plan)
+    carousel_source = carousel[:900] if carousel else "Nessun carousel: primary output non carousel."
     prompt = f"""Sei una social media manager per piccoli negozi.
 {BRAND}
 Strategia scelta: {strategy[:900]}
+Piano strategist: {plan_summary}
 Analisi prodotto: {analisi[:700]}
-Carousel generato: {carousel[:900]}
+Carousel generato: {carousel_source}
 
 Genera:
 ## INSTAGRAM
@@ -759,7 +875,7 @@ Genera:
 - 3 frame testuali con sticker/interazione suggerita
 
 ## PIANO 7 GIORNI
-- Quando pubblicare il carousel
+- Quando pubblicare il contenuto principale (se carousel ok, altrimenti post statico)
 - Quando fare story di richiamo
 - Quando pubblicare Google Business
 - Come riutilizzare il contenuto senza sembrare ripetitivo"""
@@ -773,16 +889,19 @@ def agent_publish_pack(
     api_key: str,
     analisi: str,
     strategy: str,
+    strategy_plan: dict,
     carousel: str,
     local_visibility: str,
     distribution: str,
     brief: str,
 ) -> dict:
     log("PUBLISH PACK", "Selezione finale pronta da copiare e pubblicare...")
+    plan_summary = strategy_plan_summary(strategy_plan)
     prompt = f"""Sei un social media manager operativo. Devi restituire SOLO un JSON valido.
 {BRAND}
 Analisi: {analisi[:900]}
 Strategia: {strategy[:900]}
+Piano strategist: {plan_summary}
 Carousel: {carousel[:900]}
 Local visibility: {local_visibility[:900]}
 Distribuzione: {distribution[:1200]}
@@ -793,6 +912,7 @@ Seleziona TU la versione migliore, non lasciare indecisione.
 
 Rispondi con un JSON esatto con queste chiavi:
 {{
+  "selected_format": "single_post|carousel_product|carousel_educational|gmb_post|story_pack",
   "selected_caption": "stringa unica pronta Instagram",
   "caption_alternatives": ["stringa opzionale 1", "stringa opzionale 2"],
   "selected_hashtags": ["#tag1", "#tag2", "... max 18"],
@@ -817,6 +937,7 @@ Regole:
     if not parsed:
         log("PUBLISH PACK", "JSON non valido, uso fallback minimale", "warn")
         return {
+            "selected_format": str(strategy_plan.get("primary_output", "single_post")),
             "selected_caption": "Nuovo arrivo da I Monili Ravenna: passa in negozio per provarlo dal vivo.",
             "caption_alternatives": [],
             "selected_hashtags": ["#imoniliravenna", "#ravenna", "#romagnastyle"],
@@ -827,9 +948,12 @@ Regole:
             "selected_story_frames": ["Nuovo arrivo", "Dettaglio prodotto", "Scrivici su WhatsApp"],
             "selected_cta": "Scrivici su WhatsApp o passa in negozio in centro a Ravenna.",
             "selected_posting_time": "Martedi ore 19:00",
-            "notes_for_owner": "Pubblica oggi il carousel. Domani richiamo con 2 stories.",
+            "notes_for_owner": "Pubblica oggi il contenuto principale. Domani richiamo con 2 stories.",
         }
 
+    parsed["selected_format"] = str(parsed.get("selected_format", strategy_plan.get("primary_output", "single_post"))).strip() or str(
+        strategy_plan.get("primary_output", "single_post")
+    )
     parsed["caption_alternatives"] = normalize_string_list(parsed.get("caption_alternatives"), max_items=2)
     parsed["selected_hashtags"] = normalize_string_list(parsed.get("selected_hashtags"), max_items=18)
     parsed["hashtags_alternative_set"] = normalize_string_list(parsed.get("hashtags_alternative_set"), max_items=18)
@@ -883,6 +1007,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     trend = ""
     analisi = ""
     strategy = ""
+    strategy_plan = strategy_plan_defaults()
     shooting = ""
     visual_prompts = ""
     ai_images: list[str] = []
@@ -924,47 +1049,58 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         log("STRATEGIST", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     try:
+        strategy_plan = agent_strategy_plan(selected_text_model, api_key, foto, analisi, strategy, brief)
+        safe_write(output_dir / "02_STRATEGIA" / "strategy_plan.json", json.dumps(strategy_plan, indent=2, ensure_ascii=False))
+        log("STRATEGIST", f"Piano dinamico: {strategy_plan_summary(strategy_plan)}", "data")
+    except Exception as e:
+        log("STRATEGIST", f"ERRORE piano dinamico: {e}\n{traceback.format_exc()}", "warn")
+
+    try:
         shooting = agent_shooting(selected_text_model, api_key, foto, analisi)
         safe_write(output_dir / "03_ASSET_STATICI" / "guida_foto_reale.md", f"# Guida Foto Reale\n\n{shooting}")
     except Exception as e:
         log("FOTO DIR.", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     try:
-        visual_prompts = agent_visual_prompts(selected_text_model, api_key, foto, analisi, strategy, shooting)
+        visual_prompts = agent_visual_prompts(selected_text_model, api_key, foto, analisi, strategy, shooting, strategy_plan)
         safe_write(output_dir / "03_ASSET_STATICI" / "visual_ai_prompts.md", f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}")
         ai_images = agent_visual_gen(output_dir, visual_prompts, selected_image_model, api_key, foto)
     except Exception as e:
         log("VISUAL GEN", f"ERRORE: {e}", "warn")
 
-    try:
-        carousel = agent_carousel(selected_text_model, api_key, analisi, strategy, trend)
-        safe_write(output_dir / "04_CAROUSEL" / "carousel_statici.md", f"# Carousel Statici\n\n{carousel}")
-    except Exception as e:
-        log("CAROUSEL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+    should_generate_carousel = to_bool(strategy_plan.get("needs_carousel"))
+    if should_generate_carousel:
+        try:
+            carousel = agent_carousel(selected_text_model, api_key, analisi, strategy, trend)
+            safe_write(output_dir / "04_CAROUSEL" / "carousel_statici.md", f"# Carousel Statici\n\n{carousel}")
+        except Exception as e:
+            log("CAROUSEL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
-    try:
-        carousel_visual_prompts = agent_carousel_visual_prompts(
-            selected_text_model,
-            api_key,
-            analisi,
-            strategy,
-            carousel,
-            brief,
-        )
-        safe_write(
-            output_dir / "04_CAROUSEL" / "carousel_visual_prompts.txt",
-            carousel_visual_prompts,
-        )
-        slide_prompts = extract_carousel_slide_prompts(carousel_visual_prompts, max_slides=5)
-        carousel_images = generate_carousel_images(
-            output_dir,
-            api_key,
-            selected_image_model,
-            foto,
-            slide_prompts,
-        )
-    except Exception as e:
-        log("CAROUSEL VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+        try:
+            carousel_visual_prompts = agent_carousel_visual_prompts(
+                selected_text_model,
+                api_key,
+                analisi,
+                strategy,
+                carousel,
+                brief,
+            )
+            safe_write(
+                output_dir / "04_CAROUSEL" / "carousel_visual_prompts.txt",
+                carousel_visual_prompts,
+            )
+            slide_prompts = extract_carousel_slide_prompts(carousel_visual_prompts, max_slides=5)
+            carousel_images = generate_carousel_images(
+                output_dir,
+                api_key,
+                selected_image_model,
+                foto,
+                slide_prompts,
+            )
+        except Exception as e:
+            log("CAROUSEL VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+    else:
+        log("CAROUSEL", "Saltato: strategist ha scelto formato non-carousel per questo prodotto.", "data")
 
     try:
         local_visibility = agent_local_visibility(selected_text_model, api_key, analisi, strategy, brief)
@@ -973,7 +1109,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         log("LOCAL SEO", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     try:
-        distribution = agent_distribution(selected_text_model, api_key, analisi, strategy, carousel)
+        distribution = agent_distribution(selected_text_model, api_key, analisi, strategy, strategy_plan, carousel)
         safe_write(output_dir / "06_DISTRIBUZIONE" / "caption_whatsapp_piano.md", f"# Distribuzione\n\n{distribution}")
     except Exception as e:
         log("DISTRIBUZIONE", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
@@ -984,6 +1120,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
             api_key,
             analisi,
             strategy,
+            strategy_plan,
             carousel,
             local_visibility,
             distribution,
@@ -1030,6 +1167,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
                 "text_model": selected_text_model,
                 "image_model": selected_image_model,
                 "strategy": strategy[:1200],
+                "strategy_plan": strategy_plan,
                 "ai_images": ai_images,
             }
         )
@@ -1046,6 +1184,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         "publish_pack": publish_pack_md,
         "publish_pack_json": json.dumps(publish_pack, ensure_ascii=False),
         "strategy": f"# Strategia 2.0\n\n{strategy}",
+        "strategy_plan": json.dumps(strategy_plan, indent=2, ensure_ascii=False),
         "analisi": f"# Scheda Prodotto\n\n{analisi}",
         "shooting": f"# Guida Foto Reale\n\n{shooting}",
         "visual_prompts": f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}",

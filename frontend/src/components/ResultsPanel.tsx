@@ -9,6 +9,7 @@ interface Props {
 
 const SECTIONS = [
   { id: 'publish_pack', label: 'Pronto Pubblicazione', icon: 'P', filename: 'publish_pack.txt', desc: 'Versione finale gia selezionata e pronta da copiare' },
+  { id: 'strategy_plan', label: 'Piano Strategist JSON', icon: 'J', filename: 'strategy_plan.json', desc: 'Decisione dinamica: formato, worn, carousel si/no' },
   { id: 'carousel', label: 'Carousel Testi', icon: 'C', filename: 'carousel_statici.txt', desc: 'Testi slide (solo supporto, non output principale)' },
   { id: 'strategy', label: 'Strategia 2.0', icon: 'S', filename: 'strategia_2_0.txt', desc: 'Scelta strategica usata dal team AI' },
   { id: 'local_visibility', label: 'Local Visibility', icon: 'L', filename: 'local_visibility.txt', desc: 'SEO locale Ravenna e Google Business' },
@@ -16,6 +17,7 @@ const SECTIONS = [
 ];
 
 type PublishPack = {
+  selected_format?: string;
   selected_caption?: string;
   caption_alternatives?: string[];
   selected_hashtags?: string[];
@@ -255,12 +257,13 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
 
   const publishPack = parsePublishPack(results.publish_pack_json);
   const selectedCaption = (publishPack.selected_caption || '').trim();
+  const selectedFormat = (publishPack.selected_format || '').trim();
   const selectedHashtags = Array.isArray(publishPack.selected_hashtags) ? publishPack.selected_hashtags.join(' ') : '';
   const selectedWhatsapp = (publishPack.selected_whatsapp || '').trim();
   const gmbFinal = `${(publishPack.selected_gmb_title || '').trim()}\n\n${(publishPack.selected_gmb_text || '').trim()}`.trim();
   const storyFrames = Array.isArray(publishPack.selected_story_frames) ? publishPack.selected_story_frames : [];
   const storyFinal = storyFrames.map((frame, idx) => `Frame ${idx + 1}: ${frame}`).join('\n');
-  const postingFinal = `${(publishPack.selected_posting_time || '').trim()}\n${(publishPack.selected_cta || '').trim()}`.trim();
+  const postingFinal = `Formato scelto: ${selectedFormat || '-'}\n${(publishPack.selected_posting_time || '').trim()}\n${(publishPack.selected_cta || '').trim()}`.trim();
 
   const hasImages = Boolean(results.image_feed || results.image_stories);
   const carouselImageKeys = Object.keys(results)
