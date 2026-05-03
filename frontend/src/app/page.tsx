@@ -27,6 +27,15 @@ export interface LogEntry {
   type: 'info' | 'success' | 'warn' | 'data';
 }
 
+interface HistoryItem {
+  run_id: string;
+  created_at: string;
+  brief: string;
+  source_photo: string;
+  output_dir: string;
+  selected_format: string;
+}
+
 // â”€â”€ CONFIGURAZIONE AGENTI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const INITIAL_AGENTS: AgentDef[] = [
   { id: 'supervising-agency',    name: 'SUPERVISOR',  role: 'Direttore Creativo', icon: 'S', status: 'offline', progress: 0 },
@@ -159,6 +168,7 @@ const OPENROUTER_IMAGE_MODELS = [
   'black-forest-labs/flux.2-klein-4b',
   'bytedance-seed/seedream-4.5',
 ] as const;
+const ACTIVE_JOB_STORAGE_KEY = 'monili_active_job_id';
 
 // Estrae sezioni di testo dai log grezzi del backend
 function estrai(logs: string, keyword: string): string {
@@ -187,6 +197,10 @@ export default function Home() {
   const [imageModel, setImageModel] = useState('google/gemini-3.1-flash-image-preview');
   const [modelsDialogOpen, setModelsDialogOpen] = useState(false);
   const [checkingOpenRouter, setCheckingOpenRouter] = useState(false);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [currentJobId, setCurrentJobId] = useState('');
   const briefRef = useRef<HTMLTextAreaElement>(null);
 
   // Boot: offline â†’ standby
@@ -212,6 +226,47 @@ export default function Home() {
   const addLog = useCallback((agent: string, msg: string, type: LogEntry['type']) => {
     setLogs(prev => [...prev, { time: now(), agent, msg, type }]);
   }, []);
+
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const res = await fetch(`${API_URL}/missions/history?limit=20`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      setHistoryItems(Array.isArray(data?.items) ? data.items : []);
+    } catch (err) {
+      setHistoryError(`Cronologia non disponibile: ${err}`);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const loadHistoryRun = useCallback(async (runId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/missions/${encodeURIComponent(runId)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      if (!data?.results) throw new Error('Risultati non trovati');
+      setResults(data.results);
+      setMissionState('complete');
+      setOverallProgress(100);
+      setAgents(INITIAL_AGENTS.map(a => ({ ...a, status: 'done', progress: 100 })));
+      addLog('SISTEMA', `Cronologia caricata: ${runId}`, 'success');
+    } catch (err) {
+      addLog('SISTEMA', `Errore caricamento cronologia: ${err}`, 'warn');
+    }
+  }, [addLog]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  useEffect(() => {
+    if (missionState === 'complete') {
+      fetchHistory();
+    }
+  }, [missionState, fetchHistory]);
 
   const handlePhotoSelect = useCallback((file: File, url: string) => {
     setPhoto(file);
@@ -257,6 +312,8 @@ export default function Home() {
       }
       const data = await res.json();
       jobId = data.job_id;
+      setCurrentJobId(jobId);
+      try { localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, jobId); } catch {}
       resolvedTextModel = data.text_model || textModel;
       resolvedImageModel = data.image_model || imageModel;
     } catch (err) {
@@ -324,6 +381,8 @@ export default function Home() {
         if (payload.type === 'status') {
           clearInterval(progressInterval);
           es.close();
+          setCurrentJobId('');
+          try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
 
           if (payload.status === 'done') {
             INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
@@ -372,8 +431,11 @@ export default function Home() {
       const res = await fetch(`${API_URL}/mission/${jobId}/status`);
       const data = await res.json();
       if (data.status === 'running') {
+        setCurrentJobId(jobId);
         setTimeout(() => pollStatus(jobId), 2000);
       } else {
+        setCurrentJobId('');
+        try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
         INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
         setOverallProgress(100);
         if (data.results) setResults(data.results);
@@ -384,6 +446,22 @@ export default function Home() {
       setTimeout(() => pollStatus(jobId), 3000);
     }
   }, [updateAgent, addLog]);
+
+  useEffect(() => {
+    let stored = '';
+    try {
+      stored = localStorage.getItem(ACTIVE_JOB_STORAGE_KEY) || '';
+    } catch {
+      stored = '';
+    }
+    if (!stored) return;
+
+    setMissionState('running');
+    setCurrentJobId(stored);
+    setAgents(prev => prev.map(a => ({ ...a, status: 'standby', progress: 0 })));
+    setLogs(prev => prev.length ? prev : [{ time: now(), agent: 'SISTEMA', msg: `Ripresa missione in corso: ${stored}`, type: 'info' }]);
+    pollStatus(stored);
+  }, [pollStatus]);
 
   const checkOpenRouter = useCallback(async () => {
     setCheckingOpenRouter(true);
@@ -435,6 +513,8 @@ export default function Home() {
     setLogs([]);
     setOverallProgress(0);
     setResults({});
+    setCurrentJobId('');
+    try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
     setCountdown(null);
     setModelsDialogOpen(false);
     setCheckingOpenRouter(false);
@@ -875,6 +955,66 @@ export default function Home() {
 
             {/* Results â€” download center */}
             <ResultsPanel results={results} apiUrl={API_URL} />
+          </div>
+        )}
+
+        {missionState !== 'running' && (
+          <div style={{ marginTop: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Cronologia lavori
+              </div>
+              <button onClick={fetchHistory} className="btn-secondary" style={{ padding: '6px 10px', fontSize: 11 }}>
+                Aggiorna
+              </button>
+            </div>
+
+            <div className="card" style={{ padding: 14 }}>
+              {historyLoading && (
+                <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>Caricamento cronologia...</p>
+              )}
+              {!historyLoading && historyError && (
+                <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--rose-err)' }}>{historyError}</p>
+              )}
+              {!historyLoading && !historyError && historyItems.length === 0 && (
+                <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>
+                  Nessuna missione salvata ancora.
+                </p>
+              )}
+              {!historyLoading && !historyError && historyItems.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {historyItems.map(item => (
+                    <div key={item.run_id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso)' }}>
+                          {item.selected_format || 'formato dinamico'} · {item.source_photo || 'foto prodotto'}
+                        </div>
+                        <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.created_at ? new Date(item.created_at).toLocaleString('it-IT') : '-'} · {item.run_id}
+                        </div>
+                        {item.brief && (
+                          <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-mid)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.brief}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => loadHistoryRun(item.run_id)}
+                        className="btn-secondary"
+                        style={{ padding: '6px 10px', fontSize: 11, flexShrink: 0 }}
+                      >
+                        Apri
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {currentJobId && (
+              <p style={{ margin: '8px 2px 0', fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
+                Missione attiva salvata nel browser: {currentJobId}
+              </p>
+            )}
           </div>
         )}
       </main>

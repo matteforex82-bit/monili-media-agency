@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import traceback
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -990,8 +991,8 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     selected_text_model = select_openrouter_text_model(text_model)
 
     nome = foto.stem.lower().replace(" ", "-")
-    data = datetime.now().strftime("%Y-%m-%d")
-    output_dir = Path(f"output/{data}_{nome}")
+    run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    output_dir = Path(f"output/{run_id}_{nome}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("\nMONILI MEDIA AGENCY - avvio pipeline AI", flush=True)
@@ -1181,6 +1182,8 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     print(f"Output: {output_dir}", flush=True)
 
     results = {
+        "run_id": run_id,
+        "output_dir": output_dir.name,
         "publish_pack": publish_pack_md,
         "publish_pack_json": json.dumps(publish_pack, ensure_ascii=False),
         "strategy": f"# Strategia 2.0\n\n{strategy}",
@@ -1201,6 +1204,21 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         results[f"image_ai_{idx}"] = image_path
     for idx, image_path in enumerate(carousel_images, start=1):
         results[f"image_carousel_{idx}"] = image_path
+
+    # Persist full recoverable manifest for frontend history.
+    manifest = {
+        "run_id": run_id,
+        "created_at": datetime.now().isoformat(),
+        "source_photo": str(foto),
+        "brief": brief,
+        "output_dir": str(output_dir),
+        "text_model": selected_text_model,
+        "image_model": selected_image_model,
+        "status": "done",
+        "results": results,
+    }
+    safe_write(output_dir / "run_manifest.json", json.dumps(manifest, indent=2, ensure_ascii=False))
+
     print(f"__RESULTS_JSON__:{json.dumps(results, ensure_ascii=False)}", flush=True)
 
 

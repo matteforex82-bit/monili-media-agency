@@ -66,6 +66,7 @@ MIME_TO_EXT = {
     "image/heif-sequence": ".heif",
 }
 cleanup_task: asyncio.Task | None = None
+DEFAULT_HISTORY_LIMIT = int(os.environ.get("HISTORY_LIMIT", "20"))
 SUPPORTED_OPENROUTER_IMAGE_MODELS = [
     "google/gemini-3.1-flash-image-preview",
     "black-forest-labs/flux.2-klein-4b",
@@ -111,6 +112,53 @@ def _is_supported_upload(content_type: str, ext: str) -> bool:
         return True
     # Some mobile browsers upload HEIC photos as octet-stream.
     return content_type == "application/octet-stream" and ext in HEIC_EXTENSIONS
+
+
+def _read_run_manifest(manifest_path: Path) -> dict | None:
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            return payload
+    except Exception:
+        return None
+    return None
+
+
+def _collect_history(limit: int = DEFAULT_HISTORY_LIMIT) -> list[dict]:
+    manifests: list[dict] = []
+    for path in OUTPUT_DIR.glob("*/run_manifest.json"):
+        payload = _read_run_manifest(path)
+        if not payload:
+            continue
+        run_id = str(payload.get("run_id", "")).strip()
+        output_dir = str(payload.get("output_dir", "")).strip()
+        if not run_id or not output_dir:
+            continue
+        created_at = str(payload.get("created_at", "")).strip()
+        brief = str(payload.get("brief", "")).strip()
+        source_photo = str(payload.get("source_photo", "")).strip()
+        results = payload.get("results")
+        selected_format = ""
+        if isinstance(results, dict):
+            try:
+                pack = json.loads(str(results.get("publish_pack_json", "{}")))
+                if isinstance(pack, dict):
+                    selected_format = str(pack.get("selected_format", "")).strip()
+            except Exception:
+                selected_format = ""
+        manifests.append(
+            {
+                "run_id": run_id,
+                "created_at": created_at,
+                "brief": brief,
+                "source_photo": Path(source_photo).name if source_photo else "",
+                "output_dir": Path(output_dir).name,
+                "selected_format": selected_format,
+            }
+        )
+
+    manifests.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+    return manifests[: max(1, min(limit, 100))]
 
 
 def _convert_heic_to_jpeg(source: Path) -> Path:
@@ -335,6 +383,9 @@ async def _run_mission(job_id: str, foto_path: Path, brief: str, image_model: st
         if text.startswith("__RESULTS_JSON__:"):
             try:
                 job["results"] = json.loads(text[len("__RESULTS_JSON__:"):])
+                if isinstance(job["results"], dict):
+                    job["output_dir"] = job["results"].get("output_dir")
+                    job["run_id"] = job["results"].get("run_id")
                 job["last_update"] = datetime.now().isoformat()
             except Exception:
                 pass
@@ -414,6 +465,31 @@ def get_status(job_id: str):
         "logs": job["logs"],
         "results": job.get("results"),
     }
+
+
+@app.get("/missions/history")
+def missions_history(limit: int = DEFAULT_HISTORY_LIMIT):
+    return {"items": _collect_history(limit=limit)}
+
+
+@app.get("/missions/{run_id}")
+def mission_by_run_id(run_id: str):
+    run_id = run_id.strip()
+    if not run_id:
+        return JSONResponse({"error": "run_id mancante"}, status_code=400)
+
+    for path in OUTPUT_DIR.glob("*/run_manifest.json"):
+        payload = _read_run_manifest(path)
+        if not payload:
+            continue
+        if str(payload.get("run_id", "")).strip() == run_id:
+            return {
+                "run_id": run_id,
+                "status": payload.get("status", "done"),
+                "created_at": payload.get("created_at"),
+                "results": payload.get("results", {}),
+            }
+    return JSONResponse({"error": "Run non trovato"}, status_code=404)
 
 
 if __name__ == "__main__":
