@@ -147,7 +147,7 @@ const SIMULATION: Array<{
 ];
 
 // â”€â”€ CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-media-agency.onrender.com';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-backend.onrender.com';
 const OPENROUTER_TEXT_MODELS = [
   'openai/gpt-4.1-mini',
   'google/gemini-2.5-flash',
