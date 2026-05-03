@@ -251,13 +251,16 @@ export default function Home() {
     let resolvedImageModel = imageModel;
     try {
       const res = await fetch(`${API_URL}/mission/start`, { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || `HTTP ${res.status}`);
+      }
       const data = await res.json();
       jobId = data.job_id;
       resolvedTextModel = data.text_model || textModel;
       resolvedImageModel = data.image_model || imageModel;
     } catch (err) {
-      addLog('SISTEMA', `Errore connessione backend: ${err}`, 'warn');
+      addLog('SISTEMA', `Errore avvio missione: ${err}`, 'warn');
       setMissionState('error');
       return;
     }

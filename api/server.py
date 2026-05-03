@@ -247,6 +247,12 @@ async def start_mission(
     """Avvia una nuova missione. Salva la foto e lancia il processo."""
     selected_image_model = image_model.strip() if image_model.strip() else DEFAULT_OPENROUTER_IMAGE_MODEL
     selected_text_model = text_model.strip() if text_model.strip() else DEFAULT_OPENROUTER_TEXT_MODEL
+    if not os.environ.get("OPENROUTER_API_KEY", "").strip():
+        return JSONResponse(
+            {"error": "OPENROUTER_API_KEY non configurata su Render."},
+            status_code=400,
+        )
+
     job_id = str(uuid.uuid4())[:8]
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
