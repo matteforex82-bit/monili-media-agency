@@ -53,7 +53,7 @@ export default function TerminalLog({ logs }: Props) {
             alignItems: 'center',
             gap: 8,
           }}>
-            <span className="spin-slow" style={{ display: 'inline-block' }}>⟳</span>
+            <span className="spin-slow" style={{ display: 'inline-block' }}>...</span>
             Avvio del team in corso...
           </div>
         )}

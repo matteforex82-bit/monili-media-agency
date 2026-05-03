@@ -13,7 +13,9 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
   const [isDragging, setIsDragging] = useState(false);
 
   const handleFile = useCallback((file: File) => {
-    if (!file.type.startsWith('image/')) return;
+    const lowerName = file.name.toLowerCase();
+    const isHeic = lowerName.endsWith('.heic') || lowerName.endsWith('.heif');
+    if (!file.type.startsWith('image/') && !isHeic) return;
     const url = URL.createObjectURL(file);
     onFile(file, url);
   }, [onFile]);
@@ -65,7 +67,7 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
               alignItems: 'center',
               gap: 5,
             }}>
-              ✓ Foto caricata
+              Foto caricata
             </div>
             <div style={{
               fontFamily: 'DM Mono',
@@ -110,7 +112,7 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
     >
-      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onInputChange} />
+      <input type="file" accept="image/*,.heic,.heif" style={{ display: 'none' }} onChange={onInputChange} />
 
       {/* Camera icon */}
       <div style={{
@@ -126,7 +128,7 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
         transition: 'all 0.3s cubic-bezier(0.16,1,0.3,1)',
         boxShadow: isDragging ? '0 0 0 6px var(--terracotta-pale)' : 'none',
       }}>
-        {isDragging ? '⬇️' : '📷'}
+        {isDragging ? 'DROP' : 'FOTO'}
       </div>
 
       <div>
@@ -147,7 +149,7 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
           </span>
         </div>
         <div style={{ fontSize: 11, color: 'var(--cream-border)', marginTop: 8, letterSpacing: '0.08em' }}>
-          JPG · PNG · WEBP
+          JPG / PNG / WEBP / HEIC iPhone
         </div>
       </div>
     </label>

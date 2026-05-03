@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 
@@ -8,11 +8,13 @@ interface Props {
 }
 
 const SECTIONS = [
-  { id: 'copy',     label: 'Caption Instagram',  icon: '✍️', filename: 'caption.txt',          desc: '3 varianti pronte da pubblicare' },
-  { id: 'hashtag',  label: 'Hashtag — Set 30',   icon: '#',  filename: 'hashtag.txt',           desc: '30 hashtag in 4 tier + strategia' },
-  { id: 'reel',     label: 'Script Reel',         icon: '🎬', filename: 'script_reel.txt',       desc: 'Frame by frame + audio consigliato' },
-  { id: 'analisi',  label: 'Analisi Prodotto',    icon: '🔍', filename: 'analisi_prodotto.txt',  desc: 'Scheda completa + mood + strategia' },
-  { id: 'shooting', label: 'Prompt Shooting AI',  icon: '📷', filename: 'shooting_prompts.txt', desc: '8 prompt per Midjourney / DALL-E' },
+  { id: 'strategy',         label: 'Strategia 2.0',    icon: 'S', filename: 'strategia_2_0.txt',    desc: 'Obiettivo, formato, canali e angolo locale' },
+  { id: 'carousel',         label: 'Carousel Statici', icon: 'C', filename: 'carousel_statici.txt', desc: 'Carousel prodotto e informativo pronti da impaginare' },
+  { id: 'local_visibility', label: 'Local Visibility', icon: 'L', filename: 'local_visibility.txt', desc: 'Google Business, sito vetrina, SEO locale e AI search' },
+  { id: 'distribution',     label: 'Distribuzione',    icon: 'D', filename: 'distribuzione.txt',    desc: 'Caption, hashtag, WhatsApp, Stories e piano 7 giorni' },
+  { id: 'visual_prompts',   label: 'Prompt Visual AI', icon: 'V', filename: 'prompt_visual_ai.txt', desc: 'Brief fotorealistici per indossato, sfondo e contesto' },
+  { id: 'shooting',         label: 'Guida Foto Reale', icon: 'F', filename: 'guida_foto_reale.txt', desc: 'Scatti reali, tagli e visual per post/carousel/GMB' },
+  { id: 'analisi',          label: 'Analisi Prodotto', icon: 'A', filename: 'analisi_prodotto.txt', desc: 'Scheda completa, mood, occasione e posizionamento' },
 ];
 
 function downloadBlob(content: string, filename: string) {
@@ -67,14 +69,14 @@ function ContentCard({
             className="btn-secondary"
             style={{ padding: '5px 12px', fontSize: 11 }}
           >
-            {copied ? '✓ Copiato' : '⎘ Copia'}
+            {copied ? 'Copiato' : 'Copia'}
           </button>
           <button
             onClick={() => downloadBlob(content, filename)}
             className="btn-secondary"
             style={{ padding: '5px 12px', fontSize: 11 }}
           >
-            ↓ .txt
+            .txt
           </button>
         </div>
       </div>
@@ -95,7 +97,7 @@ function ContentCard({
               overflow: 'hidden',
             }}>
               {expanded ? content : preview}
-              {!expanded && hasMore && '…'}
+              {!expanded && hasMore && '...'}
             </pre>
             {hasMore && (
               <button
@@ -112,7 +114,7 @@ function ContentCard({
                   padding: 0,
                 }}
               >
-                {expanded ? '↑ Mostra meno' : '↓ Leggi tutto'}
+                {expanded ? 'Mostra meno' : 'Leggi tutto'}
               </button>
             )}
           </>
@@ -128,11 +130,49 @@ function ContentCard({
 
 export default function ResultsPanel({ results, apiUrl }: Props) {
   const hasImages = results.image_feed || results.image_stories;
+  const aiImageKeys = Object.keys(results)
+    .filter(key => key.startsWith('image_ai_') && results[key])
+    .sort((a, b) => Number(a.replace('image_ai_', '')) - Number(b.replace('image_ai_', '')));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* ── IMMAGINI OTTIMIZZATE ── */}
+      {aiImageKeys.length > 0 && (
+        <div>
+          <div style={{
+            fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700,
+            textTransform: 'uppercase', letterSpacing: '0.10em',
+            color: 'var(--terracotta-dark)', marginBottom: 14,
+          }}>
+            Visual AI fotorealistici
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {aiImageKeys.map((key, index) => (
+              <div key={key} className="card" style={{ flex: '1 1 220px', padding: 16, textAlign: 'center', minWidth: 0 }}>
+                <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+                  Visual {index + 1}
+                </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`${apiUrl}/files/${results[key]}`}
+                  alt={`Visual AI ${index + 1}`}
+                  style={{ width: '100%', maxWidth: 220, borderRadius: 10, border: '1px solid var(--border)', display: 'block', margin: '0 auto 12px' }}
+                />
+                <a
+                  href={`${apiUrl}/files/${results[key]}`}
+                  download={`visual_ai_${index + 1}.png`}
+                  className="btn-mission"
+                  style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
+                >
+                  Scarica Visual
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* â”€â”€ IMMAGINI OTTIMIZZATE â”€â”€ */}
       {hasImages && (
         <div>
           <div style={{
@@ -147,7 +187,7 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
             {results.image_feed && (
               <div className="card" style={{ flex: '1 1 200px', padding: 16, textAlign: 'center', minWidth: 0 }}>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-                  Feed 1:1 — 1080×1080
+                  Feed 1:1 - 1080x1080
                 </div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -161,7 +201,7 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
                   className="btn-mission"
                   style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
                 >
-                  ↓ Scarica Feed
+                  Scarica Feed
                 </a>
               </div>
             )}
@@ -169,7 +209,7 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
             {results.image_stories && (
               <div className="card" style={{ flex: '0 1 160px', padding: 16, textAlign: 'center', minWidth: 0 }}>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-                  Stories 9:16 — 1080×1920
+                  Stories 9:16 - 1080x1920
                 </div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -183,7 +223,7 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
                   className="btn-mission"
                   style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
                 >
-                  ↓ Scarica Stories
+                  Scarica Stories
                 </a>
               </div>
             )}
@@ -191,7 +231,7 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
         </div>
       )}
 
-      {/* ── TESTI ── */}
+      {/* â”€â”€ TESTI â”€â”€ */}
       <div>
         <div style={{
           fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700,
@@ -210,3 +250,4 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
     </div>
   );
 }
+

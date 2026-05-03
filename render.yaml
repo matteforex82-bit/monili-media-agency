@@ -9,7 +9,15 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: IMAGE_GENERATOR
-        value: manual
+        value: openrouter
+      - key: OPENROUTER_TEXT_MODEL
+        value: openai/gpt-4.1-mini
+      - key: OPENROUTER_IMAGE_MODEL
+        value: google/gemini-3.1-flash-image-preview
+      - key: MAX_AI_VISUALS
+        value: "1"
+      - key: MAX_UPLOAD_BYTES
+        value: "26214400"
 
   - type: web
     name: monili-frontend

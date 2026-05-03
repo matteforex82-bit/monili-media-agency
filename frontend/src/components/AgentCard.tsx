@@ -42,7 +42,7 @@ export default function AgentCard({ agent }: Props) {
           filter: isStandby ? 'grayscale(0.7) opacity(0.6)' : 'none',
           transition: 'filter 0.3s',
         }}>
-          {isDone ? '✅' : icon}
+          {isDone ? 'OK' : icon}
         </span>
         <span style={{
           width: 7,
@@ -111,7 +111,7 @@ export default function AgentCard({ agent }: Props) {
         gap: 4,
       }}>
         {isActive && (
-          <span className="spin-slow" style={{ display: 'inline-block', fontSize: 10 }}>⟳</span>
+          <span className="spin-slow" style={{ display: 'inline-block', fontSize: 10 }}>...</span>
         )}
         {STATUS_LABEL[status]}
       </div>

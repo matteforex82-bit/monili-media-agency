@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import AgentCard from '@/components/AgentCard';
@@ -6,7 +6,7 @@ import TerminalLog from '@/components/TerminalLog';
 import PhotoDropzone from '@/components/PhotoDropzone';
 import ResultsPanel from '@/components/ResultsPanel';
 
-// ── TIPI ─────────────────────────────────────────────────────────
+// â”€â”€ TIPI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export type AgentStatus = 'offline' | 'standby' | 'active' | 'done' | 'error';
 export type MissionState = 'idle' | 'running' | 'complete' | 'error';
 
@@ -27,21 +27,22 @@ export interface LogEntry {
   type: 'info' | 'success' | 'warn' | 'data';
 }
 
-// ── CONFIGURAZIONE AGENTI ──────────────────────────────────────────
+// â”€â”€ CONFIGURAZIONE AGENTI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const INITIAL_AGENTS: AgentDef[] = [
-  { id: 'supervising-agency',    name: 'SUPERVISOR',  role: 'Direttore Creativo', icon: '🎯', status: 'offline', progress: 0 },
-  { id: 'researching-trends',    name: 'TREND',       role: 'Intelligence P/E',   icon: '📊', status: 'offline', progress: 0 },
-  { id: 'analyzing-products',    name: 'ANALISTA',    role: 'Vision AI',          icon: '🔍', status: 'offline', progress: 0 },
-  { id: 'directing-photography', name: 'FOTO DIR.',   role: 'Shooting AI',        icon: '📷', status: 'offline', progress: 0 },
-  { id: 'generating-visuals',    name: 'VISUAL GEN',  role: 'Image AI',           icon: '✨', status: 'offline', progress: 0 },
-  { id: 'directing-reels',       name: 'REEL DIR.',   role: 'Video AI',           icon: '🎬', status: 'offline', progress: 0 },
-  { id: 'writing-copy',          name: 'COPY',        role: 'Testi & Caption',    icon: '📝', status: 'offline', progress: 0 },
-  { id: 'optimizing-hashtags',   name: 'HASHTAG',     role: 'Strategy',           icon: '📌', status: 'offline', progress: 0 },
-  { id: 'optimizing-photos',     name: 'FOTO OTT.',   role: 'Foto Instagram',     icon: '🖼️', status: 'offline', progress: 0 },
-  { id: 'updating-memory',       name: 'MEMORIA',     role: 'Auto-Learning',      icon: '🧠', status: 'offline', progress: 0 },
+  { id: 'supervising-agency',    name: 'SUPERVISOR',  role: 'Direttore Creativo', icon: 'S', status: 'offline', progress: 0 },
+  { id: 'researching-trends',    name: 'TREND',       role: 'Intelligence P/E',   icon: 'T', status: 'offline', progress: 0 },
+  { id: 'analyzing-products',    name: 'ANALISTA',    role: 'Vision AI',          icon: 'A', status: 'offline', progress: 0 },
+  { id: 'planning-strategy',     name: 'STRATEGIST',  role: 'Scelta formato',     icon: 'S', status: 'offline', progress: 0 },
+  { id: 'directing-photography', name: 'FOTO DIR.',   role: 'Foto reali',         icon: 'F', status: 'offline', progress: 0 },
+  { id: 'visual-ai',             name: 'VISUAL AI',   role: 'Try-on realistico',  icon: 'V', status: 'offline', progress: 0 },
+  { id: 'planning-carousel',     name: 'CAROUSEL',    role: 'Statici utili',      icon: 'C', status: 'offline', progress: 0 },
+  { id: 'local-visibility',      name: 'LOCAL SEO',   role: 'Ravenna & AI search', icon: 'L', status: 'offline', progress: 0 },
+  { id: 'distribution-plan',     name: 'DISTRIB.',    role: 'Caption & canali',   icon: 'D', status: 'offline', progress: 0 },
+  { id: 'optimizing-photos',     name: 'FOTO OTT.',   role: 'Foto Instagram',     icon: 'O', status: 'offline', progress: 0 },
+  { id: 'updating-memory',       name: 'MEMORIA',     role: 'Auto-Learning',      icon: 'M', status: 'offline', progress: 0 },
 ];
 
-// ── SIMULAZIONE ───────────────────────────────────────────────────
+// â”€â”€ SIMULAZIONE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SIMULATION: Array<{
   agentIdx: number;
   duration: number;
@@ -60,7 +61,7 @@ const SIMULATION: Array<{
       { delay: 0,    msg: 'Ricerca trend hashtag bijoux Italia P/E 2026...', type: 'info' },
       { delay: 800,  msg: '#bijouxdonna +340% reach ultimi 7gg', type: 'data' },
       { delay: 1400, msg: '#gioiellihandmade trending su Reel Italia', type: 'data' },
-      { delay: 2000, msg: 'Audio Reel top: "Espresso" — Sabrina Carpenter (↑ moda)', type: 'data' },
+      { delay: 2000, msg: 'Audio Reel top: "Espresso" â€” Sabrina Carpenter (â†‘ moda)', type: 'data' },
       { delay: 2800, msg: 'Competitor Ravenna: 3 negozi analizzati', type: 'data' },
       { delay: 3200, msg: 'Intelligence completata. Dati pronti per team.', type: 'success' },
     ],
@@ -72,7 +73,7 @@ const SIMULATION: Array<{
       { delay: 600,  msg: 'Prodotto identificato: Orecchini a cerchio dorati', type: 'data' },
       { delay: 1100, msg: 'Materiale: metallo dorato, superficie liscia', type: 'data' },
       { delay: 1600, msg: 'Colori: #D4AF37 (78%), #FAD5A5 (22%)', type: 'data' },
-      { delay: 2000, msg: 'Mood: elegante minimal, boho chic — Stagione: P/E 2026', type: 'data' },
+      { delay: 2000, msg: 'Mood: elegante minimal, boho chic â€” Stagione: P/E 2026', type: 'data' },
       { delay: 2400, msg: 'Formato consigliato: REEL (impatto visivo alto)', type: 'success' },
     ],
   },
@@ -80,11 +81,11 @@ const SIMULATION: Array<{
     agentIdx: 3, duration: 3000,
     logs: [
       { delay: 0,    msg: 'Generazione 8 prompt shooting professionali...', type: 'info' },
-      { delay: 500,  msg: '[1/8] Hero shot — sfondo neutro bianco, studio lighting', type: 'data' },
-      { delay: 900,  msg: '[2/8] Vista 3/4 — angolazione 45°, soft shadows', type: 'data' },
-      { delay: 1300, msg: '[3/8] Close-up texture — macro, bokeh background', type: 'data' },
-      { delay: 1700, msg: '[4/8] Modella — lifestyle, centro storico Ravenna', type: 'data' },
-      { delay: 2100, msg: '[5/8] Flat lay P/E — abbinamenti fiori, tessuti leggeri', type: 'data' },
+      { delay: 500,  msg: '[1/8] Hero shot â€” sfondo neutro bianco, studio lighting', type: 'data' },
+      { delay: 900,  msg: '[2/8] Vista 3/4 â€” angolazione 45Â°, soft shadows', type: 'data' },
+      { delay: 1300, msg: '[3/8] Close-up texture â€” macro, bokeh background', type: 'data' },
+      { delay: 1700, msg: '[4/8] Modella â€” lifestyle, centro storico Ravenna', type: 'data' },
+      { delay: 2100, msg: '[5/8] Flat lay P/E â€” abbinamenti fiori, tessuti leggeri', type: 'data' },
       { delay: 2600, msg: '8 prompt con image reference pronti per Gemini/MJ', type: 'success' },
     ],
   },
@@ -102,9 +103,9 @@ const SIMULATION: Array<{
     agentIdx: 5, duration: 2500,
     logs: [
       { delay: 0,    msg: 'Struttura Reel: hook 3s + 3 scene + CTA', type: 'info' },
-      { delay: 600,  msg: '[Frame 1] Hook: "Questi orecchini valgono una serata..." — testo bold', type: 'data' },
+      { delay: 600,  msg: '[Frame 1] Hook: "Questi orecchini valgono una serata..." â€” testo bold', type: 'data' },
       { delay: 1100, msg: '[Frame 2-4] Product scenes con audio "Espresso"', type: 'data' },
-      { delay: 1700, msg: '[Frame 5] CTA: "Trovali solo da noi · Ravenna centro"', type: 'data' },
+      { delay: 1700, msg: '[Frame 5] CTA: "Trovali solo da noi Â· Ravenna centro"', type: 'data' },
       { delay: 2200, msg: 'Script + 5 frame prompt AI generati', type: 'success' },
     ],
   },
@@ -112,9 +113,9 @@ const SIMULATION: Array<{
     agentIdx: 6, duration: 2200,
     logs: [
       { delay: 0,    msg: 'Scrittura 3 varianti caption...', type: 'info' },
-      { delay: 700,  msg: '[Casual] "Questi orecchini hanno già scelto il tuo outfit 🌿"', type: 'data' },
+      { delay: 700,  msg: '[Casual] "Questi orecchini hanno giÃ  scelto il tuo outfit ðŸŒ¿"', type: 'data' },
       { delay: 1200, msg: '[Elegante] "Oro che accarezza. Luce che racconta."', type: 'data' },
-      { delay: 1700, msg: '[Urgency] "Nuovi arrivi — solo pochi pezzi disponibili ✨"', type: 'data' },
+      { delay: 1700, msg: '[Urgency] "Nuovi arrivi â€” solo pochi pezzi disponibili âœ¨"', type: 'data' },
       { delay: 2000, msg: 'Stories, WhatsApp, GMB pronti', type: 'success' },
     ],
   },
@@ -145,8 +146,19 @@ const SIMULATION: Array<{
   },
 ];
 
-// ── CONFIG ────────────────────────────────────────────────────────
+// â”€â”€ CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-media-agency.onrender.com';
+const OPENROUTER_TEXT_MODELS = [
+  'openai/gpt-4.1-mini',
+  'google/gemini-2.5-flash',
+  'google/gemini-2.5-pro',
+  'anthropic/claude-3.7-sonnet',
+] as const;
+const OPENROUTER_IMAGE_MODELS = [
+  'google/gemini-3.1-flash-image-preview',
+  'black-forest-labs/flux.2-klein-4b',
+  'bytedance-seed/seedream-4.5',
+] as const;
 
 // Estrae sezioni di testo dai log grezzi del backend
 function estrai(logs: string, keyword: string): string {
@@ -155,12 +167,12 @@ function estrai(logs: string, keyword: string): string {
   return relevant.length > 0 ? relevant.join('\n') : '';
 }
 
-// ── HELPER ────────────────────────────────────────────────────────
+// â”€â”€ HELPER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function now() {
   return new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
-// ── COMPONENTE PRINCIPALE ─────────────────────────────────────────
+// â”€â”€ COMPONENTE PRINCIPALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Home() {
   const [missionState, setMissionState] = useState<MissionState>('idle');
   const [photo, setPhoto] = useState<File | null>(null);
@@ -171,15 +183,27 @@ export default function Home() {
   const [overallProgress, setOverallProgress] = useState(0);
   const [results, setResults] = useState<Record<string, string>>({});
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [textModel, setTextModel] = useState('openai/gpt-4.1-mini');
+  const [imageModel, setImageModel] = useState('google/gemini-3.1-flash-image-preview');
+  const [modelsDialogOpen, setModelsDialogOpen] = useState(false);
+  const [checkingOpenRouter, setCheckingOpenRouter] = useState(false);
   const briefRef = useRef<HTMLTextAreaElement>(null);
 
-  // Boot: offline → standby
+  // Boot: offline â†’ standby
   useEffect(() => {
     const t = setTimeout(() => {
       setAgents(prev => prev.map(a => ({ ...a, status: 'standby' })));
     }, 600);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(photoPreview);
+      }
+    };
+  }, [photoPreview]);
 
   const updateAgent = useCallback((idx: number, patch: Partial<AgentDef>) => {
     setAgents(prev => prev.map((a, i) => i === idx ? { ...a, ...patch } : a));
@@ -189,23 +213,49 @@ export default function Home() {
     setLogs(prev => [...prev, { time: now(), agent, msg, type }]);
   }, []);
 
+  const handlePhotoSelect = useCallback((file: File, url: string) => {
+    setPhoto(file);
+    setPhotoPreview(prev => {
+      if (prev?.startsWith('blob:')) {
+        URL.revokeObjectURL(prev);
+      }
+      return url;
+    });
+  }, []);
+
+  const handlePhotoClear = useCallback(() => {
+    setPhoto(null);
+    setPhotoPreview(prev => {
+      if (prev?.startsWith('blob:')) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
+  }, []);
+
   const runReal = useCallback(async () => {
     if (!photo) return;
     setMissionState('running');
     setLogs([]);
     setOverallProgress(0);
 
-    // ── Invia foto + brief al backend ──
+    // â”€â”€ Invia foto + brief al backend â”€â”€
     const formData = new FormData();
     formData.append('foto', photo);
     formData.append('brief', brief);
+    formData.append('text_model', textModel);
+    formData.append('image_model', imageModel);
 
     let jobId: string;
+    let resolvedTextModel = textModel;
+    let resolvedImageModel = imageModel;
     try {
       const res = await fetch(`${API_URL}/mission/start`, { method: 'POST', body: formData });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       jobId = data.job_id;
+      resolvedTextModel = data.text_model || textModel;
+      resolvedImageModel = data.image_model || imageModel;
     } catch (err) {
       addLog('SISTEMA', `Errore connessione backend: ${err}`, 'warn');
       setMissionState('error');
@@ -213,13 +263,15 @@ export default function Home() {
     }
 
     addLog('SISTEMA', `Missione avviata (job: ${jobId})`, 'info');
+    addLog('SISTEMA', `Modello testo: ${resolvedTextModel}`, 'data');
+    addLog('SISTEMA', `Modello immagini: ${resolvedImageModel}`, 'data');
 
-    // ── SSE stream: aggiornamenti in tempo reale ──
+    // â”€â”€ SSE stream: aggiornamenti in tempo reale â”€â”€
     const agentKeywords: [string, number][] = [
       ['SUPERVISOR',    0], ['Trend',       1], ['Analisi',  2],
-      ['SHOOTING',      3], ['Gemini',      4], ['Reel',     5],
-      ['Caption',       6], ['Hashtag',     7], ['FOTO OTT', 8],
-      ['performance',   9],
+      ['STRATEGIST',    3], ['FOTO DIR',    4], ['VISUAL',   5],
+      ['CAROUSEL',      6], ['LOCAL SEO',   7], ['DISTRIBUZIONE', 8],
+      ['FOTO OTT',      9], ['performance', 10],
     ];
 
     let currentAgentIdx = 0;
@@ -246,7 +298,7 @@ export default function Home() {
         if (payload.type === 'log') {
           const msg: string = payload.msg;
 
-          // Rileva quale agente è attivo dal testo del log
+          // Rileva quale agente Ã¨ attivo dal testo del log
           for (const [keyword, idx] of agentKeywords) {
             if (msg.toLowerCase().includes(keyword.toLowerCase()) && idx !== currentAgentIdx) {
               updateAgent(currentAgentIdx, { status: 'done', progress: 100 });
@@ -259,9 +311,9 @@ export default function Home() {
 
           // Classifica il tipo di log
           const type: LogEntry['type'] =
-            msg.includes('✅') || msg.includes('completat') ? 'success' :
-            msg.includes('❌') || msg.includes('errore')    ? 'warn'    :
-            msg.match(/#\w+|trend|reach|\d+€/)             ? 'data'    : 'info';
+            msg.includes('[OK]') || msg.includes('completat') ? 'success' :
+            msg.toLowerCase().includes('errore')              ? 'warn'    :
+            msg.match(/#\w+|trend|reach|\d+\s?(EUR|euro)/i)   ? 'data'    : 'info';
 
           addLog(INITIAL_AGENTS[currentAgentIdx]?.name || 'SISTEMA', msg, type);
         }
@@ -283,11 +335,12 @@ export default function Home() {
                   // fallback se results non disponibili
                   setResults({
                     analisi:  '# Analisi completata\nVedi cartella output sul server.',
-                    shooting: '# Prompt shooting generati\nVedi cartella output sul server.',
-                    reel:     '# Script Reel generato\nVedi cartella output sul server.',
-                    copy:     '# Copy generato\nVedi cartella output sul server.',
-                    hashtag:  '# Hashtag generati\nVedi cartella output sul server.',
-                    piano:    '# Piano editoriale generato\nVedi cartella output sul server.',
+                    strategy: '# Strategia 2.0 completata\nVedi cartella output sul server.',
+                    shooting: '# Guida foto reale generata\nVedi cartella output sul server.',
+                    visual_prompts: '# Prompt visual AI generati\nVedi cartella output sul server.',
+                    carousel: '# Carousel statici generati\nVedi cartella output sul server.',
+                    local_visibility: '# Local visibility generata\nVedi cartella output sul server.',
+                    distribution: '# Caption, WhatsApp e piano generati\nVedi cartella output sul server.',
                   });
                 }
                 setMissionState('complete');
@@ -309,7 +362,7 @@ export default function Home() {
       // Polling fallback se SSE non supportato
       setTimeout(() => pollStatus(jobId), 2000);
     };
-  }, [photo, brief, updateAgent, addLog]);
+  }, [photo, brief, textModel, imageModel, updateAgent, addLog]);
 
   const pollStatus = useCallback(async (jobId: string) => {
     try {
@@ -329,6 +382,33 @@ export default function Home() {
     }
   }, [updateAgent, addLog]);
 
+  const checkOpenRouter = useCallback(async () => {
+    setCheckingOpenRouter(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/openrouter/check?image_model=${encodeURIComponent(imageModel)}&text_model=${encodeURIComponent(textModel)}`
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        addLog('VISUAL GEN', `OpenRouter KO: ${data.error || `HTTP ${res.status}`}`, 'warn');
+      } else if (data.image_model_supported && data.text_model_supported) {
+        addLog('SISTEMA', `OpenRouter OK. Text: ${data.selected_text_model}`, 'success');
+        addLog('SISTEMA', `OpenRouter OK. Image: ${data.selected_image_model}`, 'success');
+      } else {
+        if (!data.text_model_supported) {
+          addLog('SISTEMA', `Modello testo non trovato su OpenRouter: ${data.selected_text_model}`, 'warn');
+        }
+        if (!data.image_model_supported) {
+          addLog('VISUAL GEN', `Modello immagini non trovato su OpenRouter: ${data.selected_image_model}`, 'warn');
+        }
+      }
+    } catch (err) {
+      addLog('VISUAL GEN', `Errore check OpenRouter: ${err}`, 'warn');
+    } finally {
+      setCheckingOpenRouter(false);
+    }
+  }, [imageModel, textModel, addLog]);
+
   const handleLaunch = useCallback(() => {
     if (!photo) return;
     setCountdown(3);
@@ -342,12 +422,21 @@ export default function Home() {
   const handleReset = useCallback(() => {
     setMissionState('idle');
     setPhoto(null);
-    setPhotoPreview(null);
+    setPhotoPreview(prev => {
+      if (prev?.startsWith('blob:')) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
     setBrief('');
     setLogs([]);
     setOverallProgress(0);
     setResults({});
     setCountdown(null);
+    setModelsDialogOpen(false);
+    setCheckingOpenRouter(false);
+    setTextModel('openai/gpt-4.1-mini');
+    setImageModel('google/gemini-3.1-flash-image-preview');
     setAgents(INITIAL_AGENTS.map(a => ({ ...a, status: 'standby' })));
   }, []);
 
@@ -357,13 +446,29 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col">
 
-      {/* ── HEADER ─────────────────────────────────────────────── */}
+      {/* â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <header className="app-header sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
 
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>💎</span>
+            <span style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              border: '1px solid var(--terracotta-light)',
+              background: 'var(--terracotta-pale)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'DM Sans',
+              fontSize: 12,
+              fontWeight: 800,
+              color: 'var(--terracotta-dark)',
+              letterSpacing: 0,
+            }}>
+              IM
+            </span>
             <div>
               <div style={{ fontFamily: 'Playfair Display', fontWeight: 700, fontSize: 17, color: 'var(--espresso)', lineHeight: 1.1 }}>
                 I Monili
@@ -405,10 +510,10 @@ export default function Home() {
         )}
       </header>
 
-      {/* ── MAIN ───────────────────────────────────────────────── */}
+      {/* â”€â”€ MAIN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
 
-        {/* ══ IDLE ══════════════════════════════════════════════ */}
+        {/* â•â• IDLE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
         {(missionState === 'idle' || countdown !== null) && (
           <div className="fade-up">
 
@@ -423,7 +528,7 @@ export default function Home() {
                 fontWeight: 600,
                 marginBottom: 14,
               }}>
-                Crea il kit marketing
+                Mini reparto marketing
               </div>
               <h1 style={{
                 fontFamily: 'Playfair Display',
@@ -434,8 +539,8 @@ export default function Home() {
                 margin: '0 auto 14px',
                 maxWidth: 560,
               }}>
-                Dal prodotto al post<br />
-                <span className="text-terracotta-gradient">in 30 secondi</span>
+                Carica una foto.<br />
+                <span className="text-terracotta-gradient">Ottieni il kit giusto.</span>
               </h1>
               <p style={{
                 fontFamily: 'DM Sans',
@@ -445,7 +550,7 @@ export default function Home() {
                 maxWidth: 440,
                 margin: '0 auto',
               }}>
-                Scatta una foto al prodotto e il tuo team AI crea analisi, foto, caption, hashtag e calendario editoriale.
+                Usa questa schermata: carica la foto prodotto, aggiungi due note se servono, poi genera visual realistici, carousel, caption e contenuti locali.
               </p>
             </div>
 
@@ -458,18 +563,18 @@ export default function Home() {
                   <div className="step-badge">1</div>
                   <div>
                     <div style={{ fontFamily: 'DM Sans', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', marginBottom: 2 }}>
-                      Foto del prodotto
+                      1. Carica la foto base
                     </div>
                     <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>
-                      Trascina o clicca per caricare
+                      Anche una foto semplice va bene: l'AI la usa come riferimento reale.
                     </div>
                   </div>
                 </div>
                 <PhotoDropzone
                   photo={photo}
                   photoPreview={photoPreview}
-                  onFile={(file, url) => { setPhoto(file); setPhotoPreview(url); }}
-                  onClear={() => { setPhoto(null); setPhotoPreview(null); }}
+                  onFile={handlePhotoSelect}
+                  onClear={handlePhotoClear}
                 />
               </div>
 
@@ -479,7 +584,7 @@ export default function Home() {
                   <div className="step-badge" style={{ opacity: 0.6 }}>2</div>
                   <div>
                     <div style={{ fontFamily: 'DM Sans', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', marginBottom: 2 }}>
-                      Note aggiuntive
+                      2. Aggiungi contesto
                       <span style={{
                         marginLeft: 8,
                         fontFamily: 'DM Sans',
@@ -496,7 +601,7 @@ export default function Home() {
                       </span>
                     </div>
                     <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>
-                      Prezzo, dettagli, istruzioni speciali
+                      Prezzo, occasione, materiale o obiettivo. Puoi lasciarlo vuoto.
                     </div>
                   </div>
                 </div>
@@ -505,9 +610,54 @@ export default function Home() {
                   className="brief-area"
                   value={brief}
                   onChange={e => setBrief(e.target.value)}
-                  placeholder="es: orecchini cerchio dorati, 22€, nuovi arrivi P/E 2026, perfetti per la primavera..."
+                  placeholder="Esempio: orecchini a cerchio dorati, 22 EUR, nuovi arrivi, perfetti per cerimonia o aperitivo. Vorrei farli vedere indossati e creare un carousel su come abbinarli."
                   style={{ minHeight: 200 }}
                 />
+                <div style={{
+                  marginTop: 14,
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  background: 'var(--cream-2)',
+                  border: '1px solid var(--border)',
+                }}>
+                  <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso)', marginBottom: 8, fontWeight: 700 }}>
+                    Cosa riceverai
+                  </div>
+                  <div style={{ display: 'grid', gap: 6, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.45 }}>
+                    <span>Visual AI fotorealistici: sfondo migliore, indossato, lifestyle.</span>
+                    <span>Carousel statico con testi slide e guida visuale.</span>
+                    <span>Caption, WhatsApp, Google Business e local SEO Ravenna.</span>
+                  </div>
+                  <details style={{ marginTop: 12 }}>
+                    <summary style={{ cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', fontWeight: 600 }}>
+                      Impostazioni tecniche
+                    </summary>
+                    <div style={{ marginTop: 8, fontFamily: 'DM Mono', fontSize: 10.5, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
+                      <div>Text: {textModel}</div>
+                      <div>Image: {imageModel}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={checkOpenRouter}
+                      disabled={checkingOpenRouter}
+                      style={{
+                        marginTop: 10,
+                        padding: '8px 11px',
+                        borderRadius: 10,
+                        border: '1px solid var(--terracotta-light)',
+                        background: 'var(--cream-2)',
+                        color: 'var(--espresso)',
+                        fontFamily: 'DM Sans',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: checkingOpenRouter ? 'not-allowed' : 'pointer',
+                        opacity: checkingOpenRouter ? 0.7 : 1,
+                      }}
+                    >
+                      {checkingOpenRouter ? 'Verifica in corso...' : 'Verifica OpenRouter'}
+                    </button>
+                  </details>
+                </div>
                 {brief.length > 0 && (
                   <div style={{ marginTop: 8, fontFamily: 'DM Mono', fontSize: 10, color: 'var(--espresso-dim)' }}>
                     {brief.length} caratteri
@@ -517,14 +667,27 @@ export default function Home() {
             </div>
 
             {/* Team ready strip */}
-            <div className="fade-up fade-up-d3 card" style={{ padding: '14px 20px', marginBottom: 32, display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{ fontSize: 16 }}>👥</span>
+            <div className="fade-up fade-up-d3 card" style={{ padding: '16px 20px', marginBottom: 32, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                background: 'var(--terracotta-pale)',
+                color: 'var(--terracotta-dark)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'DM Sans',
+                fontWeight: 800,
+                fontSize: 12,
+                flexShrink: 0,
+              }}>AI</span>
               <div>
                 <div style={{ fontFamily: 'DM Sans', fontWeight: 600, fontSize: 13, color: 'var(--espresso)', marginBottom: 2 }}>
-                  Team di 10 specialisti AI — pronti
+                  Il flusso e semplice
                 </div>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
-                  Supervisor · Trend · Analista · Foto · Visual · Reel · Copy · Hashtag · Foto Ott. · Memoria
+                  1. Carichi la foto  2. Aggiungi note opzionali  3. Generi il kit  4. Scarichi testi e immagini
                 </div>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
@@ -550,7 +713,7 @@ export default function Home() {
                       marginBottom: 12,
                     }}
                   >
-                    {countdown === 0 ? '✨' : countdown}
+                    {countdown === 0 ? 'Via' : countdown}
                   </div>
                   <div style={{ fontFamily: 'DM Sans', fontSize: 14, color: 'var(--espresso-mid)', fontWeight: 500 }}>
                     {countdown === 0 ? 'Avvio del team...' : 'Il team si sta preparando...'}
@@ -564,8 +727,7 @@ export default function Home() {
                     className="btn-mission"
                     style={{ padding: '18px 52px', fontSize: 16 }}
                   >
-                    <span style={{ fontSize: 18 }}>✨</span>
-                    Avvia il team AI
+                    Genera kit marketing
                   </button>
 
                   {!photo && (
@@ -579,7 +741,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* ══ RUNNING ═══════════════════════════════════════════ */}
+        {/* â•â• RUNNING â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
         {missionState === 'running' && (
           <div className="fade-up">
 
@@ -594,7 +756,7 @@ export default function Home() {
                 fontSize: 22,
                 flexShrink: 0,
               }}>
-                <span className="spin-slow" style={{ display: 'inline-block' }}>⟳</span>
+                <span className="spin-slow" style={{ display: 'inline-block' }}>...</span>
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: 'DM Sans', fontWeight: 700, fontSize: 16, color: 'var(--espresso)', marginBottom: 4 }}>
@@ -602,7 +764,7 @@ export default function Home() {
                 </div>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--espresso-mid)' }}>
                   {activeAgent
-                    ? <span>Ora attivo: <strong style={{ color: 'var(--terracotta-dark)' }}>{activeAgent.name}</strong> — {activeAgent.role}</span>
+                    ? <span>Ora attivo: <strong style={{ color: 'var(--terracotta-dark)' }}>{activeAgent.name}</strong> - {activeAgent.role}</span>
                     : 'Finalizzazione in corso...'}
                 </div>
               </div>
@@ -611,7 +773,7 @@ export default function Home() {
                   {overallProgress}%
                 </div>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', marginTop: 2 }}>
-                  {doneCount} di 9 completati
+                  {doneCount} di 11 completati
                 </div>
               </div>
             </div>
@@ -638,15 +800,15 @@ export default function Home() {
           </div>
         )}
 
-        {/* ══ ERROR ═════════════════════════════════════════════ */}
+        {/* â•â• ERROR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
         {missionState === 'error' && (
           <div className="fade-up" style={{ textAlign: 'center', padding: '60px 24px' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+            <div style={{ fontSize: 32, marginBottom: 16, fontFamily: 'DM Sans', fontWeight: 800 }}>!</div>
             <h2 style={{ fontFamily: 'Playfair Display', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', marginBottom: 12 }}>
-              Qualcosa è andato storto
+              Qualcosa e andato storto
             </h2>
             <p style={{ fontFamily: 'DM Sans', fontSize: 14, color: 'var(--espresso-mid)', maxWidth: 400, margin: '0 auto 28px' }}>
-              Errore durante l'elaborazione. Controlla che le API key siano configurate su Render e riprova.
+              Errore durante l'elaborazione. Controlla OPENROUTER_API_KEY su Render e riprova.
             </p>
             <div style={{ marginBottom: 20 }}>
               <TerminalLog logs={logs} />
@@ -657,7 +819,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* ══ COMPLETE ══════════════════════════════════════════ */}
+        {/* â•â• COMPLETE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
         {missionState === 'complete' && (
           <div className="fade-up">
 
@@ -672,17 +834,17 @@ export default function Home() {
                 fontSize: 26,
                 flexShrink: 0,
               }}>
-                ✅
+                OK
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'var(--sage)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>
                   Missione completata
                 </div>
                 <h2 style={{ fontFamily: 'Playfair Display', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', margin: 0 }}>
-                  Il kit marketing è pronto!
+                  Il kit marketing e pronto!
                 </h2>
                 <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--espresso-mid)', margin: '4px 0 0' }}>
-                  Analisi, prompt shooting, script reel, caption, hashtag e foto ottimizzate — tutto pronto da usare.
+                  Strategia, visual AI, carousel, Google Business, caption, WhatsApp e foto ottimizzate: tutto pronto da usare.
                 </p>
               </div>
               <button
@@ -697,7 +859,7 @@ export default function Home() {
             {/* Agent recap */}
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Il team — 9/9 completati
+                Il team - 11/11 completati
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                 {agents.map((agent, i) => (
@@ -708,17 +870,17 @@ export default function Home() {
 
             <div className="hr-warm" style={{ marginBottom: 28 }} />
 
-            {/* Results — download center */}
+            {/* Results â€” download center */}
             <ResultsPanel results={results} apiUrl={API_URL} />
           </div>
         )}
       </main>
 
-      {/* ── FOOTER ─────────────────────────────────────────────── */}
+      {/* â”€â”€ FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <footer style={{ borderTop: '1px solid var(--border)', padding: '14px 24px', marginTop: 40 }}>
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
-            I Monili Ravenna · Studio AI — Powered by Claude
+            I Monili Ravenna / Studio AI / Powered by OpenRouter
           </span>
           <span style={{ fontFamily: 'DM Mono', fontSize: 11, color: 'var(--cream-border)' }}>
             P/E 2026
@@ -728,3 +890,4 @@ export default function Home() {
     </div>
   );
 }
+

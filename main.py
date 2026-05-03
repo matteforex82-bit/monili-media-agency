@@ -1,33 +1,56 @@
+﻿"""
+main.py - MONILI MEDIA AGENCY
+Pipeline AI completa via OpenRouter (testo + immagini).
 """
-main.py — MONILI MEDIA AGENCY
-Pipeline AI completa usando Anthropic Python SDK direttamente.
-Nessun CLI richiesto — funziona su qualsiasi server cloud.
-"""
+
 import argparse
-import sys
-import os
-import json
 import base64
+import json
+import os
+import re
+import sys
 import traceback
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-# ── HELPERS ───────────────────────────────────────────────────────
+SUPPORTED_OPENROUTER_IMAGE_MODELS = [
+    "google/gemini-3.1-flash-image-preview",
+    "black-forest-labs/flux.2-klein-4b",
+    "bytedance-seed/seedream-4.5",
+]
+DEFAULT_OPENROUTER_IMAGE_MODEL = SUPPORTED_OPENROUTER_IMAGE_MODELS[0]
+
+SUPPORTED_OPENROUTER_TEXT_MODELS = [
+    "openai/gpt-4.1-mini",
+    "google/gemini-2.5-flash",
+    "google/gemini-2.5-pro",
+    "anthropic/claude-3.7-sonnet",
+]
+DEFAULT_OPENROUTER_TEXT_MODEL = SUPPORTED_OPENROUTER_TEXT_MODELS[0]
+
 
 def log(agent: str, msg: str, kind: str = "info"):
-    icons = {"info": ">", "success": "✅", "data": "◈", "warn": "!"}
+    icons = {"info": ">", "success": "[OK]", "data": "[DATA]", "warn": "!"}
     print(f"[{agent}] {icons.get(kind, '>')} {msg}", flush=True)
 
 
 def encode_image(path: Path) -> tuple[str, str]:
     ext = path.suffix.lower()
     media_types = {
-        ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".png": "image/png", ".webp": "image/webp",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
     }
     media_type = media_types.get(ext, "image/jpeg")
     with open(path, "rb") as f:
@@ -35,73 +58,245 @@ def encode_image(path: Path) -> tuple[str, str]:
     return data, media_type
 
 
-def claude(client, prompt: str, image_path: Path = None, max_tokens: int = 2048) -> str:
-    import anthropic
-    content = []
+def select_openrouter_image_model(requested_model: str = "") -> str:
+    model = (requested_model or "").strip()
+    if model:
+        return model
+    env_model = os.environ.get("OPENROUTER_IMAGE_MODEL", "").strip()
+    if env_model:
+        return env_model
+    return DEFAULT_OPENROUTER_IMAGE_MODEL
+
+
+def select_openrouter_text_model(requested_model: str = "") -> str:
+    model = (requested_model or "").strip()
+    if model:
+        return model
+    env_model = os.environ.get("OPENROUTER_TEXT_MODEL", "").strip()
+    if env_model:
+        return env_model
+    return DEFAULT_OPENROUTER_TEXT_MODEL
+
+
+def extract_text_from_response(payload: dict) -> str:
+    choices = payload.get("choices", [])
+    if not choices:
+        return ""
+
+    message = choices[0].get("message", {})
+    content = message.get("content", "")
+
+    if isinstance(content, str):
+        return content.strip()
+
+    if isinstance(content, list):
+        chunks: list[str] = []
+        for part in content:
+            if not isinstance(part, dict):
+                continue
+            text = part.get("text")
+            if isinstance(text, str) and text.strip():
+                chunks.append(text.strip())
+        return "\n".join(chunks).strip()
+
+    return ""
+
+
+def openrouter_chat_completion(
+    api_key: str,
+    model: str,
+    prompt: str,
+    image_path: Path | None = None,
+    max_tokens: int = 2048,
+    modalities: list[str] | None = None,
+    image_config: dict | None = None,
+) -> dict:
     if image_path and image_path.exists():
-        data, media_type = encode_image(image_path)
-        content.append({
-            "type": "image",
-            "source": {"type": "base64", "media_type": media_type, "data": data},
-        })
-    content.append({"type": "text", "text": prompt})
+        image_data, media_type = encode_image(image_path)
+        content = [
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{media_type};base64,{image_data}"},
+            },
+            {"type": "text", "text": prompt},
+        ]
+    else:
+        content = prompt
+
+    payload: dict = {
+        "model": model,
+        "messages": [{"role": "user", "content": content}],
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+
+    if modalities:
+        payload["modalities"] = modalities
+    if image_config:
+        payload["image_config"] = image_config
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://monili-media-agency.local",
+        "X-Title": "Monili Media Agency",
+    }
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers=headers,
+        json=payload,
+        timeout=180,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"HTTP {response.status_code}: {response.text[:350]}")
+    return response.json()
+
+
+def generate_text_with_openrouter(
+    api_key: str,
+    model: str,
+    prompt: str,
+    image_path: Path | None = None,
+    max_tokens: int = 2048,
+) -> str:
     try:
-        response = client.messages.create(
-            model="claude-opus-4-5",
+        payload = openrouter_chat_completion(
+            api_key=api_key,
+            model=model,
+            prompt=prompt,
+            image_path=image_path,
             max_tokens=max_tokens,
-            messages=[{"role": "user", "content": content}],
         )
-        return response.content[0].text
+        text = extract_text_from_response(payload)
+        return text if text else "[Errore API: risposta testuale vuota]"
     except Exception as e:
         return f"[Errore API: {e}]"
 
 
-# ── BRAND CONTEXT ─────────────────────────────────────────────────
+def extract_data_urls_from_response(payload: dict) -> list[str]:
+    choices = payload.get("choices", [])
+    if not choices:
+        return []
+
+    message = choices[0].get("message", {})
+    urls: list[str] = []
+
+    for image in message.get("images", []) or []:
+        image_url = image.get("image_url", {})
+        url = image_url.get("url")
+        if isinstance(url, str) and url.startswith("data:image/"):
+            urls.append(url)
+
+    content = message.get("content", [])
+    if isinstance(content, list):
+        for part in content:
+            if not isinstance(part, dict):
+                continue
+            image_url = part.get("image_url", {})
+            url = image_url.get("url")
+            if isinstance(url, str) and url.startswith("data:image/"):
+                urls.append(url)
+
+    return urls
+
+
+def save_data_url_image(data_url: str, destination: Path) -> bool:
+    if "," not in data_url:
+        return False
+    header, b64_data = data_url.split(",", 1)
+    if ";base64" not in header:
+        return False
+
+    try:
+        raw_bytes = base64.b64decode(b64_data)
+    except Exception:
+        return False
+
+    destination.write_bytes(raw_bytes)
+    return True
+
+
+def generate_image_with_openrouter(api_key: str, model: str, prompt: str, image_path: Path | None = None) -> list[str]:
+    modalities = ["image", "text"] if model.startswith("google/gemini") else ["image"]
+    image_config = {"aspect_ratio": "1:1", "image_size": "1K"} if model.startswith("google/gemini") else None
+
+    payload = openrouter_chat_completion(
+        api_key=api_key,
+        model=model,
+        prompt=prompt,
+        image_path=image_path,
+        modalities=modalities,
+        image_config=image_config,
+    )
+
+    data_urls = extract_data_urls_from_response(payload)
+    if not data_urls:
+        raise RuntimeError("Nessuna immagine trovata nella risposta OpenRouter")
+    return data_urls
+
+
+def extract_prompt_candidates(shooting_prompts: str, max_items: int = 2) -> list[str]:
+    prompts: list[str] = []
+    for line in shooting_prompts.splitlines():
+        match = re.search(r"Prompt EN:\s*(.+)$", line, flags=re.IGNORECASE)
+        if match:
+            prompt = match.group(1).strip()
+            if prompt:
+                prompts.append(prompt)
+
+    if not prompts:
+        compact = " ".join(shooting_prompts.split()).strip()
+        if compact:
+            prompts.append(compact[:500])
+
+    return prompts[:max_items]
+
 
 BRAND = """
-BRAND: I Monili Ravenna — negozio bijoux, accessori donna, abbigliamento
+BRAND: I Monili Ravenna - negozio bijoux, accessori donna, abbigliamento
 Location: Ravenna, centro storico (Emilia-Romagna)
 Target: donna 25-45, urbana, fashion-forward, Ravenna e dintorni
-Tono: caldo, complice, femminile — come un'amica che consiglia, non un brand che vende
+Tono: caldo, complice, femminile - come un'amica che consiglia, non un brand che vende
 Stagione: Primavera/Estate 2026
 Hashtag fissi: #imoniliravenna #ravenna #romagnastyle
 Palette: neutri caldi, bianco ottico, terracotta, oro
-Posting top: Martedì/Giovedì/Sabato ore 18:30-20:00
+Posting top: Martedi/Giovedi/Sabato ore 18:30-20:00
 """
 
 
-# ── AGENTI ────────────────────────────────────────────────────────
-
-def agent_trend(client) -> str:
+def agent_trend(text_model: str, api_key: str) -> str:
     log("TREND INTEL", "Ricerca trend hashtag bijoux Italia P/E 2026...")
-    result = claude(client, f"""Sei un esperto di social media marketing moda/bijoux in Italia.
+    prompt = f"""Sei un esperto di social media marketing moda/bijoux in Italia.
 {BRAND}
 
 Genera un report completo sui trend P/E 2026:
 1. Top 15 hashtag trending bijoux/gioielli/moda su Instagram Italia (con stima reach)
-2. Top 5 audio/sound trending per Reels moda Italia attualmente
-3. Formato contenuto con più engagement ora: Reel vs Post vs Stories (con %)
+2. Top keyword e hook per post statici/carousel moda in Italia
+3. Formato contenuto con piu engagement ora: carousel vs post statico vs stories vs Google Business Profile
 4. Trend estetici P/E 2026: colori, stili, mood dominanti
 5. Orari migliori Instagram per target donna 25-45 Emilia-Romagna
 6. 3 competitor locali da monitorare (generici, non nominare brand reali)
-7. Content ideas virali del momento per bijoux
+7. Content ideas salvabili/condivisibili per bijoux
+8. Spunti local SEO e Google Business Profile per negozi fisici
 
-Formato markdown strutturato, tutto in italiano.""", max_tokens=1500)
+Formato markdown strutturato, tutto in italiano."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=1500)
     log("TREND INTEL", "Intelligence P/E 2026 completata", "success")
     return result
 
 
-def agent_analisi(client, foto: Path, brief: str) -> str:
+def agent_analisi(text_model: str, api_key: str, foto: Path, brief: str) -> str:
     log("ANALISTA", "Analisi multimodale foto prodotto...")
     log("ANALISTA", "Caricamento immagine in Vision AI...", "data")
-    result = claude(client, f"""Sei un esperto analista di prodotti fashion e bijoux.
+    prompt = f"""Sei un esperto analista di prodotti fashion e bijoux.
 {BRAND}
-Brief aggiuntivo: {brief if brief else "Nessun brief — analizza autonomamente dalla foto"}
+Brief aggiuntivo: {brief if brief else "Nessun brief - analizza autonomamente dalla foto"}
 
 Analizza questa foto prodotto e crea una scheda completa:
 
 ## IDENTIFICAZIONE
-- Categoria esatta (es: Bijoux → Orecchini → Cerchio a clip)
+- Categoria esatta
 - Materiali identificati con certezza
 - Colori principali con codici HEX stimati
 - Dimensioni stimate
@@ -110,245 +305,367 @@ Analizza questa foto prodotto e crea una scheda completa:
 ## MOOD & POSIZIONAMENTO
 - Stile/mood (minimal, boho, elegante, casual, statement...)
 - Occasione d'uso consigliata
-- Stagione P/E 2026: si/no e perché
+- Stagione P/E 2026: si/no e perche
 - Fascia di prezzo stimata (se non nel brief)
 
 ## STRATEGIA CONTENUTO
-- Formato consigliato: Reel / Post / Stories (con motivazione)
+- Formato consigliato: post statico / carousel prodotto / carousel informativo / stories / Google Business Profile (con motivazione)
 - Punti di forza visivi da valorizzare
 - Abbinamenti outfit suggeriti (3 look)
 
 ## DESCRIZIONE AI
-Descrizione del prodotto in inglese ottimizzata per prompt AI (Midjourney/Gemini/DALL-E), max 100 parole.
+Descrizione del prodotto in italiano utile per local SEO, scheda sito e alt text, max 100 parole.
 
-Rispondi in italiano, formato markdown.""", image_path=foto, max_tokens=1800)
-    log("ANALISTA", "Prodotto classificato — dati pronti per il team", "success")
+Rispondi in italiano, formato markdown."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1800)
+    log("ANALISTA", "Prodotto classificato - dati pronti per il team", "success")
     return result
 
 
-def agent_shooting(client, foto: Path, analisi: str) -> str:
-    log("FOTO DIR.", "Generazione prompt shooting professionali...")
-    result = claude(client, f"""Sei un direttore fotografico specializzato in bijoux e accessori moda.
+def agent_strategy(text_model: str, api_key: str, foto: Path, analisi: str, brief: str, trend: str) -> str:
+    log("STRATEGIST", "Scelta autonoma obiettivo, canali e formato migliore...")
+    prompt = f"""Sei il marketing strategist di un piccolo negozio locale.
+Devi decidere cosa conviene generare, evitando output ripetitivi.
+{BRAND}
+
+Analisi prodotto: {analisi[:1200]}
+Brief: {brief if brief else "Nessun brief"}
+Trend/local insight: {trend[:700]}
+
+Decidi una strategia operativa per questo singolo prodotto.
+Non proporre video AI generati. Se serve un Reel, suggerisci solo un video reale da girare col telefono.
+
+Rispondi in italiano in markdown con queste sezioni:
+## DECISIONE
+- Obiettivo primario: visite in negozio / messaggi WhatsApp / awareness locale / vendita rapida / autorevolezza
+- Formato principale consigliato: post statico / carousel prodotto / carousel informativo / story / WhatsApp / Google Business Profile
+- Canali da usare oggi
+- Canali da evitare oggi
+
+## POTENZIALE DEL PRODOTTO
+- Perche questo prodotto puo interessare
+- Occasione d'uso o bisogno cliente
+- Angolo creativo non banale
+
+## PIANO CONTENUTO
+- Output da generare ora
+- Hook principale
+- CTA locale
+- Keyword locali target
+
+## VARIETA
+- Cosa evitare per non sembrare uguale agli altri post
+- Variante alternativa se questo formato e gia stato usato spesso"""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1700)
+    log("STRATEGIST", "Strategia 2.0 definita: formato e canali scelti", "success")
+    return result
+
+
+def agent_shooting(text_model: str, api_key: str, foto: Path, analisi: str) -> str:
+    log("FOTO DIR.", "Direzione foto reale e tagli statici...")
+    prompt = f"""Sei un direttore fotografico specializzato in bijoux e accessori moda.
 {BRAND}
 Analisi prodotto: {analisi[:700]}
 
-Crea 8 prompt shooting professionali pronti per AI image generation (Gemini/Midjourney/DALL-E):
+Crea una guida di shooting reale, fattibile con smartphone in negozio.
+Non proporre immagini AI finte.
 
-Per ogni prompt:
-**[N] NOME SHOT**
-- Prompt EN: [prompt ottimizzato in inglese per AI, dettagliato]
-- Setup: [luci, sfondo, attrezzatura]
-- Angolo: [angolazione e distanza]
-- Scopo: [a cosa serve questo shot]
+Includi:
+1. Foto principale per post statico
+2. 5 scatti per carousel prodotto
+3. 5 scatti per carousel informativo/educativo
+4. Foto per Google Business Profile
+5. Tagli consigliati: 1:1, 4:5, 9:16
+6. Luce, sfondo, posa mano/modella/manichino se utile
+7. Errori da evitare per non sembrare catalogo freddo
 
-Shot obbligatori:
-1. Hero shot (sfondo neutro, studio)
-2. Close-up texture/dettaglio
-3. Modella che indossa (lifestyle, donna reale 25-35)
-4. Flat lay P/E (fiori, tessuti, accessori coordinati)
-5. Centro storico Ravenna outdoor
-6. Stories vertical (9:16)
-7. Abbinamento outfit completo
-8. Dettaglio confezione/packaging (se rilevante)
-
-Stile: luminoso, naturale, autentico — no filtri esagerati.
-Rispondi in italiano con i prompt in inglese.""", image_path=foto, max_tokens=2000)
-    log("FOTO DIR.", "8 prompt shooting generati con setup tecnico", "success")
+Stile: luminoso, naturale, autentico, locale."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=2000)
+    log("FOTO DIR.", "Guida foto reale e asset statici pronta", "success")
     return result
 
 
-def agent_visual_gen(output_dir: Path, shooting_prompts: str) -> str:
-    image_generator = os.environ.get("IMAGE_GENERATOR", "manual")
-    google_api_key = os.environ.get("GOOGLE_API_KEY", "")
-    gen_dir = output_dir / "02_SHOOTING" / "generated"
+def agent_visual_prompts(text_model: str, api_key: str, foto: Path, analisi: str, strategy: str, shooting: str) -> str:
+    log("VISUAL AI", "Brief fotorealistici per indossato, sfondo e contesto...")
+    prompt = f"""Sei un art director specializzato in visual AI fotorealistici per piccoli negozi locali.
+{BRAND}
+Analisi prodotto: {analisi[:900]}
+Strategia: {strategy[:900]}
+Guida foto reale: {shooting[:700]}
+
+Genera 4 prompt in inglese per immagini statiche AI usando la foto caricata come riferimento.
+Ogni prompt deve iniziare con "Prompt EN:".
+
+Obiettivo: far vedere il prodotto in contesto reale senza farlo sembrare finto.
+
+Prompt richiesti:
+1. Hero su sfondo pulito e migliore
+2. Indossato realistico (mano/orecchio/collo/modella/manichino in base al prodotto)
+3. Lifestyle quasi Ravenna: luce naturale, centro storico italiano, boutique locale, niente landmark inventati troppo evidenti
+4. Visual per cover carousel
+
+Regole obbligatorie in ogni prompt:
+- preserve the exact product shape, color, material, proportions, texture and distinctive details from the reference photo
+- photorealistic, natural daylight, authentic small Italian boutique style
+- no plastic skin, no luxury stock-photo look, no unrealistic body, no fantasy jewelry
+- do not change the product into a different item
+- no text, no logos, no watermark
+- if worn by a model, use a realistic adult model, natural pose, product visible but not exaggerated
+
+Rispondi solo con i 4 prompt, uno per blocco, senza spiegazioni."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1600)
+    log("VISUAL AI", "Prompt visual controllati pronti", "success")
+    return result
+
+
+def agent_visual_gen(output_dir: Path, visual_prompts: str, selected_model: str, api_key: str, foto: Path) -> list[str]:
+    visual_mode = os.environ.get("VISUAL_AI_MODE", "controlled").lower()
+    if visual_mode in ("off", "false", "0", "none"):
+        log("VISUAL GEN", "Visual AI disattivata da VISUAL_AI_MODE", "data")
+        return []
+
+    image_generator = os.environ.get("IMAGE_GENERATOR", "openrouter").lower()
+    model = select_openrouter_image_model(selected_model)
+    gen_dir = output_dir / "03_ASSET_STATICI" / "visual_ai"
     gen_dir.mkdir(parents=True, exist_ok=True)
 
-    if image_generator == "gemini" and google_api_key:
-        log("VISUAL GEN", "Connessione Gemini Image API...")
+    if image_generator != "openrouter":
+        log("VISUAL GEN", "Modalita manuale - prompt pronti per uso esterno", "data")
+        log("VISUAL GEN", "Prompt visual salvati per uso esterno", "success")
+        return []
+
+    if not api_key:
+        log("VISUAL GEN", "OPENROUTER_API_KEY mancante - salto generazione immagini", "warn")
+        return []
+
+    max_visuals = int(os.environ.get("MAX_AI_VISUALS", "3"))
+    prompts = extract_prompt_candidates(visual_prompts, max_items=max_visuals)
+    if not prompts:
+        log("VISUAL GEN", "Nessun prompt visual valido trovato", "warn")
+        return []
+
+    log("VISUAL GEN", f"Generazione visual AI controllata con {model}")
+    generated_paths: list[str] = []
+    for idx, prompt in enumerate(prompts, start=1):
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=google_api_key)
-            log("VISUAL GEN", "Gemini configurato — generazione immagini AI...", "data")
-            # Gemini Imagen via google-generativeai
-            # (richiede accesso Imagen API abilitato nel progetto GCP)
-            log("VISUAL GEN", "Prompt AI salvati per generazione esterna", "success")
+            log("VISUAL GEN", f"Visual fotorealistico {idx}/{len(prompts)}", "data")
+            controlled_prompt = f"""{prompt}
+
+Use the uploaded reference image as the source of truth for the product.
+Preserve the exact product. Create a realistic static commercial photo, not a video frame."""
+            data_urls = generate_image_with_openrouter(api_key, model, controlled_prompt, image_path=foto)
+            for image_idx, data_url in enumerate(data_urls, start=1):
+                filename = f"visual_ai_{idx}_{image_idx}.png"
+                target = gen_dir / filename
+                if save_data_url_image(data_url, target):
+                    generated_paths.append(f"{output_dir.name}/03_ASSET_STATICI/visual_ai/{filename}")
         except Exception as e:
-            log("VISUAL GEN", f"Gemini image gen: {e} — solo prompt salvati", "warn")
-    else:
-        log("VISUAL GEN", "Modalità manuale — prompt pronti per Gemini/MJ/DALL-E", "data")
-        log("VISUAL GEN", "Prompt salvati in 02_SHOOTING/prompts_shooting.md", "success")
+            log("VISUAL GEN", f"Visual AI non riuscito: {e}", "warn")
 
-    return "Prompt generati e salvati"
+    if generated_paths:
+        log("VISUAL GEN", f"{len(generated_paths)} visual AI creati in 03_ASSET_STATICI/visual_ai", "success")
+        return generated_paths
+
+    log("VISUAL GEN", "Nessuna immagine AI generata, ma prompt visual salvati", "warn")
+    return []
 
 
-def agent_reel(client, analisi: str, trend: str) -> str:
+def agent_reel(text_model: str, api_key: str, analisi: str, trend: str) -> str:
     log("REEL DIR.", "Struttura Reel: hook 3s + scene + CTA...")
-    result = claude(client, f"""Sei un video director specializzato in Reels Instagram per brand moda.
+    prompt = f"""Sei un video director specializzato in Reels Instagram per brand moda.
 {BRAND}
 Analisi prodotto: {analisi[:600]}
 Trend attuali: {trend[:400]}
 
-Crea uno script Reel Instagram professionale (15-30 secondi):
-
-## INFO GENERALI
-- Durata: [15s / 20s / 30s — scegli il migliore]
-- Audio consigliato: [canzone + artista trending ora]
-- Mood video: [descrivi l'atmosfera]
-
-## SCRIPT FRAME BY FRAME
-
-**FRAME 1 — HOOK (0-3s)**
-- Visuale: [descrizione inquadratura]
-- Testo overlay: [testo d'impatto che ferma lo scroll]
-- Transizione: [tipo di cut]
-
-**FRAME 2 (3-8s)**
-- Visuale: [descrizione]
-- Testo overlay: [testo]
-
-**FRAME 3 (8-14s)**
-- Visuale: [descrizione]
-- Testo overlay: [testo]
-
-**FRAME 4 — LIFESTYLE (14-20s)**
-- Visuale: [descrizione]
-- Testo overlay: [testo]
-
-**FRAME 5 — CTA (ultimi 2s)**
-- Testo: [call to action]
-
-## PROMPT AI PER I FRAME
-[5 prompt in inglese per generare i frame con AI]
-
-Tutto in italiano (tranne i prompt AI).""", max_tokens=1800)
+Crea uno script Reel Instagram professionale (15-30 secondi), frame by frame, con CTA finale.
+Includi 5 prompt in inglese per generare i frame con AI.
+Rispondi in italiano (tranne i prompt AI)."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=1800)
     log("REEL DIR.", "Script completo + prompt frame AI pronti", "success")
     return result
 
 
-def agent_copy(client, foto: Path, analisi: str, brief: str) -> str:
+def agent_copy(text_model: str, api_key: str, foto: Path, analisi: str, brief: str) -> str:
     log("COPY", "Scrittura 3 varianti caption Instagram...")
-    result = claude(client, f"""Sei una copywriter esperta di social media per brand moda/bijoux in Italia.
+    prompt = f"""Sei una copywriter esperta di social media per brand moda/bijoux in Italia.
 {BRAND}
 Analisi prodotto: {analisi[:600]}
 Brief: {brief if brief else "Analizza dalla foto"}
 
 Scrivi il copy completo:
+- 3 caption Instagram (casual, elegante, urgency)
+- messaggio WhatsApp broadcast
+- post Google My Business
+- 3 slide stories (ultima con CTA)
 
-## CAPTION INSTAGRAM — 3 VARIANTI
-
-### VARIANTE 1 — CASUAL
-[Caption 4-6 righe, tono da amica, max 2-3 emoji, hashtag in fondo]
-
-### VARIANTE 2 — ELEGANTE
-[Caption 3-4 righe raffinata, poche emoji, sofisticata ma accessibile]
-
-### VARIANTE 3 — URGENCY / SCARCITY
-[Caption che crea senso di rarità, invita all'azione immediata]
-
----
-
-## WHATSAPP BROADCAST
-[Messaggio breve e personale per lista broadcast clienti, max 3 righe]
-
----
-
-## GOOGLE MY BUSINESS POST
-[Post per GMB: descrittivo, include indirizzo/orari generico, SEO-friendly, max 300 parole]
-
----
-
-## STORIES — 3 SLIDE
-**Slide 1:** [testo overlay breve]
-**Slide 2:** [testo overlay breve]
-**Slide 3 (CTA):** [call to action]
-
-Hashtag fissi da includere sempre: #imoniliravenna #ravenna #romagnastyle
-Tono: sempre caldo, mai troppo commerciale.""", image_path=foto, max_tokens=2000)
+Hashtag fissi da includere: #imoniliravenna #ravenna #romagnastyle
+Tono: caldo, mai troppo commerciale."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=2000)
     log("COPY", "3 varianti caption + WhatsApp + GMB + Stories pronti", "success")
     return result
 
 
-def agent_hashtag(client, analisi: str, trend: str) -> str:
+def agent_carousel(text_model: str, api_key: str, analisi: str, strategy: str, trend: str) -> str:
+    log("CAROUSEL", "Creazione carousel statico strategico...")
+    prompt = f"""Sei un content strategist per piccoli negozi locali.
+{BRAND}
+Strategia scelta: {strategy[:1000]}
+Analisi prodotto: {analisi[:900]}
+Trend/local insight: {trend[:500]}
+
+Crea 2 carousel statici alternativi, pronti da impaginare:
+
+## CAROUSEL A - prodotto/abbinamento
+- 5 slide
+- Testo breve per ogni slide
+- Visual suggerito per ogni slide usando foto reali
+- CTA finale locale
+
+## CAROUSEL B - informativo/educativo
+Scegli il tema piu adatto tra: pietre/materiali, come abbinarlo, idea regalo, cerimonia, cura del bijoux.
+- 5 slide
+- Testo breve per ogni slide
+- Visual suggerito per ogni slide usando foto reali
+- CTA finale locale
+
+Regole:
+- Niente frasi generiche tipo "eleganza senza tempo" se non motivate.
+- Tono caldo, pratico, locale.
+- Ogni slide deve avere una funzione chiara."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=2200)
+    log("CAROUSEL", "2 carousel statici pronti per impaginazione", "success")
+    return result
+
+
+def agent_local_visibility(text_model: str, api_key: str, analisi: str, strategy: str, brief: str) -> str:
+    log("LOCAL SEO", "Ricerca locale e asset per Ravenna...")
+    prompt = f"""Sei un consulente di local SEO e AI search optimization per negozi fisici.
+{BRAND}
+Strategia scelta: {strategy[:900]}
+Analisi prodotto: {analisi[:900]}
+Brief: {brief if brief else "Nessun brief"}
+
+Crea un pacchetto di visibilita locale per questo prodotto:
+
+## QUERY LOCALI TARGET
+- 8 ricerche realistiche che una cliente farebbe a Ravenna
+- dividile per intento: regalo, cerimonia, accessorio outfit, vicino a me
+
+## GOOGLE BUSINESS PROFILE
+- Titolo post
+- Testo post breve
+- CTA consigliata
+- Foto da usare
+- 3 varianti di descrizione prodotto locale
+
+## PAGINA VETRINA / SHOPIFY / SITO
+- Titolo SEO locale
+- Meta description
+- H1
+- Descrizione prodotto 120 parole
+- Alt text immagine
+- 5 FAQ brevi
+
+## AI SEARCH
+- Frase sintetica che aiuta le AI a capire cosa vende il negozio
+- Dati prodotto da strutturare: categoria, colore, materiale, occasione, prezzo se presente, disponibilita, localita
+
+Scrivi in italiano, pratico e pronto da usare."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=2200)
+    log("LOCAL SEO", "Pacchetto local visibility pronto", "success")
+    return result
+
+
+def agent_distribution(text_model: str, api_key: str, analisi: str, strategy: str, carousel: str) -> str:
+    log("DISTRIBUZIONE", "Caption, WhatsApp e piano 7 giorni...")
+    prompt = f"""Sei una social media manager per piccoli negozi.
+{BRAND}
+Strategia scelta: {strategy[:900]}
+Analisi prodotto: {analisi[:700]}
+Carousel generato: {carousel[:900]}
+
+Genera:
+## INSTAGRAM
+- 3 caption diverse: utile, locale, vendita gentile
+- keyword naturali nella caption
+- CTA non aggressive
+
+## HASHTAG
+- 18 hashtag: branded, local, nicchia, occasione
+- 5 hashtag da evitare perche troppo generici o incoerenti
+
+## WHATSAPP
+- messaggio broadcast breve
+- variante per clienti affezionate
+
+## STORIES
+- 3 frame testuali con sticker/interazione suggerita
+
+## PIANO 7 GIORNI
+- Quando pubblicare il carousel
+- Quando fare story di richiamo
+- Quando pubblicare Google Business
+- Come riutilizzare il contenuto senza sembrare ripetitivo"""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=2200)
+    log("DISTRIBUZIONE", "Caption, hashtag, WhatsApp e piano 7 giorni pronti", "success")
+    return result
+
+
+def agent_hashtag(text_model: str, api_key: str, analisi: str, trend: str) -> str:
     log("HASHTAG", "Costruzione set 30 hashtag in 4 tier...")
-    result = claude(client, f"""Sei un esperto di hashtag strategy per Instagram moda/bijoux in Italia.
+    prompt = f"""Sei un esperto di hashtag strategy per Instagram moda/bijoux in Italia.
 {BRAND}
 Analisi prodotto: {analisi[:400]}
 Trend rilevati: {trend[:400]}
 
-Crea il set ottimale di 30 hashtag strutturato:
-
-## TIER 1 — BROAD (5 hashtag, >1M post)
-[massima visibilità, reach ampio]
-
-## TIER 2 — NICHE (10 hashtag, 100K-1M post)
-[target qualificato, engagement alto]
-
-## TIER 3 — LOCAL/COMMUNITY (10 hashtag, <100K post)
-[community Ravenna, Romagna, locale]
-
-## TIER 4 — BRANDED (5 hashtag)
-[brand + prodotto specifico]
-
----
-
-## SCOMMESSA SETTIMANA (3 hashtag emergenti)
-[hashtag nuovi/in crescita con alto potenziale]
-
-## HASHTAG DA EVITARE
-[banned/shadowban list]
-
-## STRATEGIA ROTAZIONE
-[come ruotare su 4 post consecutivi]
-
-Formato: un hashtag per riga con breve nota sul perché.""", max_tokens=1500)
+Crea 30 hashtag divisi in 4 tier (broad, niche, local, branded),
+piu 3 hashtag emergenti, hashtag da evitare e strategia di rotazione su 4 post."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=1500)
     log("HASHTAG", "30 hashtag + strategia rotazione completati", "success")
     return result
 
 
-
-# ── MAIN ─────────────────────────────────────────────────────────
-
-def run_agency(foto_path: str, brief: str = "") -> None:
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_model: str = "") -> None:
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
-        print("❌ ANTHROPIC_API_KEY non trovata. Impostala nelle variabili d'ambiente.", flush=True)
-        sys.exit(1)
-
-    try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
-    except ImportError:
-        print("❌ Package 'anthropic' non installato. Esegui: pip install -r requirements.txt", flush=True)
+        print("OPENROUTER_API_KEY non trovata. Impostala nelle variabili d'ambiente.", flush=True)
         sys.exit(1)
 
     foto = Path(foto_path)
     if not foto.exists():
-        print(f"❌ Foto non trovata: {foto_path}", flush=True)
+        print(f"Foto non trovata: {foto_path}", flush=True)
         sys.exit(1)
+
+    selected_image_model = select_openrouter_image_model(image_model)
+    selected_text_model = select_openrouter_text_model(text_model)
 
     nome = foto.stem.lower().replace(" ", "-")
     data = datetime.now().strftime("%Y-%m-%d")
     output_dir = Path(f"output/{data}_{nome}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\n🎬 MONILI MEDIA AGENCY — avvio pipeline AI", flush=True)
-    print(f"📸 Foto: {foto_path}", flush=True)
-    print(f"📝 Brief: {brief or 'auto-analisi'}", flush=True)
-    print(f"📁 Output: {output_dir}", flush=True)
-    print(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n", flush=True)
+    print("\nMONILI MEDIA AGENCY - avvio pipeline AI", flush=True)
+    print(f"Foto: {foto_path}", flush=True)
+    print(f"Brief: {brief or 'auto-analisi'}", flush=True)
+    print(f"Modello testo: {selected_text_model}", flush=True)
+    print(f"Modello immagini: {selected_image_model}", flush=True)
+    print(f"Output: {output_dir}\n", flush=True)
 
-    # ── SUPERVISOR ──
     log("SUPERVISOR", "Missione ricevuta. Avvio orchestrazione team.")
-    log("SUPERVISOR", "9 agenti specializzati in standby — pronti.", "data")
+    log("SUPERVISOR", "Team 2.0 attivo: strategia, statico, local SEO, distribuzione.", "data")
 
-    # Variabili con fallback — la pipeline non si blocca mai
-    trend    = ""
-    analisi  = ""
+    trend = ""
+    analisi = ""
+    strategy = ""
     shooting = ""
-    reel     = ""
-    copy     = ""
-    hashtag  = ""
-    image_feed    = ""
+    visual_prompts = ""
+    ai_images: list[str] = []
+    carousel = ""
+    local_visibility = ""
+    distribution = ""
+    copy = ""
+    hashtag = ""
+    image_feed = ""
     image_stories = ""
 
     def safe_write(path: Path, content: str):
@@ -358,115 +675,130 @@ def run_agency(foto_path: str, brief: str = "") -> None:
         except Exception as e:
             log("SISTEMA", f"Scrittura file fallita ({path.name}): {e}", "warn")
 
-    # ── TREND ──
     try:
-        trend = agent_trend(client)
-        safe_write(output_dir / "00_TREND" / "trend_report.md",
-                   f"# Trend Report P/E 2026\n\n{trend}")
+        trend = agent_trend(selected_text_model, api_key)
+        safe_write(output_dir / "00_TREND" / "trend_report.md", f"# Trend Report P/E 2026\n\n{trend}")
     except Exception as e:
         log("TREND", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
-    # ── ANALISI ──
     try:
-        analisi = agent_analisi(client, foto, brief)
-        safe_write(output_dir / "01_ANALISI" / "product_card.md",
-                   f"# Scheda Prodotto\n\n{analisi}")
+        analisi = agent_analisi(selected_text_model, api_key, foto, brief)
+        safe_write(output_dir / "01_ANALISI" / "product_card.md", f"# Scheda Prodotto\n\n{analisi}")
     except Exception as e:
         log("ANALISTA", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
-    # ── SHOOTING ──
     try:
-        shooting = agent_shooting(client, foto, analisi)
-        safe_write(output_dir / "02_SHOOTING" / "prompts_shooting.md",
-                   f"# Prompt Shooting Professionali\n\n{shooting}")
+        strategy = agent_strategy(selected_text_model, api_key, foto, analisi, brief, trend)
+        safe_write(output_dir / "02_STRATEGIA" / "strategy.md", f"# Strategia 2.0\n\n{strategy}")
+    except Exception as e:
+        log("STRATEGIST", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+
+    try:
+        shooting = agent_shooting(selected_text_model, api_key, foto, analisi)
+        safe_write(output_dir / "03_ASSET_STATICI" / "guida_foto_reale.md", f"# Guida Foto Reale\n\n{shooting}")
     except Exception as e:
         log("FOTO DIR.", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
-    # ── VISUAL GEN ──
     try:
-        agent_visual_gen(output_dir, shooting)
+        visual_prompts = agent_visual_prompts(selected_text_model, api_key, foto, analisi, strategy, shooting)
+        safe_write(output_dir / "03_ASSET_STATICI" / "visual_ai_prompts.md", f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}")
+        ai_images = agent_visual_gen(output_dir, visual_prompts, selected_image_model, api_key, foto)
     except Exception as e:
         log("VISUAL GEN", f"ERRORE: {e}", "warn")
 
-    # ── REEL ──
     try:
-        reel = agent_reel(client, analisi, trend)
-        safe_write(output_dir / "03_REEL" / "reel_script.md",
-                   f"# Script Reel Instagram\n\n{reel}")
+        carousel = agent_carousel(selected_text_model, api_key, analisi, strategy, trend)
+        safe_write(output_dir / "04_CAROUSEL" / "carousel_statici.md", f"# Carousel Statici\n\n{carousel}")
     except Exception as e:
-        log("REEL DIR.", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+        log("CAROUSEL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
-    # ── COPY ──
     try:
-        copy = agent_copy(client, foto, analisi, brief)
-        safe_write(output_dir / "04_COPY" / "copy_completo.md",
-                   f"# Copy Completo\n\n{copy}")
+        local_visibility = agent_local_visibility(selected_text_model, api_key, analisi, strategy, brief)
+        safe_write(output_dir / "05_LOCAL_VISIBILITY" / "local_visibility.md", f"# Local Visibility\n\n{local_visibility}")
     except Exception as e:
-        log("COPY", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+        log("LOCAL SEO", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
-    # ── HASHTAG ──
     try:
-        hashtag = agent_hashtag(client, analisi, trend)
-        safe_write(output_dir / "04_COPY" / "hashtag_30.md",
-                   f"# Set 30 Hashtag\n\n{hashtag}")
+        distribution = agent_distribution(selected_text_model, api_key, analisi, strategy, carousel)
+        safe_write(output_dir / "06_DISTRIBUZIONE" / "caption_whatsapp_piano.md", f"# Distribuzione\n\n{distribution}")
     except Exception as e:
-        log("HASHTAG", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+        log("DISTRIBUZIONE", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
-    # ── FOTO OTTIMIZZATE ──
+    # Backward-compatible legacy outputs while the 2.0 UI migrates.
+    copy = distribution
+    hashtag = distribution
+
     log("FOTO OTT.", "Ottimizzazione foto per Instagram (feed 1:1 + Stories 9:16)...")
     try:
         sys.path.insert(0, str(Path(__file__).parent / "scripts"))
         from optimize_image import optimize
+
         optimize(str(foto), str(output_dir / "05_FOTO_OTTIMIZZATE"))
         output_subdir = output_dir.name
-        image_feed    = f"{output_subdir}/05_FOTO_OTTIMIZZATE/feed_1080x1080.jpg"
+        image_feed = f"{output_subdir}/05_FOTO_OTTIMIZZATE/feed_1080x1080.jpg"
         image_stories = f"{output_subdir}/05_FOTO_OTTIMIZZATE/stories_1080x1920.jpg"
         log("FOTO OTT.", "Feed 1080x1080 e Stories 1080x1920 salvate", "success")
     except Exception as e:
         log("FOTO OTT.", f"Ottimizzazione non riuscita: {e}\n{traceback.format_exc()}", "warn")
 
-    # ── MEMORY ──
     log("MEMORIA", "Aggiornamento performance_log.json...")
     try:
         memory_path = Path("memory/performance_log.json")
         log_data = json.loads(memory_path.read_text(encoding="utf-8")) if memory_path.exists() else {"sessions": []}
-        log_data["sessions"].append({
-            "timestamp": datetime.now().isoformat(),
-            "foto": str(foto),
-            "brief": brief,
-            "output_dir": str(output_dir),
-        })
+        sessions = log_data.get("sessions")
+        if not isinstance(sessions, list):
+            sessions = []
+            log_data["sessions"] = sessions
+        sessions.append(
+            {
+                "timestamp": datetime.now().isoformat(),
+                "foto": str(foto),
+                "brief": brief,
+                "output_dir": str(output_dir),
+                "text_model": selected_text_model,
+                "image_model": selected_image_model,
+                "strategy": strategy[:1200],
+                "ai_images": ai_images,
+            }
+        )
         memory_path.parent.mkdir(exist_ok=True)
         memory_path.write_text(json.dumps(log_data, indent=2, ensure_ascii=False), encoding="utf-8")
         log("MEMORIA", "Sessione loggata. Memoria persistente aggiornata.", "success")
     except Exception as e:
         log("MEMORIA", f"Log non salvato: {e}", "warn")
 
-    # ── OUTPUT FINALE ──
-    print(f"\n✅ MISSIONE COMPLETATA!", flush=True)
-    print(f"📁 Output: {output_dir}", flush=True)
+    print("\nMISSIONE COMPLETATA!", flush=True)
+    print(f"Output: {output_dir}", flush=True)
 
     results = {
-        "analisi":       f"# Scheda Prodotto\n\n{analisi}",
-        "shooting":      f"# Prompt Shooting Professionali\n\n{shooting}",
-        "reel":          f"# Script Reel Instagram\n\n{reel}",
-        "copy":          f"# Copy Completo\n\n{copy}",
-        "hashtag":       f"# Set 30 Hashtag\n\n{hashtag}",
-        "image_feed":    image_feed,
+        "strategy": f"# Strategia 2.0\n\n{strategy}",
+        "analisi": f"# Scheda Prodotto\n\n{analisi}",
+        "shooting": f"# Guida Foto Reale\n\n{shooting}",
+        "visual_prompts": f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}",
+        "carousel": f"# Carousel Statici\n\n{carousel}",
+        "local_visibility": f"# Local Visibility\n\n{local_visibility}",
+        "distribution": f"# Distribuzione\n\n{distribution}",
+        "copy": f"# Caption, WhatsApp e Piano 7 Giorni\n\n{copy}",
+        "hashtag": f"# Hashtag e Rotazione\n\n{hashtag}",
+        "image_feed": image_feed,
         "image_stories": image_stories,
     }
+    for idx, image_path in enumerate(ai_images, start=1):
+        results[f"image_ai_{idx}"] = image_path
     print(f"__RESULTS_JSON__:{json.dumps(results, ensure_ascii=False)}", flush=True)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Monili Media Agency — Kit marketing da foto prodotto")
+    parser = argparse.ArgumentParser(description="Monili Media Agency - Kit marketing da foto prodotto")
     parser.add_argument("--foto", "-f", default="input/prodotto.jpg")
     parser.add_argument("--brief", "-b", default="")
+    parser.add_argument("--image-model", default="")
+    parser.add_argument("--text-model", default="")
     args = parser.parse_args()
     try:
-        run_agency(args.foto, args.brief)
+        run_agency(args.foto, args.brief, args.image_model, args.text_model)
     except Exception as e:
-        print(f"\n❌ CRASH FATALE: {e}", flush=True)
+        print(f"\nCRASH FATALE: {e}", flush=True)
         print(traceback.format_exc(), flush=True)
         sys.exit(1)
 
