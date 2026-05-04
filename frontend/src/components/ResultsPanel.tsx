@@ -10,6 +10,7 @@ interface Props {
 const SECTIONS = [
   { id: 'publish_pack', label: 'Pronto Pubblicazione', icon: 'P', filename: 'publish_pack.txt', desc: 'Versione finale gia selezionata e pronta da copiare' },
   { id: 'strategy_plan', label: 'Piano Strategist JSON', icon: 'J', filename: 'strategy_plan.json', desc: 'Decisione dinamica: formato, worn, carousel si/no' },
+  { id: 'merchandising', label: 'Merchandising', icon: 'M', filename: 'merchandising_styling.txt', desc: 'Styling, abbinamenti e scene AI vendibili' },
   { id: 'carousel', label: 'Carousel Testi', icon: 'C', filename: 'carousel_statici.txt', desc: 'Testi slide (solo supporto, non output principale)' },
   { id: 'strategy', label: 'Strategia 2.0', icon: 'S', filename: 'strategia_2_0.txt', desc: 'Scelta strategica usata dal team AI' },
   { id: 'local_visibility', label: 'Local Visibility', icon: 'L', filename: 'local_visibility.txt', desc: 'SEO locale Ravenna e Google Business' },

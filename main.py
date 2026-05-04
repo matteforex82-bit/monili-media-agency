@@ -312,6 +312,9 @@ def strategy_plan_defaults() -> dict:
         "needs_street_visual": True,
         "visual_count": 3,
         "visual_focus": ["hero_clean", "worn", "street_context"],
+        "styling_items": [],
+        "model_direction": "realistic adult model, natural pose",
+        "scene_concepts": ["premium product hero", "worn lifestyle", "Italian street context"],
         "rationale": "Piano fallback: post statico con visual realistici.",
     }
 
@@ -324,11 +327,13 @@ def strategy_plan_summary(plan: dict) -> str:
     needs_street = to_bool(plan.get("needs_street_visual"))
     visual_count = int(plan.get("visual_count", 3))
     visual_focus = normalize_string_list(plan.get("visual_focus"), max_items=8)
+    scenes = normalize_string_list(plan.get("scene_concepts"), max_items=5)
     return (
         f"primary_output={primary}; secondary_output={secondary}; "
         f"needs_carousel={needs_carousel}; needs_worn_visual={needs_worn}; "
         f"needs_street_visual={needs_street}; visual_count={visual_count}; "
-        f"visual_focus={','.join(visual_focus) if visual_focus else '-'}"
+        f"visual_focus={','.join(visual_focus) if visual_focus else '-'}; "
+        f"scene_concepts={'; '.join(scenes) if scenes else '-'}"
     )
 
 
@@ -466,12 +471,53 @@ Rispondi in italiano in markdown con queste sezioni:
     return result
 
 
-def agent_strategy_plan(text_model: str, api_key: str, foto: Path, analisi: str, strategy: str, brief: str) -> dict:
+def agent_merchandising(text_model: str, api_key: str, foto: Path, analisi: str, brief: str) -> str:
+    log("MERCHANDISER", "Valorizzazione prodotto, styling e scenari vendibili...")
+    prompt = f"""Sei un merchandiser e stylist per un piccolo negozio moda/bijoux.
+Il tuo compito e trasformare un oggetto fotografato male o in modo semplice in un contenuto desiderabile e vendibile.
+{BRAND}
+Analisi prodotto: {analisi[:1200]}
+Brief: {brief if brief else "Nessun brief"}
+
+Decidi tutto cio che serve per vendere meglio questo oggetto:
+
+## POTENZIALE DI VENDITA
+- Perche puo piacere
+- Che desiderio risolve
+- Cliente ideale
+
+## STYLING
+- 3 abbinamenti concreti con altri capi/accessori
+- Colori e materiali da accostare
+- Cosa evitare per non svalutare il prodotto
+
+## VISUAL GENERATIVI CONSIGLIATI
+- 4 scene fotorealistiche da creare con AI
+- quando usare modella AI, mano, orecchio, collo, manichino o flat lay
+- ambientazioni credibili anche inventate: boutique, strada italiana, caffe, portico, camera luminosa, vetrina
+
+Regola centrale: l'ambiente, la modella e lo styling possono essere inventati e migliorati; il prodotto deve restare fedele a forma, colore, materiali, proporzioni e dettagli.
+Rispondi in italiano, pratico, senza teoria."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1800)
+    log("MERCHANDISER", "Styling e scenari vendibili pronti", "success")
+    return result
+
+
+def agent_strategy_plan(
+    text_model: str,
+    api_key: str,
+    foto: Path,
+    analisi: str,
+    strategy: str,
+    merchandising: str,
+    brief: str,
+) -> dict:
     log("STRATEGIST", "Piano strutturato dinamico (JSON) in corso...")
     prompt = f"""Sei lo strategist operativo di un'agenzia social per retail locale.
 {BRAND}
 Analisi prodotto: {analisi[:1100]}
 Strategia testuale: {strategy[:1100]}
+Merchandising/styling: {merchandising[:1100]}
 Brief: {brief if brief else "Nessun brief"}
 
 Restituisci SOLO JSON valido con queste chiavi:
@@ -483,7 +529,10 @@ Restituisci SOLO JSON valido con queste chiavi:
   "needs_worn_visual": true/false,
   "needs_street_visual": true/false,
   "visual_count": 2-5,
-  "visual_focus": ["hero_clean","worn","street_context","material_closeup","outfit_match","local_store_context"],
+  "visual_focus": ["hero_clean","worn","street_context","material_closeup","outfit_match","local_store_context","editorial_detail","gift_context"],
+  "styling_items": ["item1", "item2", "item3"],
+  "model_direction": "descrizione breve della modella/posa se utile",
+  "scene_concepts": ["scena fotorealistica 1", "scena fotorealistica 2", "scena fotorealistica 3"],
   "rationale": "max 2 frasi"
 }}
 
@@ -491,6 +540,7 @@ Regole:
 - Se prodotto e abbigliamento, normalmente needs_worn_visual=true.
 - Se primary_output non e carousel, needs_carousel=false.
 - Evita output ripetitivo, scegli il formato in base al prodotto.
+- Puoi usare modella AI, location inventate, styling e props se aiutano a vendere, ma il prodotto deve restare identico.
 - Nessun testo fuori JSON."""
     raw = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1200)
     parsed = extract_json_object(raw)
@@ -512,6 +562,15 @@ Regole:
     focus = normalize_string_list(parsed.get("visual_focus"), max_items=8)
     if focus:
         base["visual_focus"] = focus
+    styling_items = normalize_string_list(parsed.get("styling_items"), max_items=6)
+    if styling_items:
+        base["styling_items"] = styling_items
+    model_direction = str(parsed.get("model_direction", base["model_direction"])).strip()
+    if model_direction:
+        base["model_direction"] = model_direction
+    scene_concepts = normalize_string_list(parsed.get("scene_concepts"), max_items=5)
+    if scene_concepts:
+        base["scene_concepts"] = scene_concepts
     base["rationale"] = str(parsed.get("rationale", base["rationale"])).strip() or base["rationale"]
 
     primary = base["primary_output"]
@@ -552,6 +611,7 @@ def agent_visual_prompts(
     foto: Path,
     analisi: str,
     strategy: str,
+    merchandising: str,
     shooting: str,
     plan: dict,
 ) -> str:
@@ -560,18 +620,27 @@ def agent_visual_prompts(
     visual_count = max(2, min(5, int(plan.get("visual_count", 3))))
     focus_list = normalize_string_list(plan.get("visual_focus"), max_items=8)
     focus_hint = ", ".join(focus_list) if focus_list else "hero_clean, worn, street_context"
+    styling_items = normalize_string_list(plan.get("styling_items"), max_items=6)
+    scene_concepts = normalize_string_list(plan.get("scene_concepts"), max_items=5)
+    model_direction = str(plan.get("model_direction", "")).strip()
     prompt = f"""Sei un art director specializzato in visual AI fotorealistici per piccoli negozi locali.
 {BRAND}
 Analisi prodotto: {analisi[:900]}
 Strategia: {strategy[:900]}
+Merchandising/styling: {merchandising[:1200]}
 Guida foto reale: {shooting[:700]}
 Piano strategist: {plan_summary}
+Styling items da usare se coerenti: {", ".join(styling_items) if styling_items else "scegli tu accessori/capi coerenti"}
+Direzione modella/posa: {model_direction or "scegli tu in modo realistico"}
+Scene consigliate: {"; ".join(scene_concepts) if scene_concepts else "premium hero, indossato, contesto italiano"}
 
 Genera {visual_count} prompt in inglese per immagini statiche AI usando la foto caricata come riferimento.
 Ogni prompt deve iniziare con "Prompt EN:".
+Il primo prompt deve essere la migliore immagine finale per Instagram feed.
 
 Obiettivo: far vedere il prodotto in contesto reale senza farlo sembrare finto.
-Puoi migliorare in modo deciso luce, composizione, sfondo e styling per ottenere uno scatto premium.
+Usa AI generativa senza timidezza: puoi inventare modella, location, styling, props e atmosfera.
+Puoi migliorare in modo deciso luce, composizione, sfondo, outfit e styling per ottenere uno scatto premium.
 Il prodotto deve restare fedele all'originale al 100%.
 Focus prioritari richiesti: {focus_hint}
 
@@ -580,6 +649,9 @@ Regole obbligatorie in ogni prompt:
 - photorealistic, natural daylight, authentic small Italian boutique style
 - improve lighting direction, depth, tonal contrast and framing for a premium editorial still photo
 - clean and elevate background, avoid clutter, add realistic soft shadows and depth of field
+- use complementary styling, invented realistic locations and AI models when they increase desire
+- for clothing, show the garment worn naturally and styled as a complete outfit
+- for jewelry, show realistic wear on hand/ear/neck plus one elegant product close-up
 - no plastic skin, no luxury stock-photo look, no unrealistic body, no fantasy jewelry
 - do not change the product into a different item
 - no text, no logos, no watermark
@@ -591,7 +663,14 @@ Rispondi solo con i prompt richiesti, uno per blocco, senza spiegazioni."""
     return result
 
 
-def agent_visual_gen(output_dir: Path, visual_prompts: str, selected_model: str, api_key: str, foto: Path) -> list[str]:
+def agent_visual_gen(
+    output_dir: Path,
+    visual_prompts: str,
+    selected_model: str,
+    api_key: str,
+    foto: Path,
+    max_visuals_override: int | None = None,
+) -> list[str]:
     visual_mode = os.environ.get("VISUAL_AI_MODE", "controlled").lower()
     if visual_mode in ("off", "false", "0", "none"):
         log("VISUAL GEN", "Visual AI disattivata da VISUAL_AI_MODE", "data")
@@ -611,7 +690,8 @@ def agent_visual_gen(output_dir: Path, visual_prompts: str, selected_model: str,
         log("VISUAL GEN", "OPENROUTER_API_KEY mancante - salto generazione immagini", "warn")
         return []
 
-    max_visuals = int(os.environ.get("MAX_AI_VISUALS", "3"))
+    max_visuals = max_visuals_override or int(os.environ.get("MAX_AI_VISUALS", "3"))
+    max_visuals = max(1, min(5, max_visuals))
     prompts = extract_prompt_candidates(visual_prompts, max_items=max_visuals)
     if not prompts:
         log("VISUAL GEN", "Nessun prompt visual valido trovato", "warn")
@@ -625,7 +705,9 @@ def agent_visual_gen(output_dir: Path, visual_prompts: str, selected_model: str,
             controlled_prompt = f"""{prompt}
 
 Use the uploaded reference image as the source of truth for the product.
-Preserve the exact product. Create a realistic static commercial photo, not a video frame."""
+Preserve the exact product shape, color, material, proportions and distinctive details.
+You may invent the model, location, outfit, props and lighting to make the product more desirable.
+Create a premium photorealistic static commercial photo, not a video frame."""
             data_urls = generate_image_with_openrouter(api_key, model, controlled_prompt, image_path=foto)
             for image_idx, data_url in enumerate(data_urls, start=1):
                 filename = f"visual_ai_{idx}_{image_idx}.png"
@@ -648,6 +730,7 @@ def agent_carousel_visual_prompts(
     api_key: str,
     analisi: str,
     strategy: str,
+    merchandising: str,
     carousel: str,
     brief: str,
 ) -> str:
@@ -656,6 +739,7 @@ def agent_carousel_visual_prompts(
 {BRAND}
 Analisi prodotto: {analisi[:900]}
 Strategia: {strategy[:900]}
+Merchandising/styling: {merchandising[:1000]}
 Struttura carousel: {carousel[:1200]}
 Brief utente: {brief if brief else "Nessun brief"}
 
@@ -671,7 +755,9 @@ Regole obbligatorie:
 - Use the uploaded product photo as strict reference
 - preserve exact product details, colors, shape and materials
 - photorealistic, natural daylight, authentic Italian boutique mood
-- include believable Ravenna vibe without fake landmarks
+- invent believable Ravenna/Italian boutique lifestyle scenes when useful, without recognizable fake landmarks
+- use realistic model, hand, ear, neck, outfit, props and complementary products when they help sell the item
+- make every slide look like a finished publishable photo, not a planning mockup
 - no text overlays, no logos, no watermark
 - if model is present, realistic adult model only
 - each slide must have different framing and purpose (hero, worn detail, context, mix&match, CTA-ready visual)
@@ -720,7 +806,9 @@ def generate_carousel_images(
             controlled = f"""{prompt}
 
 Use the uploaded reference photo as source-of-truth for the product.
-The result must look like a real still photo for Instagram carousel."""
+The product must remain faithful to the reference.
+You may invent model, location, outfit, props and lighting to make the slide more desirable.
+The result must look like a finished premium photorealistic still photo for Instagram carousel."""
             data_urls = generate_image_with_openrouter(api_key, model, controlled, image_path=foto)
             if not data_urls:
                 continue
@@ -1013,6 +1101,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     analisi = ""
     strategy = ""
     strategy_plan = strategy_plan_defaults()
+    merchandising = ""
     shooting = ""
     visual_prompts = ""
     ai_images: list[str] = []
@@ -1054,7 +1143,13 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         log("STRATEGIST", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     try:
-        strategy_plan = agent_strategy_plan(selected_text_model, api_key, foto, analisi, strategy, brief)
+        merchandising = agent_merchandising(selected_text_model, api_key, foto, analisi, brief)
+        safe_write(output_dir / "02_STRATEGIA" / "merchandising_styling.md", f"# Merchandising e Styling\n\n{merchandising}")
+    except Exception as e:
+        log("MERCHANDISER", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+
+    try:
+        strategy_plan = agent_strategy_plan(selected_text_model, api_key, foto, analisi, strategy, merchandising, brief)
         safe_write(output_dir / "02_STRATEGIA" / "strategy_plan.json", json.dumps(strategy_plan, indent=2, ensure_ascii=False))
         log("STRATEGIST", f"Piano dinamico: {strategy_plan_summary(strategy_plan)}", "data")
     except Exception as e:
@@ -1067,9 +1162,25 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         log("FOTO DIR.", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     try:
-        visual_prompts = agent_visual_prompts(selected_text_model, api_key, foto, analisi, strategy, shooting, strategy_plan)
+        visual_prompts = agent_visual_prompts(
+            selected_text_model,
+            api_key,
+            foto,
+            analisi,
+            strategy,
+            merchandising,
+            shooting,
+            strategy_plan,
+        )
         safe_write(output_dir / "03_ASSET_STATICI" / "visual_ai_prompts.md", f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}")
-        ai_images = agent_visual_gen(output_dir, visual_prompts, selected_image_model, api_key, foto)
+        ai_images = agent_visual_gen(
+            output_dir,
+            visual_prompts,
+            selected_image_model,
+            api_key,
+            foto,
+            max_visuals_override=int(strategy_plan.get("visual_count", 3)),
+        )
     except Exception as e:
         log("VISUAL GEN", f"ERRORE: {e}", "warn")
 
@@ -1087,6 +1198,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
                 api_key,
                 analisi,
                 strategy,
+                merchandising,
                 carousel,
                 brief,
             )
@@ -1189,6 +1301,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
                 "image_model": selected_image_model,
                 "strategy": strategy[:1200],
                 "strategy_plan": strategy_plan,
+                "merchandising": merchandising[:1200],
                 "ai_images": ai_images,
             }
         )
@@ -1208,6 +1321,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         "publish_pack_json": json.dumps(publish_pack, ensure_ascii=False),
         "strategy": f"# Strategia 2.0\n\n{strategy}",
         "strategy_plan": json.dumps(strategy_plan, indent=2, ensure_ascii=False),
+        "merchandising": f"# Merchandising e Styling\n\n{merchandising}",
         "analisi": f"# Scheda Prodotto\n\n{analisi}",
         "shooting": f"# Guida Foto Reale\n\n{shooting}",
         "visual_prompts": f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}",

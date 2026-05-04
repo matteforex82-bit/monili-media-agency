@@ -42,6 +42,7 @@ const INITIAL_AGENTS: AgentDef[] = [
   { id: 'researching-trends',    name: 'TREND',       role: 'Intelligence P/E',   icon: 'T', status: 'offline', progress: 0 },
   { id: 'analyzing-products',    name: 'ANALISTA',    role: 'Vision AI',          icon: 'A', status: 'offline', progress: 0 },
   { id: 'planning-strategy',     name: 'STRATEGIST',  role: 'Scelta formato',     icon: 'S', status: 'offline', progress: 0 },
+  { id: 'merchandising-product', name: 'MERCHANT',    role: 'Styling vendibile',  icon: 'M', status: 'offline', progress: 0 },
   { id: 'directing-photography', name: 'FOTO DIR.',   role: 'Foto reali',         icon: 'F', status: 'offline', progress: 0 },
   { id: 'visual-ai',             name: 'VISUAL AI',   role: 'Try-on realistico',  icon: 'V', status: 'offline', progress: 0 },
   { id: 'planning-carousel',     name: 'CAROUSEL',    role: 'Statici utili',      icon: 'C', status: 'offline', progress: 0 },
@@ -329,9 +330,9 @@ export default function Home() {
     // â”€â”€ SSE stream: aggiornamenti in tempo reale â”€â”€
     const agentKeywords: [string, number][] = [
       ['SUPERVISOR',    0], ['Trend',       1], ['Analisi',  2],
-      ['STRATEGIST',    3], ['FOTO DIR',    4], ['VISUAL',   5],
-      ['CAROUSEL',      6], ['LOCAL SEO',   7], ['DISTRIBUZIONE', 8],
-      ['FOTO OTT',      9], ['performance', 10],
+      ['STRATEGIST',    3], ['MERCHANDISER', 4], ['FOTO DIR', 5],
+      ['VISUAL',        6], ['CAROUSEL',      7], ['LOCAL SEO', 8],
+      ['DISTRIBUZIONE', 9], ['FOTO OTT',     10], ['performance', 11],
     ];
 
     let currentAgentIdx = 0;
@@ -633,7 +634,7 @@ export default function Home() {
                 maxWidth: 440,
                 margin: '0 auto',
               }}>
-                Usa questa schermata: carica la foto prodotto, aggiungi due note se servono, poi genera visual realistici, carousel, caption e contenuti locali.
+                Usa questa schermata: carica la foto prodotto, aggiungi due note se servono, poi lascia scegliere al team AI il contenuto piu adatto.
               </p>
             </div>
 
@@ -707,8 +708,8 @@ export default function Home() {
                     Cosa riceverai
                   </div>
                   <div style={{ display: 'grid', gap: 6, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.45 }}>
-                    <span>Visual AI fotorealistici: sfondo migliore, indossato, lifestyle.</span>
-                    <span>Carousel statico con testi slide e guida visuale.</span>
+                    <span>Visual AI fotorealistici: sfondo migliore, indossato, lifestyle e styling.</span>
+                    <span>Post, carousel o story pack scelti dallo strategist in base al prodotto.</span>
                     <span>Caption, WhatsApp, Google Business e local SEO Ravenna.</span>
                   </div>
                   <details style={{ marginTop: 12 }}>
@@ -856,7 +857,7 @@ export default function Home() {
                   {overallProgress}%
                 </div>
                 <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', marginTop: 2 }}>
-                  {doneCount} di 11 completati
+                  {doneCount} di {INITIAL_AGENTS.length} completati
                 </div>
               </div>
             </div>
@@ -927,7 +928,7 @@ export default function Home() {
                   Il kit marketing e pronto!
                 </h2>
                 <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--espresso-mid)', margin: '4px 0 0' }}>
-                  Strategia, visual AI, carousel, Google Business, caption, WhatsApp e foto ottimizzate: tutto pronto da usare.
+                  Strategia, visual AI, contenuto scelto dallo strategist, Google Business, caption, WhatsApp e foto ottimizzate: tutto pronto da usare.
                 </p>
               </div>
               <button
@@ -942,7 +943,7 @@ export default function Home() {
             {/* Agent recap */}
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Il team - 11/11 completati
+                Il team - {INITIAL_AGENTS.length}/{INITIAL_AGENTS.length} completati
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                 {agents.map((agent, i) => (
