@@ -218,9 +218,15 @@ def save_data_url_image(data_url: str, destination: Path) -> bool:
     return True
 
 
-def generate_image_with_openrouter(api_key: str, model: str, prompt: str, image_path: Path | None = None) -> list[str]:
+def generate_image_with_openrouter(
+    api_key: str,
+    model: str,
+    prompt: str,
+    image_path: Path | None = None,
+    aspect_ratio: str = "1:1",
+) -> list[str]:
     modalities = ["image", "text"] if model.startswith("google/gemini") else ["image"]
-    image_config = {"aspect_ratio": "1:1", "image_size": "1K"} if model.startswith("google/gemini") else None
+    image_config = {"aspect_ratio": aspect_ratio, "image_size": "1K"} if model.startswith("google/gemini") else None
 
     payload = openrouter_chat_completion(
         api_key=api_key,
@@ -235,6 +241,14 @@ def generate_image_with_openrouter(api_key: str, model: str, prompt: str, image_
     if not data_urls:
         raise RuntimeError("Nessuna immagine trovata nella risposta OpenRouter")
     return data_urls
+
+
+def load_prompt_knowledge() -> str:
+    path = Path(__file__).parent / "knowledge" / "nano_banana_2_prompts.md"
+    try:
+        return path.read_text(encoding="utf-8")[:3500]
+    except Exception:
+        return ""
 
 
 def extract_prompt_candidates(shooting_prompts: str, max_items: int = 2) -> list[str]:
@@ -252,6 +266,12 @@ def extract_prompt_candidates(shooting_prompts: str, max_items: int = 2) -> list
             prompts.append(compact[:500])
 
     return prompts[:max_items]
+
+
+def extract_labeled_prompt(raw_text: str, label: str) -> str:
+    pattern = rf"{re.escape(label)}\s*:\s*(.+)"
+    match = re.search(pattern, raw_text, flags=re.IGNORECASE)
+    return match.group(1).strip() if match else ""
 
 
 def extract_json_object(raw_text: str) -> dict:
@@ -623,8 +643,12 @@ def agent_visual_prompts(
     styling_items = normalize_string_list(plan.get("styling_items"), max_items=6)
     scene_concepts = normalize_string_list(plan.get("scene_concepts"), max_items=5)
     model_direction = str(plan.get("model_direction", "")).strip()
+    prompt_knowledge = load_prompt_knowledge()
     prompt = f"""Sei un art director specializzato in visual AI fotorealistici per piccoli negozi locali.
 {BRAND}
+Knowledge prompt immagine:
+{prompt_knowledge}
+
 Analisi prodotto: {analisi[:900]}
 Strategia: {strategy[:900]}
 Merchandising/styling: {merchandising[:1200]}
@@ -636,7 +660,7 @@ Scene consigliate: {"; ".join(scene_concepts) if scene_concepts else "premium he
 
 Genera {visual_count} prompt in inglese per immagini statiche AI usando la foto caricata come riferimento.
 Ogni prompt deve iniziare con "Prompt EN:".
-Il primo prompt deve essere la migliore immagine finale per Instagram feed.
+Questi prompt sono VISUAL EXTRA esplorativi, diversi dal carousel e diversi dagli export Instagram finali.
 
 Obiettivo: far vedere il prodotto in contesto reale senza farlo sembrare finto.
 Usa AI generativa senza timidezza: puoi inventare modella, location, styling, props e atmosfera.
@@ -652,6 +676,8 @@ Regole obbligatorie in ogni prompt:
 - use complementary styling, invented realistic locations and AI models when they increase desire
 - for clothing, show the garment worn naturally and styled as a complete outfit
 - for jewelry, show realistic wear on hand/ear/neck plus one elegant product close-up
+- do not include phones, fake chat screens, fake UI, fake packaging labels or readable text
+- do not create carousel slides or multi-panel layouts here
 - no plastic skin, no luxury stock-photo look, no unrealistic body, no fantasy jewelry
 - do not change the product into a different item
 - no text, no logos, no watermark
@@ -725,6 +751,99 @@ Create a premium photorealistic static commercial photo, not a video frame."""
     return []
 
 
+def agent_instagram_visual_prompts(
+    text_model: str,
+    api_key: str,
+    foto: Path,
+    analisi: str,
+    strategy: str,
+    merchandising: str,
+    plan: dict,
+    brief: str,
+) -> str:
+    log("INSTAGRAM VISUAL", "Prompt dedicati feed e stories...")
+    prompt_knowledge = load_prompt_knowledge()
+    plan_summary = strategy_plan_summary(plan)
+    prompt = f"""Sei un senior art director per immagini Instagram fotorealistiche.
+Devi creare prompt dedicati, non riciclati da visual extra o carousel.
+{BRAND}
+Knowledge prompt immagine:
+{prompt_knowledge}
+
+Analisi prodotto: {analisi[:900]}
+Strategia: {strategy[:900]}
+Merchandising/styling: {merchandising[:1200]}
+Piano strategist: {plan_summary}
+Brief: {brief if brief else "Nessun brief"}
+
+Restituisci solo due righe:
+FEED_PROMPT_EN: ...
+STORY_PROMPT_EN: ...
+
+Regole:
+- FEED_PROMPT_EN deve essere una singola immagine hero pubblicabile su Instagram feed, premium, desiderabile, senza testo.
+- STORY_PROMPT_EN deve essere verticale, fotorealistica, con spazio pulito per eventuale testo aggiunto dopo, ma senza testo dentro l'immagine.
+- Puoi inventare modella, location, styling, props e luci se aiutano a vendere.
+- Mantieni il prodotto identico alla foto reference: forma, colore, materiali, proporzioni, pietre, dettagli.
+- Niente telefoni, chat screen, interfacce, loghi, watermark, scritte leggibili, packaging fake.
+- Massimo fotorealismo, pelle naturale, mani realistiche, scala corretta."""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1200)
+    log("INSTAGRAM VISUAL", "Prompt feed/stories pronti", "success")
+    return result
+
+
+def generate_instagram_images(
+    output_dir: Path,
+    api_key: str,
+    selected_model: str,
+    foto: Path,
+    instagram_prompts: str,
+) -> dict[str, str]:
+    if not api_key:
+        log("INSTAGRAM VISUAL", "OPENROUTER_API_KEY mancante - salto immagini Instagram AI", "warn")
+        return {}
+
+    model = select_openrouter_image_model(selected_model)
+    target_dir = output_dir / "05_FOTO_OTTIMIZZATE" / "ai_sources"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    outputs: dict[str, str] = {}
+
+    prompt_specs = [
+        ("feed_source", "FEED_PROMPT_EN", "1:1", "instagram_feed_source.png"),
+        ("story_source", "STORY_PROMPT_EN", "9:16", "instagram_story_source.png"),
+    ]
+    for key, label, aspect_ratio, filename in prompt_specs:
+        prompt = extract_labeled_prompt(instagram_prompts, label)
+        if not prompt:
+            log("INSTAGRAM VISUAL", f"Prompt mancante: {label}", "warn")
+            continue
+        try:
+            log("INSTAGRAM VISUAL", f"Generazione {label}", "data")
+            controlled = f"""{prompt}
+
+Use the uploaded reference photo as source-of-truth for the product.
+Preserve exact product shape, color, material, proportions, stones and distinctive details.
+Invent only model, setting, outfit, props and lighting.
+No text, no logos, no watermark, no phone screens, no fake UI."""
+            data_urls = generate_image_with_openrouter(
+                api_key,
+                model,
+                controlled,
+                image_path=foto,
+                aspect_ratio=aspect_ratio,
+            )
+            if data_urls:
+                target = target_dir / filename
+                if save_data_url_image(data_urls[0], target):
+                    outputs[key] = str(target)
+        except Exception as e:
+            log("INSTAGRAM VISUAL", f"{label} non generata: {e}", "warn")
+
+    if outputs:
+        log("INSTAGRAM VISUAL", f"{len(outputs)} immagini Instagram dedicate generate", "success")
+    return outputs
+
+
 def agent_carousel_visual_prompts(
     text_model: str,
     api_key: str,
@@ -735,8 +854,12 @@ def agent_carousel_visual_prompts(
     brief: str,
 ) -> str:
     log("CAROUSEL VISUAL", "Prompt per 5 slide carousel fotorealistico...")
+    prompt_knowledge = load_prompt_knowledge()
     prompt = f"""Sei un visual strategist per Instagram carousel statici fotorealistici.
 {BRAND}
+Knowledge prompt immagine:
+{prompt_knowledge}
+
 Analisi prodotto: {analisi[:900]}
 Strategia: {strategy[:900]}
 Merchandising/styling: {merchandising[:1000]}
@@ -758,6 +881,7 @@ Regole obbligatorie:
 - invent believable Ravenna/Italian boutique lifestyle scenes when useful, without recognizable fake landmarks
 - use realistic model, hand, ear, neck, outfit, props and complementary products when they help sell the item
 - make every slide look like a finished publishable photo, not a planning mockup
+- no phones, no chat screens, no fake UI, no readable text, no fake labels
 - no text overlays, no logos, no watermark
 - if model is present, realistic adult model only
 - each slide must have different framing and purpose (hero, worn detail, context, mix&match, CTA-ready visual)
@@ -824,6 +948,43 @@ The result must look like a finished premium photorealistic still photo for Inst
     else:
         log("CAROUSEL VISUAL", "Nessuna slide carousel generata", "warn")
     return generated
+
+
+def agent_carousel_slide_texts(
+    text_model: str,
+    api_key: str,
+    analisi: str,
+    strategy: str,
+    carousel: str,
+    publish_pack: dict,
+) -> dict:
+    log("CAROUSEL COPY", "Testi brevi per slide e caption unica...")
+    prompt = f"""Sei una social media manager pratica.
+{BRAND}
+Analisi prodotto: {analisi[:700]}
+Strategia: {strategy[:700]}
+Carousel: {carousel[:1300]}
+Caption scelta: {str(publish_pack.get("selected_caption", ""))[:700]}
+
+Restituisci SOLO JSON valido:
+{{
+  "carousel_caption": "caption unica per tutto il carosello Instagram",
+  "slide_texts": ["testo slide 1 max 65 caratteri", "testo slide 2 max 65 caratteri", "testo slide 3 max 65 caratteri", "testo slide 4 max 65 caratteri", "testo slide 5 max 65 caratteri"]
+}}
+
+Regole:
+- Instagram ha una caption unica: carousel_caption e quella da pubblicare.
+- slide_texts sono micro-testi opzionali da mettere sotto ogni immagine nella UI o come overlay manuale.
+- non generare testi lunghi
+- niente markdown, solo JSON."""
+    raw = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=900)
+    parsed = extract_json_object(raw)
+    if not parsed:
+        return {"carousel_caption": str(publish_pack.get("selected_caption", "")), "slide_texts": []}
+    parsed["slide_texts"] = normalize_string_list(parsed.get("slide_texts"), max_items=5)
+    parsed["carousel_caption"] = str(parsed.get("carousel_caption", publish_pack.get("selected_caption", ""))).strip()
+    log("CAROUSEL COPY", "Testi slide pronti", "success")
+    return parsed
 
 
 def agent_reel(text_model: str, api_key: str, analisi: str, trend: str) -> str:
@@ -1105,7 +1266,10 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     shooting = ""
     visual_prompts = ""
     ai_images: list[str] = []
+    instagram_visual_prompts = ""
+    instagram_sources: dict[str, str] = {}
     carousel = ""
+    carousel_slide_texts: dict = {}
     local_visibility = ""
     distribution = ""
     publish_pack: dict = {}
@@ -1184,6 +1348,31 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     except Exception as e:
         log("VISUAL GEN", f"ERRORE: {e}", "warn")
 
+    try:
+        instagram_visual_prompts = agent_instagram_visual_prompts(
+            selected_text_model,
+            api_key,
+            foto,
+            analisi,
+            strategy,
+            merchandising,
+            strategy_plan,
+            brief,
+        )
+        safe_write(
+            output_dir / "05_FOTO_OTTIMIZZATE" / "instagram_visual_prompts.txt",
+            instagram_visual_prompts,
+        )
+        instagram_sources = generate_instagram_images(
+            output_dir,
+            api_key,
+            selected_image_model,
+            foto,
+            instagram_visual_prompts,
+        )
+    except Exception as e:
+        log("INSTAGRAM VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+
     should_generate_carousel = to_bool(strategy_plan.get("needs_carousel"))
     if should_generate_carousel:
         try:
@@ -1250,6 +1439,23 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     except Exception as e:
         log("PUBLISH PACK", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
+    if should_generate_carousel:
+        try:
+            carousel_slide_texts = agent_carousel_slide_texts(
+                selected_text_model,
+                api_key,
+                analisi,
+                strategy,
+                carousel,
+                publish_pack,
+            )
+            safe_write(
+                output_dir / "04_CAROUSEL" / "carousel_slide_texts.json",
+                json.dumps(carousel_slide_texts, indent=2, ensure_ascii=False),
+            )
+        except Exception as e:
+            log("CAROUSEL COPY", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+
     # Backward-compatible legacy outputs while the 2.0 UI migrates.
     copy = distribution
     hashtag = distribution
@@ -1257,25 +1463,35 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     log("FOTO OTT.", "Ottimizzazione foto per Instagram (feed 1:1 + Stories 9:16)...")
     try:
         sys.path.insert(0, str(Path(__file__).parent / "scripts"))
-        from optimize_image import optimize
+        from optimize_image import optimize, optimize_from_sources
 
         instagram_source = foto
+        stories_source = foto
         source_kind = "foto originale"
-        if ai_images:
+        if instagram_sources.get("feed_source") or instagram_sources.get("story_source"):
+            instagram_source = Path(instagram_sources.get("feed_source") or instagram_sources.get("story_source") or str(foto))
+            stories_source = Path(instagram_sources.get("story_source") or instagram_sources.get("feed_source") or str(foto))
+            source_kind = "visual Instagram AI dedicati"
+        elif ai_images:
             candidate_rel = ai_images[0]
             candidate_abs = Path("output") / candidate_rel
             if candidate_abs.exists():
                 instagram_source = candidate_abs
+                stories_source = candidate_abs
                 source_kind = "visual AI migliorato"
         elif carousel_images:
             candidate_rel = carousel_images[0]
             candidate_abs = Path("output") / candidate_rel
             if candidate_abs.exists():
                 instagram_source = candidate_abs
+                stories_source = candidate_abs
                 source_kind = "slide AI carousel"
 
         log("FOTO OTT.", f"Base Instagram: {source_kind}", "data")
-        optimize(str(instagram_source), str(output_dir / "05_FOTO_OTTIMIZZATE"))
+        if source_kind == "visual Instagram AI dedicati":
+            optimize_from_sources(str(instagram_source), str(stories_source), str(output_dir / "05_FOTO_OTTIMIZZATE"))
+        else:
+            optimize(str(instagram_source), str(output_dir / "05_FOTO_OTTIMIZZATE"))
         output_subdir = output_dir.name
         image_feed = f"{output_subdir}/05_FOTO_OTTIMIZZATE/feed_1080x1080.jpg"
         image_stories = f"{output_subdir}/05_FOTO_OTTIMIZZATE/stories_1080x1920.jpg"
@@ -1303,6 +1519,8 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
                 "strategy_plan": strategy_plan,
                 "merchandising": merchandising[:1200],
                 "ai_images": ai_images,
+                "instagram_sources": instagram_sources,
+                "carousel_slide_texts": carousel_slide_texts,
             }
         )
         memory_path.parent.mkdir(exist_ok=True)
@@ -1325,7 +1543,9 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         "analisi": f"# Scheda Prodotto\n\n{analisi}",
         "shooting": f"# Guida Foto Reale\n\n{shooting}",
         "visual_prompts": f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}",
+        "instagram_visual_prompts": instagram_visual_prompts,
         "carousel_visual_prompts": carousel_visual_prompts,
+        "carousel_slide_texts_json": json.dumps(carousel_slide_texts, ensure_ascii=False),
         "carousel": f"# Carousel Statici\n\n{carousel}",
         "local_visibility": f"# Local Visibility\n\n{local_visibility}",
         "distribution": f"# Distribuzione\n\n{distribution}",

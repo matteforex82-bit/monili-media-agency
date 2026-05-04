@@ -32,6 +32,11 @@ type PublishPack = {
   notes_for_owner?: string;
 };
 
+type CarouselSlideCopy = {
+  carousel_caption?: string;
+  slide_texts?: string[];
+};
+
 function downloadBlob(content: string, filename: string) {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -45,6 +50,16 @@ function downloadBlob(content: string, filename: string) {
 }
 
 function parsePublishPack(raw: string | undefined): PublishPack {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseCarouselSlideCopy(raw: string | undefined): CarouselSlideCopy {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
@@ -208,12 +223,14 @@ function ImageStrip({
   results,
   apiUrl,
   filePrefix,
+  slideTexts = [],
 }: {
   title: string;
   keys: string[];
   results: Record<string, string>;
   apiUrl: string;
   filePrefix: string;
+  slideTexts?: string[];
 }) {
   if (keys.length === 0) return null;
 
@@ -246,6 +263,21 @@ function ImageStrip({
             >
               Scarica
             </a>
+            {slideTexts[index] && (
+              <div style={{
+                marginTop: 12,
+                padding: '9px 10px',
+                borderRadius: 8,
+                background: 'var(--cream-2)',
+                color: 'var(--espresso-mid)',
+                fontFamily: 'DM Sans',
+                fontSize: 12,
+                lineHeight: 1.45,
+                textAlign: 'left',
+              }}>
+                {slideTexts[index]}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -257,6 +289,7 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const publishPack = parsePublishPack(results.publish_pack_json);
+  const carouselCopy = parseCarouselSlideCopy(results.carousel_slide_texts_json);
   const selectedCaption = (publishPack.selected_caption || '').trim();
   const selectedFormat = (publishPack.selected_format || '').trim();
   const selectedHashtags = Array.isArray(publishPack.selected_hashtags) ? publishPack.selected_hashtags.join(' ') : '';
@@ -265,6 +298,8 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
   const storyFrames = Array.isArray(publishPack.selected_story_frames) ? publishPack.selected_story_frames : [];
   const storyFinal = storyFrames.map((frame, idx) => `Frame ${idx + 1}: ${frame}`).join('\n');
   const postingFinal = `Formato scelto: ${selectedFormat || '-'}\n${(publishPack.selected_posting_time || '').trim()}\n${(publishPack.selected_cta || '').trim()}`.trim();
+  const carouselCaption = (carouselCopy.carousel_caption || '').trim();
+  const carouselSlideTexts = Array.isArray(carouselCopy.slide_texts) ? carouselCopy.slide_texts : [];
 
   const hasImages = Boolean(results.image_feed || results.image_stories);
   const carouselImageKeys = Object.keys(results)
@@ -291,11 +326,14 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
           <CopyBox title="Post Google Business" value={gmbFinal} filename="post_google_business.txt" />
           <CopyBox title="Stories (3 frame)" value={storyFinal} filename="stories_3_frame.txt" compact />
           <CopyBox title="Orario + CTA" value={postingFinal} filename="orario_e_cta.txt" compact />
+          {carouselCaption && (
+            <CopyBox title="Caption unica carousel" value={carouselCaption} filename="caption_unica_carousel.txt" />
+          )}
         </div>
       </div>
 
-      <ImageStrip title="Carousel pronto (immagini AI)" keys={carouselImageKeys} results={results} apiUrl={apiUrl} filePrefix="carousel_slide" />
-      <ImageStrip title="Visual extra (opzionali)" keys={aiImageKeys} results={results} apiUrl={apiUrl} filePrefix="visual_ai" />
+      <ImageStrip title="Carousel pronto (immagini AI)" keys={carouselImageKeys} results={results} apiUrl={apiUrl} filePrefix="carousel_slide" slideTexts={carouselSlideTexts} />
+      <ImageStrip title="Visual extra (esplorativi, non carousel)" keys={aiImageKeys} results={results} apiUrl={apiUrl} filePrefix="visual_ai" />
 
       {hasImages && (
         <div>
@@ -304,7 +342,7 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
             textTransform: 'uppercase', letterSpacing: '0.10em',
             color: 'var(--terracotta-dark)', marginBottom: 14,
           }}>
-            Foto ottimizzate Instagram (base AI migliorata)
+            Foto Instagram generate apposta
           </div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {results.image_feed && (

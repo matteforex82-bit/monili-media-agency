@@ -76,6 +76,29 @@ def optimize(input_path: str, output_dir: str) -> dict:
     return {"feed": str(feed_path), "stories": str(stories_path)}
 
 
+def optimize_from_sources(feed_input_path: str, stories_input_path: str, output_dir: str) -> dict:
+    """
+    Crea feed e stories partendo da sorgenti diverse.
+    Utile quando l'AI genera una immagine specifica per il feed e una verticale per stories.
+    """
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    feed_img = Image.open(feed_input_path).convert("RGB")
+    stories_img = Image.open(stories_input_path).convert("RGB")
+
+    feed_path = out / "feed_1080x1080.jpg"
+    stories_path = out / "stories_1080x1920.jpg"
+
+    make_feed(feed_img, feed_path)
+    make_stories(stories_img, stories_path)
+
+    print(f"Feed:    {feed_path}")
+    print(f"Stories: {stories_path}")
+
+    return {"feed": str(feed_path), "stories": str(stories_path)}
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Uso: python optimize_image.py <input_foto> <output_dir>")
