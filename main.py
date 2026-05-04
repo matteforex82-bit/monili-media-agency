@@ -571,11 +571,15 @@ Genera {visual_count} prompt in inglese per immagini statiche AI usando la foto 
 Ogni prompt deve iniziare con "Prompt EN:".
 
 Obiettivo: far vedere il prodotto in contesto reale senza farlo sembrare finto.
+Puoi migliorare in modo deciso luce, composizione, sfondo e styling per ottenere uno scatto premium.
+Il prodotto deve restare fedele all'originale al 100%.
 Focus prioritari richiesti: {focus_hint}
 
 Regole obbligatorie in ogni prompt:
 - preserve the exact product shape, color, material, proportions, texture and distinctive details from the reference photo
 - photorealistic, natural daylight, authentic small Italian boutique style
+- improve lighting direction, depth, tonal contrast and framing for a premium editorial still photo
+- clean and elevate background, avoid clutter, add realistic soft shadows and depth of field
 - no plastic skin, no luxury stock-photo look, no unrealistic body, no fantasy jewelry
 - do not change the product into a different item
 - no text, no logos, no watermark
@@ -1143,7 +1147,23 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         sys.path.insert(0, str(Path(__file__).parent / "scripts"))
         from optimize_image import optimize
 
-        optimize(str(foto), str(output_dir / "05_FOTO_OTTIMIZZATE"))
+        instagram_source = foto
+        source_kind = "foto originale"
+        if ai_images:
+            candidate_rel = ai_images[0]
+            candidate_abs = Path("output") / candidate_rel
+            if candidate_abs.exists():
+                instagram_source = candidate_abs
+                source_kind = "visual AI migliorato"
+        elif carousel_images:
+            candidate_rel = carousel_images[0]
+            candidate_abs = Path("output") / candidate_rel
+            if candidate_abs.exists():
+                instagram_source = candidate_abs
+                source_kind = "slide AI carousel"
+
+        log("FOTO OTT.", f"Base Instagram: {source_kind}", "data")
+        optimize(str(instagram_source), str(output_dir / "05_FOTO_OTTIMIZZATE"))
         output_subdir = output_dir.name
         image_feed = f"{output_subdir}/05_FOTO_OTTIMIZZATE/feed_1080x1080.jpg"
         image_stories = f"{output_subdir}/05_FOTO_OTTIMIZZATE/stories_1080x1920.jpg"

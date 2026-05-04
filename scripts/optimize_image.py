@@ -6,13 +6,26 @@ Ridimensiona e ottimizza la foto originale per Instagram:
 """
 import sys
 from pathlib import Path
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+
+
+def polish(img: Image.Image) -> Image.Image:
+    """
+    Migliora lo scatto in modo leggero ma visibile:
+    contrasto, colore, luminosita e nitidezza.
+    """
+    out = img.convert("RGB")
+    out = ImageEnhance.Contrast(out).enhance(1.08)
+    out = ImageEnhance.Color(out).enhance(1.06)
+    out = ImageEnhance.Brightness(out).enhance(1.03)
+    out = ImageEnhance.Sharpness(out).enhance(1.08)
+    return out
 
 
 def make_feed(img: Image.Image, output_path: Path) -> Path:
     """Crea versione 1080x1080 con padding bianco."""
     size = 1080
-    img_copy = img.copy()
+    img_copy = polish(img)
     img_copy.thumbnail((size, size), Image.LANCZOS)
     canvas = Image.new("RGB", (size, size), (255, 255, 255))
     offset = ((size - img_copy.width) // 2, (size - img_copy.height) // 2)
@@ -25,13 +38,14 @@ def make_stories(img: Image.Image, output_path: Path) -> Path:
     """Crea versione 1080x1920 con sfondo blurrato e prodotto centrato."""
     w, h = 1080, 1920
     # Sfondo: immagine allargata e blurrata
-    bg = img.copy()
+    polished = polish(img)
+    bg = polished.copy()
     bg = ImageOps.fit(bg, (w, h), Image.LANCZOS)
     bg = bg.filter(ImageFilter.GaussianBlur(radius=20))
-    bg = bg.point(lambda p: int(p * 0.6))  # scurisci leggermente
+    bg = bg.point(lambda p: int(p * 0.58))  # scurisci leggermente
 
     # Prodotto: al centro, max 900x1400
-    fg = img.copy()
+    fg = polished.copy()
     fg.thumbnail((900, 1400), Image.LANCZOS)
     offset = ((w - fg.width) // 2, (h - fg.height) // 2)
     bg.paste(fg, offset)

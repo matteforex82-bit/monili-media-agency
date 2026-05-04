@@ -303,7 +303,7 @@ export default function ResultsPanel({ results, apiUrl }: Props) {
             textTransform: 'uppercase', letterSpacing: '0.10em',
             color: 'var(--terracotta-dark)', marginBottom: 14,
           }}>
-            Foto ottimizzate da foto reale
+            Foto ottimizzate Instagram (base AI migliorata)
           </div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {results.image_feed && (
