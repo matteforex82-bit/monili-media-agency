@@ -1,21 +1,17 @@
-﻿'use client';
+'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import CarouselWithTextOverlay from './CarouselWithTextOverlay';
 
 interface Props {
   results: Record<string, string>;
   apiUrl: string;
+  runId: string;
 }
 
-const SECTIONS = [
-  { id: 'publish_pack', label: 'Pronto Pubblicazione', icon: 'P', filename: 'publish_pack.txt', desc: 'Versione finale gia selezionata e pronta da copiare' },
-  { id: 'strategy_plan', label: 'Piano Strategist JSON', icon: 'J', filename: 'strategy_plan.json', desc: 'Decisione dinamica: formato, worn, carousel si/no' },
-  { id: 'merchandising', label: 'Merchandising', icon: 'M', filename: 'merchandising_styling.txt', desc: 'Styling, abbinamenti e scene AI vendibili' },
-  { id: 'carousel', label: 'Carousel Testi', icon: 'C', filename: 'carousel_statici.txt', desc: 'Testi slide (solo supporto, non output principale)' },
-  { id: 'strategy', label: 'Strategia 2.0', icon: 'S', filename: 'strategia_2_0.txt', desc: 'Scelta strategica usata dal team AI' },
-  { id: 'local_visibility', label: 'Local Visibility', icon: 'L', filename: 'local_visibility.txt', desc: 'SEO locale Ravenna e Google Business' },
-  { id: 'distribution', label: 'Distribuzione', icon: 'D', filename: 'distribuzione.txt', desc: 'Piano di distribuzione completo' },
-];
+const SHOWCASE_REVIEW_URL =
+  process.env.NEXT_PUBLIC_SHOWCASE_REVIEW_URL ||
+  'https://web-five-theta-58.vercel.app/admin/review';
 
 type PublishPack = {
   selected_format?: string;
@@ -30,11 +26,21 @@ type PublishPack = {
   selected_cta?: string;
   selected_posting_time?: string;
   notes_for_owner?: string;
+  selected_tripadvisor_title?: string;
+  selected_tripadvisor_text?: string;
 };
 
 type CarouselSlideCopy = {
   carousel_caption?: string;
   slide_texts?: string[];
+};
+
+type Tab = 'instagram' | 'gmb' | 'tripadvisor' | 'sito';
+type ShowcaseCandidate = {
+  src: string;
+  available: boolean;
+  recommended?: boolean;
+  error?: string;
 };
 
 function downloadBlob(content: string, filename: string) {
@@ -69,16 +75,87 @@ function parseCarouselSlideCopy(raw: string | undefined): CarouselSlideCopy {
   }
 }
 
-function CopyBox({
-  title,
+async function saveImageToDevice(imageUrl: string, filename: string) {
+  const response = await fetch(imageUrl, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const file = new File([blob], filename, {
+    type: blob.type || 'image/jpeg',
+  });
+
+  const nav = navigator as Navigator & {
+    canShare?: (data?: ShareData) => boolean;
+  };
+  if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
+    await nav.share({
+      files: [file],
+      title: 'Salva foto',
+      text: 'Salva questa immagine nella galleria',
+    });
+    return 'shared';
+  }
+
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(blobUrl);
+  return 'downloaded';
+}
+
+function SaveImageButton({
+  imageUrl,
+  filename,
+}: {
+  imageUrl: string;
+  filename: string;
+}) {
+  const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'fallback' | 'error'>('idle');
+
+  const onSave = async () => {
+    if (status === 'saving') return;
+    setStatus('saving');
+    try {
+      const mode = await saveImageToDevice(imageUrl, filename);
+      setStatus(mode === 'shared' ? 'done' : 'fallback');
+      setTimeout(() => setStatus('idle'), 2200);
+    } catch {
+      window.open(imageUrl, '_blank', 'noopener,noreferrer');
+      setStatus('fallback');
+      setTimeout(() => setStatus('idle'), 2200);
+    }
+  };
+
+  let label = 'Salva su iPhone';
+  if (status === 'saving') label = 'Salvataggio...';
+  if (status === 'done') label = 'Apri Condividi e salva';
+  if (status === 'fallback') label = 'Aperta immagine';
+  if (status === 'error') label = 'Riprova';
+
+  return (
+    <button
+      onClick={onSave}
+      disabled={status === 'saving'}
+      className="btn-secondary"
+      style={{ padding: '9px 12px', fontSize: 12 }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function CopyButton({
   value,
   filename,
-  compact = false,
 }: {
-  title: string;
   value: string;
   filename: string;
-  compact?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const safeValue = value.trim();
@@ -90,130 +167,44 @@ function CopyBox({
   };
 
   return (
-    <div className="card" style={{ padding: 14 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso)' }}>{title}</div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={copyValue} className="btn-secondary" style={{ padding: '5px 10px', fontSize: 11 }}>
-            {copied ? 'Copiato' : 'Copia'}
-          </button>
-          <button onClick={() => downloadBlob(safeValue, filename)} className="btn-secondary" style={{ padding: '5px 10px', fontSize: 11 }}>
-            .txt
-          </button>
-        </div>
-      </div>
-      <pre style={{
-        margin: 0,
-        fontFamily: 'DM Sans',
-        fontSize: compact ? 12 : 12.5,
-        lineHeight: compact ? 1.55 : 1.65,
-        color: 'var(--espresso-mid)',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}>
-        {safeValue || 'Non disponibile'}
-      </pre>
+    <div style={{ display: 'flex', gap: 6 }}>
+      <button
+        onClick={copyValue}
+        className="btn-mission"
+        style={{ padding: '8px 14px', fontSize: 12, fontWeight: 600 }}
+      >
+        {copied ? '✓ Copiato' : 'Copia testo'}
+      </button>
+      <button
+        onClick={() => downloadBlob(safeValue, filename)}
+        className="btn-secondary"
+        style={{ padding: '8px 14px', fontSize: 12 }}
+      >
+        .txt
+      </button>
     </div>
   );
 }
 
-function ContentCard({
-  id,
-  label,
-  icon,
-  filename,
-  desc,
-  content,
-}: typeof SECTIONS[0] & { content: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const preview = content.slice(0, 320);
-  const hasMore = content.length > 320;
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(content).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  };
+function TextDisplay({ value, compact = false }: { value: string; compact?: boolean }) {
+  const safeValue = value.trim();
+  if (!safeValue) return <p style={{ color: 'var(--espresso-dim)', fontStyle: 'italic' }}>Non disponibile</p>;
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '14px 18px',
-        background: 'var(--cream-2)',
-        borderBottom: '1px solid var(--border)',
-      }}>
-        <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: 'DM Sans', fontWeight: 700, fontSize: 13, color: 'var(--espresso)' }}>
-            {label}
-          </div>
-          <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
-            {desc}
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            onClick={handleCopy}
-            className="btn-secondary"
-            style={{ padding: '5px 12px', fontSize: 11 }}
-          >
-            {copied ? 'Copiato' : 'Copia'}
-          </button>
-          <button
-            onClick={() => downloadBlob(content, filename)}
-            className="btn-secondary"
-            style={{ padding: '5px 12px', fontSize: 11 }}
-          >
-            .txt
-          </button>
-        </div>
-      </div>
-
-      <div style={{ padding: '14px 18px' }}>
-        {content ? (
-          <>
-            <pre style={{
-              fontFamily: 'DM Sans',
-              fontSize: 12.5,
-              lineHeight: 1.7,
-              color: 'var(--espresso-mid)',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              margin: 0,
-              maxHeight: expanded ? 'none' : 220,
-              overflow: 'hidden',
-            }}>
-              {expanded ? content : preview}
-              {!expanded && hasMore && '...'}
-            </pre>
-            {hasMore && (
-              <button
-                onClick={() => setExpanded(v => !v)}
-                style={{
-                  marginTop: 10,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: 'DM Sans',
-                  fontSize: 12,
-                  color: 'var(--terracotta)',
-                  fontWeight: 600,
-                  padding: 0,
-                }}
-              >
-                {expanded ? 'Mostra meno' : 'Leggi tutto'}
-              </button>
-            )}
-          </>
-        ) : (
-          <p style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)', margin: 0 }}>
-            Contenuto non disponibile.
-          </p>
-        )}
-      </div>
-    </div>
+    <pre
+      style={{
+        fontFamily: 'DM Sans',
+        fontSize: compact ? 12 : 13,
+        lineHeight: 1.6,
+        color: 'var(--espresso-mid)',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        margin: 0,
+        padding: 0,
+      }}
+    >
+      {safeValue}
+    </pre>
   );
 }
 
@@ -236,24 +227,51 @@ function ImageStrip({
 
   return (
     <div>
-      <div style={{
-        fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700,
-        textTransform: 'uppercase', letterSpacing: '0.10em',
-        color: 'var(--terracotta-dark)', marginBottom: 14,
-      }}>
+      <div
+        style={{
+          fontFamily: 'DM Sans',
+          fontSize: 11,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.10em',
+          color: 'var(--terracotta-dark)',
+          marginBottom: 14,
+        }}
+      >
         {title}
       </div>
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         {keys.map((key, index) => (
-          <div key={key} className="card" style={{ flex: '1 1 220px', padding: 16, textAlign: 'center', minWidth: 0 }}>
-            <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+          <div
+            key={key}
+            className="card"
+            style={{ flex: '1 1 220px', padding: 16, textAlign: 'center', minWidth: 0 }}
+          >
+            <div
+              style={{
+                fontFamily: 'DM Sans',
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--espresso-dim)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: 12,
+              }}
+            >
               {filePrefix === 'carousel_slide' ? `Slide ${index + 1}` : `Visual ${index + 1}`}
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`${apiUrl}/files/${results[key]}`}
               alt={`${filePrefix} ${index + 1}`}
-              style={{ width: '100%', maxWidth: 220, borderRadius: 10, border: '1px solid var(--border)', display: 'block', margin: '0 auto 12px' }}
+              style={{
+                width: '100%',
+                maxWidth: 220,
+                borderRadius: 10,
+                border: '1px solid var(--border)',
+                display: 'block',
+                margin: '0 auto 12px',
+              }}
             />
             <a
               href={`${apiUrl}/files/${results[key]}`}
@@ -263,18 +281,26 @@ function ImageStrip({
             >
               Scarica
             </a>
+            <div style={{ marginTop: 8 }}>
+              <SaveImageButton
+                imageUrl={`${apiUrl}/files/${results[key]}`}
+                filename={`${filePrefix}_${index + 1}.png`}
+              />
+            </div>
             {slideTexts[index] && (
-              <div style={{
-                marginTop: 12,
-                padding: '9px 10px',
-                borderRadius: 8,
-                background: 'var(--cream-2)',
-                color: 'var(--espresso-mid)',
-                fontFamily: 'DM Sans',
-                fontSize: 12,
-                lineHeight: 1.45,
-                textAlign: 'left',
-              }}>
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: '9px 10px',
+                  borderRadius: 8,
+                  background: 'var(--cream-2)',
+                  color: 'var(--espresso-mid)',
+                  fontFamily: 'DM Sans',
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  textAlign: 'left',
+                }}
+              >
                 {slideTexts[index]}
               </div>
             )}
@@ -285,144 +311,585 @@ function ImageStrip({
   );
 }
 
-export default function ResultsPanel({ results, apiUrl }: Props) {
+function TabContent({
+  tab,
+  results,
+  apiUrl,
+  runId,
+  publishPack,
+  carouselCopy,
+}: {
+  tab: Tab;
+  results: Record<string, string>;
+  apiUrl: string;
+  runId: string;
+  publishPack: PublishPack;
+  carouselCopy: CarouselSlideCopy;
+}) {
+  const selectedCaption = (publishPack.selected_caption || '').trim();
+  const selectedHashtags = Array.isArray(publishPack.selected_hashtags)
+    ? publishPack.selected_hashtags.join(' ')
+    : '';
+  const gmbFinal = `${(publishPack.selected_gmb_title || '').trim()}\n\n${(publishPack.selected_gmb_text || '').trim()}`.trim();
+  const carouselCaption = (carouselCopy.carousel_caption || '').trim();
+  const carouselSlideTexts = Array.isArray(carouselCopy.slide_texts) ? carouselCopy.slide_texts : [];
+
+  const carouselImageKeys = Object.keys(results)
+    .filter((key) => key.startsWith('image_carousel_') && results[key])
+    .sort((a, b) => Number(a.replace('image_carousel_', '')) - Number(b.replace('image_carousel_', '')));
+
+  if (tab === 'instagram') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {results.image_feed && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+            <div className="card" style={{ padding: 16, textAlign: 'center' }}>
+              <div
+                style={{
+                  fontFamily: 'DM Sans',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--espresso-dim)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  marginBottom: 12,
+                }}
+              >
+                Post 1:1 (1080x1080)
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`${apiUrl}/files/${results.image_feed}`}
+                alt="Feed Instagram"
+                style={{
+                  width: '100%',
+                  maxWidth: 220,
+                  borderRadius: 10,
+                  border: '1px solid var(--border)',
+                  display: 'block',
+                  margin: '0 auto 12px',
+                }}
+              />
+              <a
+                href={`${apiUrl}/files/${results.image_feed}`}
+                download="feed_1080x1080.jpg"
+                className="btn-mission"
+                style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
+              >
+                Scarica
+              </a>
+              <div style={{ marginTop: 8 }}>
+                <SaveImageButton
+                  imageUrl={`${apiUrl}/files/${results.image_feed}`}
+                  filename="feed_1080x1080.jpg"
+                />
+              </div>
+            </div>
+
+            <div className="card" style={{ padding: 16 }}>
+              <div
+                style={{
+                  fontFamily: 'DM Sans',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--espresso)',
+                  marginBottom: 12,
+                }}
+              >
+                Caption finale
+              </div>
+              <TextDisplay value={selectedCaption} />
+              <CopyButton value={selectedCaption} filename="caption_instagram.txt" />
+
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <div
+                  style={{
+                    fontFamily: 'DM Sans',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: 'var(--espresso)',
+                    marginBottom: 12,
+                  }}
+                >
+                  Hashtag
+                </div>
+                <TextDisplay value={selectedHashtags} compact />
+                <CopyButton value={selectedHashtags} filename="hashtag_instagram.txt" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {carouselImageKeys.length > 0 && (
+          <div>
+            <ImageStrip
+              title="Carousel (con testo)"
+              keys={carouselImageKeys}
+              results={results}
+              apiUrl={apiUrl}
+              filePrefix="carousel_slide"
+              slideTexts={carouselSlideTexts}
+            />
+            {carouselCaption && (
+              <div className="card" style={{ padding: 16, marginTop: 14 }}>
+                <div
+                  style={{
+                    fontFamily: 'DM Sans',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: 'var(--espresso)',
+                    marginBottom: 12,
+                  }}
+                >
+                  Caption unica (per tutti gli slide)
+                </div>
+                <TextDisplay value={carouselCaption} />
+                <CopyButton value={carouselCaption} filename="caption_carousel.txt" />
+              </div>
+            )}
+
+            {/* Text overlay generator for carousel slides */}
+            <div className="card" style={{ padding: 16, marginTop: 14 }}>
+              <CarouselWithTextOverlay
+                slides={carouselImageKeys.map((key, index) => ({
+                  imageUrl: `${apiUrl}/files/${results[key]}`,
+                  caption: carouselSlideTexts[index] || carouselCaption || 'I Monili',
+                  hashtags: selectedHashtags,
+                  index,
+                }))}
+                brand="I Monili"
+              />
+            </div>
+          </div>
+        )}
+
+        {results.image_stories && (
+          <div className="card" style={{ padding: 16, textAlign: 'center' }}>
+            <div
+              style={{
+                fontFamily: 'DM Sans',
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--espresso-dim)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: 12,
+              }}
+            >
+              Stories 9:16 (1080x1920)
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`${apiUrl}/files/${results.image_stories}`}
+              alt="Stories Instagram"
+              style={{
+                width: '100%',
+                maxWidth: 120,
+                borderRadius: 10,
+                border: '1px solid var(--border)',
+                display: 'block',
+                margin: '0 auto 12px',
+              }}
+            />
+            <a
+              href={`${apiUrl}/files/${results.image_stories}`}
+              download="stories_1080x1920.jpg"
+              className="btn-mission"
+              style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
+            >
+              Scarica Stories
+            </a>
+            <div style={{ marginTop: 8 }}>
+              <SaveImageButton
+                imageUrl={`${apiUrl}/files/${results.image_stories}`}
+                filename="stories_1080x1920.jpg"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (tab === 'gmb') {
+    return (
+      <div className="card" style={{ padding: 16 }}>
+        <div
+          style={{
+            fontFamily: 'DM Sans',
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'var(--espresso)',
+            marginBottom: 12,
+          }}
+        >
+          Post Google My Business
+        </div>
+        <TextDisplay value={gmbFinal} />
+        <CopyButton value={gmbFinal} filename="post_gmb.txt" />
+        <p style={{ marginTop: 16, fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
+          💡 Copia questo testo direttamente su Google My Business dal tuo account aziendale.
+        </p>
+      </div>
+    );
+  }
+
+  if (tab === 'tripadvisor') {
+    const tripAdvisorTitle = (publishPack.selected_tripadvisor_title || '').trim();
+    const tripAdvisorText = (publishPack.selected_tripadvisor_text || '').trim();
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Titolo */}
+        {tripAdvisorTitle && (
+          <div className="card" style={{ padding: 16 }}>
+            <div
+              style={{
+                fontFamily: 'DM Sans',
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'var(--espresso)',
+                marginBottom: 12,
+              }}
+            >
+              Titolo Review
+            </div>
+            <TextDisplay value={tripAdvisorTitle} compact />
+            <CopyButton value={tripAdvisorTitle} filename="tripadvisor_title.txt" />
+          </div>
+        )}
+
+        {/* Testo review */}
+        {tripAdvisorText && (
+          <div className="card" style={{ padding: 16 }}>
+            <div
+              style={{
+                fontFamily: 'DM Sans',
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'var(--espresso)',
+                marginBottom: 12,
+              }}
+            >
+              Testo Review TripAdvisor
+            </div>
+            <TextDisplay value={tripAdvisorText} />
+            <CopyButton value={tripAdvisorText} filename="tripadvisor_review.txt" />
+          </div>
+        )}
+
+        {/* Help text */}
+        <div className="card" style={{ padding: 14, background: 'var(--cream-2)', borderColor: 'var(--border)' }}>
+          <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
+            💡 <strong>Come usare:</strong> Pubblica questa review nel tuo profilo aziendale su TripAdvisor per aumentare l'engagement e attirare nuovi clienti. Personalizza con dettagli specifici del prodotto se necessario.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (tab === 'sito') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="card" style={{ padding: 18 }}>
+          <div
+            style={{
+              fontFamily: 'DM Sans',
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.10em',
+              color: 'var(--terracotta-dark)',
+              marginBottom: 10,
+            }}
+          >
+            Revisione e pubblicazione
+          </div>
+          <p style={{ margin: '0 0 12px', fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
+            Vai alla pagina di review per approvare il contenuto prima della pubblicazione sul sito.
+          </p>
+          <a
+            href={SHOWCASE_REVIEW_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-mission"
+            style={{ display: 'inline-block', padding: '8px 12px', fontSize: 12, textDecoration: 'none' }}
+          >
+            Apri review admin →
+          </a>
+        </div>
+
+        {runId && (
+          <ShowcasePublishPanel apiUrl={apiUrl} runId={runId} />
+        )}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function ShowcasePublishPanel({
+  apiUrl,
+  runId,
+}: {
+  apiUrl: string;
+  runId: string;
+}) {
+  const [candidates, setCandidates] = useState<ShowcaseCandidate[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<any | null>(null);
+
+  const loadCandidates = async () => {
+    if (!runId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId)}/showcase/candidates`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      const rawItems = Array.isArray(data?.items) ? data.items : [];
+      const items: ShowcaseCandidate[] = rawItems
+        .map((item: unknown) => {
+          if (!item || typeof item !== 'object') return null;
+          const obj = item as Record<string, unknown>;
+          const src = typeof obj.src === 'string' ? obj.src : '';
+          if (!src) return null;
+          return {
+            src,
+            available: Boolean(obj.available),
+            recommended: Boolean(obj.recommended),
+            error: typeof obj.error === 'string' ? obj.error : undefined,
+          };
+        })
+        .filter((item: ShowcaseCandidate | null): item is ShowcaseCandidate => Boolean(item));
+      setCandidates(items);
+      const recommended = items.filter((item) => item.available && item.recommended).map((item) => item.src);
+      const fallback = items.filter((item) => item.available).map((item) => item.src);
+      setSelected((recommended.length ? recommended : fallback).slice(0, 6));
+    } catch (err) {
+      setError(`Analisi immagini non disponibile: ${err}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!runId) return;
+    void loadCandidates();
+  }, [runId, apiUrl]);
+
+  const toggleImage = (src: string) => {
+    setSelected((prev) =>
+      prev.includes(src) ? prev.filter((item) => item !== src) : [...prev, src],
+    );
+  };
+
+  const publish = async (dryRun: boolean) => {
+    if (!runId) return;
+    if (!selected.length) {
+      setError('Seleziona almeno una foto da inviare.');
+      return;
+    }
+    setPublishing(true);
+    setError('');
+    setResult(null);
+    try {
+      const res = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId)}/showcase/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dry_run: dryRun,
+          selected_images: selected,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || data?.details?.error || `HTTP ${res.status}`);
+      }
+      setResult(data);
+    } catch (err) {
+      setError(`Invio non riuscito: ${err}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  if (!runId) {
+    return null;
+  }
+
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <div
+        style={{
+          fontFamily: 'DM Sans',
+          fontSize: 11,
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.10em',
+          color: 'var(--terracotta-dark)',
+          marginBottom: 10,
+        }}
+      >
+        Seleziona foto per il sito
+      </div>
+      <p style={{ margin: '0 0 12px', fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
+        Quality gate automatico: le foto selezionate saranno ottimizzate prima dell'invio in draft.
+      </p>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <button onClick={() => void loadCandidates()} className="btn-secondary" style={{ padding: '7px 12px', fontSize: 12 }} disabled={loading || publishing}>
+          {loading ? 'Analisi in corso...' : 'Rianalizza'}
+        </button>
+        <button onClick={() => void publish(false)} className="btn-mission" style={{ padding: '7px 12px', fontSize: 12 }} disabled={publishing || !selected.length}>
+          Invia draft al sito
+        </button>
+      </div>
+
+      {error && (
+        <div style={{ border: '1px solid #e8b4b4', background: '#fff3f3', color: '#8f2f2f', borderRadius: 10, padding: '8px 10px', fontFamily: 'DM Sans', fontSize: 12, marginBottom: 10 }}>
+          {error}
+        </div>
+      )}
+
+      {candidates.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 10 }}>
+          {candidates.map((item, index) => (
+            <label key={`${item.src}-${index}`} className="card" style={{ padding: 10, border: selected.includes(item.src) ? '1px solid var(--terracotta)' : '1px solid var(--border)', opacity: item.available ? 1 : 0.55, cursor: item.available ? 'pointer' : 'default' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)' }}>
+                  Foto {index + 1}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={selected.includes(item.src)}
+                  disabled={!item.available}
+                  onChange={() => toggleImage(item.src)}
+                />
+              </div>
+              {item.available ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`${apiUrl}/files/${item.src}`} alt={`Candidate ${index + 1}`} style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)', marginBottom: 8 }} />
+                </>
+              ) : (
+                <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#8f2f2f' }}>
+                  {item.error || 'File non disponibile'}
+                </div>
+              )}
+            </label>
+          ))}
+        </div>
+      )}
+
+      {result && (
+        <div style={{ marginTop: 12, border: '1px solid var(--border)', background: 'var(--cream-2)', borderRadius: 10, padding: 10, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)' }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>
+            {result.mode === 'dry-run' ? 'Test quality completato' : 'Invio completato'}
+          </div>
+          {result.ingest?.created_id && <div>ID draft creato: {result.ingest.created_id}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ResultsPanel({ results, apiUrl, runId }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>('instagram');
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const publishPack = parsePublishPack(results.publish_pack_json);
   const carouselCopy = parseCarouselSlideCopy(results.carousel_slide_texts_json);
-  const selectedCaption = (publishPack.selected_caption || '').trim();
-  const selectedFormat = (publishPack.selected_format || '').trim();
-  const selectedHashtags = Array.isArray(publishPack.selected_hashtags) ? publishPack.selected_hashtags.join(' ') : '';
-  const selectedWhatsapp = (publishPack.selected_whatsapp || '').trim();
-  const gmbFinal = `${(publishPack.selected_gmb_title || '').trim()}\n\n${(publishPack.selected_gmb_text || '').trim()}`.trim();
-  const storyFrames = Array.isArray(publishPack.selected_story_frames) ? publishPack.selected_story_frames : [];
-  const storyFinal = storyFrames.map((frame, idx) => `Frame ${idx + 1}: ${frame}`).join('\n');
-  const postingFinal = `Formato scelto: ${selectedFormat || '-'}\n${(publishPack.selected_posting_time || '').trim()}\n${(publishPack.selected_cta || '').trim()}`.trim();
-  const carouselCaption = (carouselCopy.carousel_caption || '').trim();
-  const carouselSlideTexts = Array.isArray(carouselCopy.slide_texts) ? carouselCopy.slide_texts : [];
 
-  const hasImages = Boolean(results.image_feed || results.image_stories);
-  const carouselImageKeys = Object.keys(results)
-    .filter(key => key.startsWith('image_carousel_') && results[key])
-    .sort((a, b) => Number(a.replace('image_carousel_', '')) - Number(b.replace('image_carousel_', '')));
-  const aiImageKeys = Object.keys(results)
-    .filter(key => key.startsWith('image_ai_') && results[key])
-    .sort((a, b) => Number(a.replace('image_ai_', '')) - Number(b.replace('image_ai_', '')));
+  const tabs: Array<{ id: Tab; label: string; icon: string }> = [
+    { id: 'instagram', label: 'Instagram', icon: '📸' },
+    { id: 'gmb', label: 'Google Business', icon: '🏪' },
+    { id: 'tripadvisor', label: 'TripAdvisor', icon: '⭐' },
+    { id: 'sito', label: 'Sito Vetrina', icon: '🌐' },
+  ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="card" style={{ padding: 18 }}>
-        <div style={{
-          fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700,
-          textTransform: 'uppercase', letterSpacing: '0.10em',
-          color: 'var(--terracotta-dark)', marginBottom: 14,
-        }}>
-          Pronto da pubblicare
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div
+          style={{
+            display: 'flex',
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--cream-2)',
+          }}
+        >
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                flex: 1,
+                padding: '14px 16px',
+                border: 'none',
+                background: activeTab === tab.id ? 'white' : 'transparent',
+                borderBottom: activeTab === tab.id ? '2px solid var(--terracotta)' : 'none',
+                fontFamily: 'DM Sans',
+                fontSize: 13,
+                fontWeight: activeTab === tab.id ? 700 : 500,
+                color: activeTab === tab.id ? 'var(--espresso)' : 'var(--espresso-dim)',
+                cursor: 'pointer',
+                transition: 'all 200ms ease',
+              }}
+            >
+              <span style={{ marginRight: 6 }}>{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
-          <CopyBox title="Caption finale Instagram" value={selectedCaption} filename="caption_finale_instagram.txt" />
-          <CopyBox title="Hashtag finali" value={selectedHashtags} filename="hashtag_finali.txt" compact />
-          <CopyBox title="Messaggio WhatsApp" value={selectedWhatsapp} filename="whatsapp_broadcast.txt" />
-          <CopyBox title="Post Google Business" value={gmbFinal} filename="post_google_business.txt" />
-          <CopyBox title="Stories (3 frame)" value={storyFinal} filename="stories_3_frame.txt" compact />
-          <CopyBox title="Orario + CTA" value={postingFinal} filename="orario_e_cta.txt" compact />
-          {carouselCaption && (
-            <CopyBox title="Caption unica carousel" value={carouselCaption} filename="caption_unica_carousel.txt" />
-          )}
+
+        <div style={{ padding: 18 }}>
+          <TabContent
+            tab={activeTab}
+            results={results}
+            apiUrl={apiUrl}
+            runId={runId}
+            publishPack={publishPack}
+            carouselCopy={carouselCopy}
+          />
         </div>
       </div>
 
-      <ImageStrip title="Carousel pronto (immagini AI)" keys={carouselImageKeys} results={results} apiUrl={apiUrl} filePrefix="carousel_slide" slideTexts={carouselSlideTexts} />
-      <ImageStrip title="Visual extra (esplorativi, non carousel)" keys={aiImageKeys} results={results} apiUrl={apiUrl} filePrefix="visual_ai" />
-
-      {hasImages && (
-        <div>
-          <div style={{
-            fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: '0.10em',
-            color: 'var(--terracotta-dark)', marginBottom: 14,
-          }}>
-            Foto Instagram generate apposta
-          </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {results.image_feed && (
-              <div className="card" style={{ flex: '1 1 200px', padding: 16, textAlign: 'center', minWidth: 0 }}>
-                <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-                  Feed 1:1 - 1080x1080
-                </div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`${apiUrl}/files/${results.image_feed}`}
-                  alt="Feed Instagram"
-                  style={{ width: '100%', maxWidth: 200, borderRadius: 10, border: '1px solid var(--border)', display: 'block', margin: '0 auto 12px' }}
-                />
-                <a
-                  href={`${apiUrl}/files/${results.image_feed}`}
-                  download="feed_1080x1080.jpg"
-                  className="btn-mission"
-                  style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
-                >
-                  Scarica Feed
-                </a>
-              </div>
-            )}
-
-            {results.image_stories && (
-              <div className="card" style={{ flex: '0 1 160px', padding: 16, textAlign: 'center', minWidth: 0 }}>
-                <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-                  Stories 9:16 - 1080x1920
-                </div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`${apiUrl}/files/${results.image_stories}`}
-                  alt="Stories Instagram"
-                  style={{ width: '100%', maxWidth: 120, borderRadius: 10, border: '1px solid var(--border)', display: 'block', margin: '0 auto 12px' }}
-                />
-                <a
-                  href={`${apiUrl}/files/${results.image_stories}`}
-                  download="stories_1080x1920.jpg"
-                  className="btn-mission"
-                  style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
-                >
-                  Scarica Stories
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="card" style={{ padding: 14 }}>
         <button
-          onClick={() => setAdvancedOpen(v => !v)}
+          onClick={() => setAdvancedOpen((v) => !v)}
           className="btn-secondary"
           style={{ width: '100%', justifyContent: 'center', padding: '9px 12px', fontSize: 12, fontWeight: 700 }}
         >
-          {advancedOpen ? 'Nascondi dettagli avanzati' : 'Mostra dettagli avanzati (testi lunghi)'}
+          {advancedOpen ? '▼ Nascondi dettagli avanzati' : '▶ Mostra dettagli avanzati (strategia, JSON)'}
         </button>
 
         {advancedOpen && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-            {SECTIONS.map(s => (
-              <ContentCard key={s.id} {...s} content={results[s.id] || ''} />
-            ))}
+            <div className="card" style={{ padding: 14 }}>
+              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso)', marginBottom: 10 }}>
+                Strategia completa (JSON)
+              </div>
+              <TextDisplay value={results.strategy_plan || ''} compact />
+            </div>
+            <div className="card" style={{ padding: 14 }}>
+              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso)', marginBottom: 10 }}>
+                Analisi prodotto
+              </div>
+              <TextDisplay value={results.publish_pack || ''} compact />
+            </div>
           </div>
         )}
 
         {!advancedOpen && (
           <p style={{ margin: '12px 2px 0', fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>
-            Qui sopra trovi gia il kit operativo. Apri i dettagli solo se vuoi analizzare la strategia completa.
+            Sopra trovi tutto il kit operativo pronto. Apri i dettagli solo se serve analizzare la strategia completa.
           </p>
         )}
       </div>
-
-      {Object.keys(publishPack).length === 0 && (
-        <div className="card" style={{ padding: 14, borderColor: 'var(--gold-light)', background: 'var(--cream-2)' }}>
-          <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 12.5, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
-            Il blocco pronto pubblicazione non e arrivato in formato strutturato. Usa i dettagli avanzati e rilancia la missione per ricostruirlo automaticamente.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

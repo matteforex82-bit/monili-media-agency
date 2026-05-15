@@ -955,7 +955,11 @@ export default function Home() {
             <div className="hr-warm" style={{ marginBottom: 28 }} />
 
             {/* Results â€” download center */}
-            <ResultsPanel results={results} apiUrl={API_URL} />
+            <ResultsPanel
+              results={results}
+              apiUrl={API_URL}
+              runId={typeof results.run_id === 'string' ? results.run_id : ''}
+            />
           </div>
         )}
 
