@@ -1,17 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import CarouselWithTextOverlay from './CarouselWithTextOverlay';
+import { useEffect, useMemo, useState } from 'react';
 
 interface Props {
   results: Record<string, string>;
   apiUrl: string;
   runId: string;
 }
-
-const SHOWCASE_REVIEW_URL =
-  process.env.NEXT_PUBLIC_SHOWCASE_REVIEW_URL ||
-  'https://web-five-theta-58.vercel.app/admin/review';
 
 type PublishPack = {
   selected_format?: string;
@@ -30,18 +25,32 @@ type PublishPack = {
   selected_tripadvisor_text?: string;
 };
 
-type CarouselSlideCopy = {
+type CarouselCopy = {
   carousel_caption?: string;
   slide_texts?: string[];
 };
 
-type Tab = 'instagram' | 'gmb' | 'tripadvisor' | 'sito';
+type Tab = 'today' | 'stories' | 'carousel' | 'photos' | 'google' | 'sito';
 type ShowcaseCandidate = {
   src: string;
   available: boolean;
   recommended?: boolean;
   error?: string;
 };
+
+const SHOWCASE_REVIEW_URL =
+  process.env.NEXT_PUBLIC_SHOWCASE_REVIEW_URL ||
+  'https://web-five-theta-58.vercel.app/admin/review';
+
+function parseJsonObject<T>(raw: string | undefined, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 function downloadBlob(content: string, filename: string) {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -55,49 +64,16 @@ function downloadBlob(content: string, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function parsePublishPack(raw: string | undefined): PublishPack {
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function parseCarouselSlideCopy(raw: string | undefined): CarouselSlideCopy {
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 async function saveImageToDevice(imageUrl: string, filename: string) {
   const response = await fetch(imageUrl, { cache: 'no-store' });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const blob = await response.blob();
-  const file = new File([blob], filename, {
-    type: blob.type || 'image/jpeg',
-  });
-
-  const nav = navigator as Navigator & {
-    canShare?: (data?: ShareData) => boolean;
-  };
-  if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
-    await nav.share({
-      files: [file],
-      title: 'Salva foto',
-      text: 'Salva questa immagine nella galleria',
-    });
+  const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+  const nav = navigator as Navigator & { canShare?: (data?: ShareData) => boolean };
+  if (nav.share && nav.canShare?.({ files: [file] })) {
+    await nav.share({ files: [file], title: filename });
     return 'shared';
   }
-
   const blobUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = blobUrl;
@@ -109,14 +85,53 @@ async function saveImageToDevice(imageUrl: string, filename: string) {
   return 'downloaded';
 }
 
-function SaveImageButton({
+function CopyActions({ value, filename }: { value: string; filename: string }) {
+  const [copied, setCopied] = useState(false);
+  const safeValue = value.trim();
+
+  const copy = () => {
+    navigator.clipboard.writeText(safeValue).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+  };
+
+  return (
+    <div className="result-actions">
+      <button type="button" onClick={copy} className="btn-mission result-button">
+        {copied ? 'Copiato' : 'Copia'}
+      </button>
+      <button type="button" onClick={() => downloadBlob(safeValue, filename)} className="btn-secondary result-button">
+        .txt
+      </button>
+    </div>
+  );
+}
+
+function TextBlock({ title, value, filename }: { title: string; value: string; filename: string }) {
+  const safeValue = value.trim();
+  return (
+    <section className="result-block">
+      <div className="result-block-header">
+        <h3>{title}</h3>
+        <CopyActions value={safeValue} filename={filename} />
+      </div>
+      <pre className="result-text">{safeValue || 'Non disponibile'}</pre>
+    </section>
+  );
+}
+
+function ImageCard({
+  title,
   imageUrl,
   filename,
+  note,
 }: {
+  title: string;
   imageUrl: string;
   filename: string;
+  note?: string;
 }) {
-  const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'fallback' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'fallback'>('idle');
 
   const onSave = async () => {
     if (status === 'saving') return;
@@ -124,517 +139,39 @@ function SaveImageButton({
     try {
       const mode = await saveImageToDevice(imageUrl, filename);
       setStatus(mode === 'shared' ? 'done' : 'fallback');
-      setTimeout(() => setStatus('idle'), 2200);
     } catch {
       window.open(imageUrl, '_blank', 'noopener,noreferrer');
       setStatus('fallback');
+    } finally {
       setTimeout(() => setStatus('idle'), 2200);
     }
   };
 
-  let label = 'Salva su iPhone';
-  if (status === 'saving') label = 'Salvataggio...';
-  if (status === 'done') label = 'Apri Condividi e salva';
-  if (status === 'fallback') label = 'Aperta immagine';
-  if (status === 'error') label = 'Riprova';
-
   return (
-    <button
-      onClick={onSave}
-      disabled={status === 'saving'}
-      className="btn-secondary"
-      style={{ padding: '9px 12px', fontSize: 12 }}
-    >
-      {label}
-    </button>
+    <article className="result-image-card">
+      <div className="result-image-title">{title}</div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={imageUrl} alt={title} className="result-image" />
+      {note && <p className="result-image-note">{note}</p>}
+      <div className="result-actions">
+        <a href={imageUrl} download={filename} className="btn-mission result-button">
+          Scarica
+        </a>
+        <button type="button" onClick={onSave} className="btn-secondary result-button">
+          {status === 'saving' ? 'Salvo...' : status === 'done' ? 'Apri Condividi' : status === 'fallback' ? 'Aperta' : 'Salva su iPhone'}
+        </button>
+      </div>
+    </article>
   );
 }
 
-function CopyButton({
-  value,
-  filename,
-}: {
-  value: string;
-  filename: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  const safeValue = value.trim();
-
-  const copyValue = () => {
-    navigator.clipboard.writeText(safeValue).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  };
-
-  return (
-    <div style={{ display: 'flex', gap: 6 }}>
-      <button
-        onClick={copyValue}
-        className="btn-mission"
-        style={{ padding: '8px 14px', fontSize: 12, fontWeight: 600 }}
-      >
-        {copied ? '✓ Copiato' : 'Copia testo'}
-      </button>
-      <button
-        onClick={() => downloadBlob(safeValue, filename)}
-        className="btn-secondary"
-        style={{ padding: '8px 14px', fontSize: 12 }}
-      >
-        .txt
-      </button>
-    </div>
-  );
+function getResultImages(results: Record<string, string>, prefix: string) {
+  return Object.keys(results)
+    .filter((key) => key.startsWith(prefix) && results[key])
+    .sort((a, b) => Number(a.replace(prefix, '')) - Number(b.replace(prefix, '')));
 }
 
-function TextDisplay({ value, compact = false }: { value: string; compact?: boolean }) {
-  const safeValue = value.trim();
-  if (!safeValue) return <p style={{ color: 'var(--espresso-dim)', fontStyle: 'italic' }}>Non disponibile</p>;
-
-  return (
-    <pre
-      style={{
-        fontFamily: 'DM Sans',
-        fontSize: compact ? 12 : 13,
-        lineHeight: 1.6,
-        color: 'var(--espresso-mid)',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        margin: 0,
-        padding: 0,
-      }}
-    >
-      {safeValue}
-    </pre>
-  );
-}
-
-function ImageStrip({
-  title,
-  keys,
-  results,
-  apiUrl,
-  filePrefix,
-  slideTexts = [],
-}: {
-  title: string;
-  keys: string[];
-  results: Record<string, string>;
-  apiUrl: string;
-  filePrefix: string;
-  slideTexts?: string[];
-}) {
-  if (keys.length === 0) return null;
-
-  return (
-    <div>
-      <div
-        style={{
-          fontFamily: 'DM Sans',
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.10em',
-          color: 'var(--terracotta-dark)',
-          marginBottom: 14,
-        }}
-      >
-        {title}
-      </div>
-      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        {keys.map((key, index) => (
-          <div
-            key={key}
-            className="card"
-            style={{ flex: '1 1 220px', padding: 16, textAlign: 'center', minWidth: 0 }}
-          >
-            <div
-              style={{
-                fontFamily: 'DM Sans',
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--espresso-dim)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                marginBottom: 12,
-              }}
-            >
-              {filePrefix === 'carousel_slide' ? `Slide ${index + 1}` : `Visual ${index + 1}`}
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`${apiUrl}/files/${results[key]}`}
-              alt={`${filePrefix} ${index + 1}`}
-              style={{
-                width: '100%',
-                maxWidth: 220,
-                borderRadius: 10,
-                border: '1px solid var(--border)',
-                display: 'block',
-                margin: '0 auto 12px',
-              }}
-            />
-            <a
-              href={`${apiUrl}/files/${results[key]}`}
-              download={`${filePrefix}_${index + 1}.png`}
-              className="btn-mission"
-              style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
-            >
-              Scarica
-            </a>
-            <div style={{ marginTop: 8 }}>
-              <SaveImageButton
-                imageUrl={`${apiUrl}/files/${results[key]}`}
-                filename={`${filePrefix}_${index + 1}.png`}
-              />
-            </div>
-            {slideTexts[index] && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: '9px 10px',
-                  borderRadius: 8,
-                  background: 'var(--cream-2)',
-                  color: 'var(--espresso-mid)',
-                  fontFamily: 'DM Sans',
-                  fontSize: 12,
-                  lineHeight: 1.45,
-                  textAlign: 'left',
-                }}
-              >
-                {slideTexts[index]}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TabContent({
-  tab,
-  results,
-  apiUrl,
-  runId,
-  publishPack,
-  carouselCopy,
-}: {
-  tab: Tab;
-  results: Record<string, string>;
-  apiUrl: string;
-  runId: string;
-  publishPack: PublishPack;
-  carouselCopy: CarouselSlideCopy;
-}) {
-  const selectedCaption = (publishPack.selected_caption || '').trim();
-  const selectedHashtags = Array.isArray(publishPack.selected_hashtags)
-    ? publishPack.selected_hashtags.join(' ')
-    : '';
-  const gmbFinal = `${(publishPack.selected_gmb_title || '').trim()}\n\n${(publishPack.selected_gmb_text || '').trim()}`.trim();
-  const carouselCaption = (carouselCopy.carousel_caption || '').trim();
-  const carouselSlideTexts = Array.isArray(carouselCopy.slide_texts) ? carouselCopy.slide_texts : [];
-
-  const carouselImageKeys = Object.keys(results)
-    .filter((key) => key.startsWith('image_carousel_') && results[key])
-    .sort((a, b) => Number(a.replace('image_carousel_', '')) - Number(b.replace('image_carousel_', '')));
-
-  if (tab === 'instagram') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {results.image_feed && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-            <div className="card" style={{ padding: 16, textAlign: 'center' }}>
-              <div
-                style={{
-                  fontFamily: 'DM Sans',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: 'var(--espresso-dim)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  marginBottom: 12,
-                }}
-              >
-                Post 1:1 (1080x1080)
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`${apiUrl}/files/${results.image_feed}`}
-                alt="Feed Instagram"
-                style={{
-                  width: '100%',
-                  maxWidth: 220,
-                  borderRadius: 10,
-                  border: '1px solid var(--border)',
-                  display: 'block',
-                  margin: '0 auto 12px',
-                }}
-              />
-              <a
-                href={`${apiUrl}/files/${results.image_feed}`}
-                download="feed_1080x1080.jpg"
-                className="btn-mission"
-                style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
-              >
-                Scarica
-              </a>
-              <div style={{ marginTop: 8 }}>
-                <SaveImageButton
-                  imageUrl={`${apiUrl}/files/${results.image_feed}`}
-                  filename="feed_1080x1080.jpg"
-                />
-              </div>
-            </div>
-
-            <div className="card" style={{ padding: 16 }}>
-              <div
-                style={{
-                  fontFamily: 'DM Sans',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--espresso)',
-                  marginBottom: 12,
-                }}
-              >
-                Caption finale
-              </div>
-              <TextDisplay value={selectedCaption} />
-              <CopyButton value={selectedCaption} filename="caption_instagram.txt" />
-
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                <div
-                  style={{
-                    fontFamily: 'DM Sans',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: 'var(--espresso)',
-                    marginBottom: 12,
-                  }}
-                >
-                  Hashtag
-                </div>
-                <TextDisplay value={selectedHashtags} compact />
-                <CopyButton value={selectedHashtags} filename="hashtag_instagram.txt" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {carouselImageKeys.length > 0 && (
-          <div>
-            <ImageStrip
-              title="Carousel (con testo)"
-              keys={carouselImageKeys}
-              results={results}
-              apiUrl={apiUrl}
-              filePrefix="carousel_slide"
-              slideTexts={carouselSlideTexts}
-            />
-            {carouselCaption && (
-              <div className="card" style={{ padding: 16, marginTop: 14 }}>
-                <div
-                  style={{
-                    fontFamily: 'DM Sans',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: 'var(--espresso)',
-                    marginBottom: 12,
-                  }}
-                >
-                  Caption unica (per tutti gli slide)
-                </div>
-                <TextDisplay value={carouselCaption} />
-                <CopyButton value={carouselCaption} filename="caption_carousel.txt" />
-              </div>
-            )}
-
-            {/* Text overlay generator for carousel slides */}
-            <div className="card" style={{ padding: 16, marginTop: 14 }}>
-              <CarouselWithTextOverlay
-                slides={carouselImageKeys.map((key, index) => ({
-                  imageUrl: `${apiUrl}/files/${results[key]}`,
-                  caption: carouselSlideTexts[index] || carouselCaption || 'I Monili',
-                  hashtags: selectedHashtags,
-                  index,
-                }))}
-                brand="I Monili"
-              />
-            </div>
-          </div>
-        )}
-
-        {results.image_stories && (
-          <div className="card" style={{ padding: 16, textAlign: 'center' }}>
-            <div
-              style={{
-                fontFamily: 'DM Sans',
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--espresso-dim)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                marginBottom: 12,
-              }}
-            >
-              Stories 9:16 (1080x1920)
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`${apiUrl}/files/${results.image_stories}`}
-              alt="Stories Instagram"
-              style={{
-                width: '100%',
-                maxWidth: 120,
-                borderRadius: 10,
-                border: '1px solid var(--border)',
-                display: 'block',
-                margin: '0 auto 12px',
-              }}
-            />
-            <a
-              href={`${apiUrl}/files/${results.image_stories}`}
-              download="stories_1080x1920.jpg"
-              className="btn-mission"
-              style={{ display: 'inline-block', padding: '9px 20px', fontSize: 13, textDecoration: 'none' }}
-            >
-              Scarica Stories
-            </a>
-            <div style={{ marginTop: 8 }}>
-              <SaveImageButton
-                imageUrl={`${apiUrl}/files/${results.image_stories}`}
-                filename="stories_1080x1920.jpg"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  if (tab === 'gmb') {
-    return (
-      <div className="card" style={{ padding: 16 }}>
-        <div
-          style={{
-            fontFamily: 'DM Sans',
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'var(--espresso)',
-            marginBottom: 12,
-          }}
-        >
-          Post Google My Business
-        </div>
-        <TextDisplay value={gmbFinal} />
-        <CopyButton value={gmbFinal} filename="post_gmb.txt" />
-        <p style={{ marginTop: 16, fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
-          💡 Copia questo testo direttamente su Google My Business dal tuo account aziendale.
-        </p>
-      </div>
-    );
-  }
-
-  if (tab === 'tripadvisor') {
-    const tripAdvisorTitle = (publishPack.selected_tripadvisor_title || '').trim();
-    const tripAdvisorText = (publishPack.selected_tripadvisor_text || '').trim();
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Titolo */}
-        {tripAdvisorTitle && (
-          <div className="card" style={{ padding: 16 }}>
-            <div
-              style={{
-                fontFamily: 'DM Sans',
-                fontSize: 12,
-                fontWeight: 700,
-                color: 'var(--espresso)',
-                marginBottom: 12,
-              }}
-            >
-              Titolo Review
-            </div>
-            <TextDisplay value={tripAdvisorTitle} compact />
-            <CopyButton value={tripAdvisorTitle} filename="tripadvisor_title.txt" />
-          </div>
-        )}
-
-        {/* Testo review */}
-        {tripAdvisorText && (
-          <div className="card" style={{ padding: 16 }}>
-            <div
-              style={{
-                fontFamily: 'DM Sans',
-                fontSize: 12,
-                fontWeight: 700,
-                color: 'var(--espresso)',
-                marginBottom: 12,
-              }}
-            >
-              Testo Review TripAdvisor
-            </div>
-            <TextDisplay value={tripAdvisorText} />
-            <CopyButton value={tripAdvisorText} filename="tripadvisor_review.txt" />
-          </div>
-        )}
-
-        {/* Help text */}
-        <div className="card" style={{ padding: 14, background: 'var(--cream-2)', borderColor: 'var(--border)' }}>
-          <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
-            💡 <strong>Come usare:</strong> Pubblica questa review nel tuo profilo aziendale su TripAdvisor per aumentare l'engagement e attirare nuovi clienti. Personalizza con dettagli specifici del prodotto se necessario.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (tab === 'sito') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div className="card" style={{ padding: 18 }}>
-          <div
-            style={{
-              fontFamily: 'DM Sans',
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.10em',
-              color: 'var(--terracotta-dark)',
-              marginBottom: 10,
-            }}
-          >
-            Revisione e pubblicazione
-          </div>
-          <p style={{ margin: '0 0 12px', fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
-            Vai alla pagina di review per approvare il contenuto prima della pubblicazione sul sito.
-          </p>
-          <a
-            href={SHOWCASE_REVIEW_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-mission"
-            style={{ display: 'inline-block', padding: '8px 12px', fontSize: 12, textDecoration: 'none' }}
-          >
-            Apri review admin →
-          </a>
-        </div>
-
-        {runId && (
-          <ShowcasePublishPanel apiUrl={apiUrl} runId={runId} />
-        )}
-      </div>
-    );
-  }
-
-  return null;
-}
-
-function ShowcasePublishPanel({
-  apiUrl,
-  runId,
-}: {
-  apiUrl: string;
-  runId: string;
-}) {
+function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string }) {
   const [candidates, setCandidates] = useState<ShowcaseCandidate[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -649,9 +186,7 @@ function ShowcasePublishPanel({
     try {
       const res = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId)}/showcase/candidates`);
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       const rawItems = Array.isArray(data?.items) ? data.items : [];
       const items: ShowcaseCandidate[] = rawItems
         .map((item: unknown) => {
@@ -679,18 +214,10 @@ function ShowcasePublishPanel({
   };
 
   useEffect(() => {
-    if (!runId) return;
     void loadCandidates();
   }, [runId, apiUrl]);
 
-  const toggleImage = (src: string) => {
-    setSelected((prev) =>
-      prev.includes(src) ? prev.filter((item) => item !== src) : [...prev, src],
-    );
-  };
-
-  const publish = async (dryRun: boolean) => {
-    if (!runId) return;
+  const publish = async () => {
     if (!selected.length) {
       setError('Seleziona almeno una foto da inviare.');
       return;
@@ -702,15 +229,10 @@ function ShowcasePublishPanel({
       const res = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId)}/showcase/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dry_run: dryRun,
-          selected_images: selected,
-        }),
+        body: JSON.stringify({ selected_images: selected }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error || data?.details?.error || `HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data?.error || data?.details?.error || `HTTP ${res.status}`);
       setResult(data);
     } catch (err) {
       setError(`Invio non riuscito: ${err}`);
@@ -719,177 +241,180 @@ function ShowcasePublishPanel({
     }
   };
 
-  if (!runId) {
-    return null;
-  }
+  if (!runId) return null;
 
   return (
-    <div className="card" style={{ padding: 18 }}>
-      <div
-        style={{
-          fontFamily: 'DM Sans',
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.10em',
-          color: 'var(--terracotta-dark)',
-          marginBottom: 10,
-        }}
-      >
-        Seleziona foto per il sito
-      </div>
-      <p style={{ margin: '0 0 12px', fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
-        Quality gate automatico: le foto selezionate saranno ottimizzate prima dell'invio in draft.
-      </p>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        <button onClick={() => void loadCandidates()} className="btn-secondary" style={{ padding: '7px 12px', fontSize: 12 }} disabled={loading || publishing}>
-          {loading ? 'Analisi in corso...' : 'Rianalizza'}
-        </button>
-        <button onClick={() => void publish(false)} className="btn-mission" style={{ padding: '7px 12px', fontSize: 12 }} disabled={publishing || !selected.length}>
-          Invia draft al sito
-        </button>
-      </div>
-
-      {error && (
-        <div style={{ border: '1px solid #e8b4b4', background: '#fff3f3', color: '#8f2f2f', borderRadius: 10, padding: '8px 10px', fontFamily: 'DM Sans', fontSize: 12, marginBottom: 10 }}>
-          {error}
+    <section className="result-block">
+      <div className="result-block-header">
+        <h3>Pubblica sul sito vetrina</h3>
+        <div className="result-actions">
+          <button type="button" onClick={() => void loadCandidates()} className="btn-secondary result-button" disabled={loading || publishing}>
+            {loading ? 'Analisi...' : 'Rianalizza'}
+          </button>
+          <button type="button" onClick={() => void publish()} className="btn-mission result-button" disabled={publishing || !selected.length}>
+            Invia draft
+          </button>
         </div>
-      )}
-
+      </div>
+      {error && <p className="result-error">{error}</p>}
       {candidates.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(165px, 1fr))', gap: 10 }}>
+        <div className="result-image-grid compact">
           {candidates.map((item, index) => (
-            <label key={`${item.src}-${index}`} className="card" style={{ padding: 10, border: selected.includes(item.src) ? '1px solid var(--terracotta)' : '1px solid var(--border)', opacity: item.available ? 1 : 0.55, cursor: item.available ? 'pointer' : 'default' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)' }}>
-                  Foto {index + 1}
-                </span>
-                <input
-                  type="checkbox"
-                  checked={selected.includes(item.src)}
-                  disabled={!item.available}
-                  onChange={() => toggleImage(item.src)}
-                />
-              </div>
+            <label key={`${item.src}-${index}`} className="showcase-pick">
+              <input
+                type="checkbox"
+                checked={selected.includes(item.src)}
+                disabled={!item.available}
+                onChange={() =>
+                  setSelected((prev) => (prev.includes(item.src) ? prev.filter((src) => src !== item.src) : [...prev, item.src]))
+                }
+              />
               {item.available ? (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`${apiUrl}/files/${item.src}`} alt={`Candidate ${index + 1}`} style={{ width: '100%', borderRadius: 8, border: '1px solid var(--border)', marginBottom: 8 }} />
-                </>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`${apiUrl}/files/${item.src}`} alt={`Foto sito ${index + 1}`} />
               ) : (
-                <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: '#8f2f2f' }}>
-                  {item.error || 'File non disponibile'}
-                </div>
+                <span>{item.error || 'File non disponibile'}</span>
               )}
             </label>
           ))}
         </div>
       )}
-
-      {result && (
-        <div style={{ marginTop: 12, border: '1px solid var(--border)', background: 'var(--cream-2)', borderRadius: 10, padding: 10, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)' }}>
-          <div style={{ fontWeight: 700, marginBottom: 4 }}>
-            {result.mode === 'dry-run' ? 'Test quality completato' : 'Invio completato'}
-          </div>
-          {result.ingest?.created_id && <div>ID draft creato: {result.ingest.created_id}</div>}
-        </div>
-      )}
-    </div>
+      {result && <p className="result-ok">Draft creato: {result.ingest?.created_id || 'invio completato'}</p>}
+      <a href={SHOWCASE_REVIEW_URL} target="_blank" rel="noreferrer" className="result-link">
+        Apri review admin
+      </a>
+    </section>
   );
 }
 
 export default function ResultsPanel({ results, apiUrl, runId }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('instagram');
+  const [activeTab, setActiveTab] = useState<Tab>('today');
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const publishPack = parseJsonObject<PublishPack>(results.publish_pack_json, {});
+  const carouselCopy = parseJsonObject<CarouselCopy>(results.carousel_slide_texts_json, {});
 
-  const publishPack = parsePublishPack(results.publish_pack_json);
-  const carouselCopy = parseCarouselSlideCopy(results.carousel_slide_texts_json);
+  const hashtags = Array.isArray(publishPack.selected_hashtags) ? publishPack.selected_hashtags.join(' ') : '';
+  const gmbFinal = `${(publishPack.selected_gmb_title || '').trim()}\n\n${(publishPack.selected_gmb_text || '').trim()}`.trim();
+  const storyFrames = Array.isArray(publishPack.selected_story_frames) ? publishPack.selected_story_frames : [];
+  const storyImageKeys = useMemo(() => getResultImages(results, 'image_story_'), [results]);
+  const carouselImageKeys = useMemo(() => getResultImages(results, 'image_carousel_'), [results]);
+  const aiImageKeys = useMemo(() => getResultImages(results, 'image_ai_'), [results]);
 
-  const tabs: Array<{ id: Tab; label: string; icon: string }> = [
-    { id: 'instagram', label: 'Instagram', icon: '📸' },
-    { id: 'gmb', label: 'Google Business', icon: '🏪' },
-    { id: 'tripadvisor', label: 'TripAdvisor', icon: '⭐' },
-    { id: 'sito', label: 'Sito Vetrina', icon: '🌐' },
+  const tabs: Array<{ id: Tab; label: string }> = [
+    { id: 'today', label: 'Oggi' },
+    { id: 'stories', label: 'Stories' },
+    { id: 'carousel', label: 'Carousel' },
+    { id: 'photos', label: 'Foto' },
+    { id: 'google', label: 'Google' },
+    { id: 'sito', label: 'Sito' },
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div
-          style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--cream-2)',
-          }}
-        >
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                flex: 1,
-                padding: '14px 16px',
-                border: 'none',
-                background: activeTab === tab.id ? 'white' : 'transparent',
-                borderBottom: activeTab === tab.id ? '2px solid var(--terracotta)' : 'none',
-                fontFamily: 'DM Sans',
-                fontSize: 13,
-                fontWeight: activeTab === tab.id ? 700 : 500,
-                color: activeTab === tab.id ? 'var(--espresso)' : 'var(--espresso-dim)',
-                cursor: 'pointer',
-                transition: 'all 200ms ease',
-              }}
-            >
-              <span style={{ marginRight: 6 }}>{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
+    <div className="results-shell">
+      <nav className="results-tabs" aria-label="Risultati contenuti">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`result-tab ${activeTab === tab.id ? 'active' : ''}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
 
-        <div style={{ padding: 18 }}>
-          <TabContent
-            tab={activeTab}
-            results={results}
-            apiUrl={apiUrl}
-            runId={runId}
-            publishPack={publishPack}
-            carouselCopy={carouselCopy}
-          />
-        </div>
-      </div>
-
-      <div className="card" style={{ padding: 14 }}>
-        <button
-          onClick={() => setAdvancedOpen((v) => !v)}
-          className="btn-secondary"
-          style={{ width: '100%', justifyContent: 'center', padding: '9px 12px', fontSize: 12, fontWeight: 700 }}
-        >
-          {advancedOpen ? '▼ Nascondi dettagli avanzati' : '▶ Mostra dettagli avanzati (strategia, JSON)'}
-        </button>
-
-        {advancedOpen && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-            <div className="card" style={{ padding: 14 }}>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso)', marginBottom: 10 }}>
-                Strategia completa (JSON)
-              </div>
-              <TextDisplay value={results.strategy_plan || ''} compact />
-            </div>
-            <div className="card" style={{ padding: 14 }}>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso)', marginBottom: 10 }}>
-                Analisi prodotto
-              </div>
-              <TextDisplay value={results.publish_pack || ''} compact />
-            </div>
+      <div className="results-body">
+        {activeTab === 'today' && (
+          <div className="result-stack">
+            {results.image_feed && (
+              <ImageCard title="Post Instagram" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="post-instagram.jpg" />
+            )}
+            <TextBlock title="Caption Instagram" value={publishPack.selected_caption || ''} filename="caption-instagram.txt" />
+            <TextBlock title="Hashtag" value={hashtags} filename="hashtag.txt" />
+            <TextBlock title="WhatsApp" value={publishPack.selected_whatsapp || ''} filename="whatsapp.txt" />
           </div>
         )}
 
-        {!advancedOpen && (
-          <p style={{ margin: '12px 2px 0', fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>
-            Sopra trovi tutto il kit operativo pronto. Apri i dettagli solo se serve analizzare la strategia completa.
-          </p>
+        {activeTab === 'stories' && (
+          <div className="result-stack">
+            <div className="result-image-grid stories">
+              {storyImageKeys.map((key, index) => (
+                <ImageCard
+                  key={key}
+                  title={`Story ${index + 1}`}
+                  imageUrl={`${apiUrl}/files/${results[key]}`}
+                  filename={`story-${index + 1}.jpg`}
+                  note={storyFrames[index]}
+                />
+              ))}
+              {storyImageKeys.length === 0 && results.image_stories && (
+                <ImageCard title="Story 9:16" imageUrl={`${apiUrl}/files/${results.image_stories}`} filename="story-verticale.jpg" />
+              )}
+            </div>
+            <TextBlock title="Testi stories" value={storyFrames.map((frame, idx) => `Story ${idx + 1}: ${frame}`).join('\n')} filename="testi-stories.txt" />
+          </div>
+        )}
+
+        {activeTab === 'carousel' && (
+          <div className="result-stack">
+            <div className="result-image-grid">
+              {carouselImageKeys.map((key, index) => (
+                <ImageCard
+                  key={key}
+                  title={`Slide ${index + 1}`}
+                  imageUrl={`${apiUrl}/files/${results[key]}`}
+                  filename={`carousel-slide-${index + 1}.jpg`}
+                  note={carouselCopy.slide_texts?.[index]}
+                />
+              ))}
+            </div>
+            <TextBlock title="Caption carousel" value={carouselCopy.carousel_caption || publishPack.selected_caption || ''} filename="caption-carousel.txt" />
+          </div>
+        )}
+
+        {activeTab === 'photos' && (
+          <div className="result-image-grid">
+            {results.image_feed && <ImageCard title="Feed 1:1" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="feed-1080.jpg" />}
+            {results.image_stories && <ImageCard title="Story ottimizzata" imageUrl={`${apiUrl}/files/${results.image_stories}`} filename="story-1080x1920.jpg" />}
+            {aiImageKeys.map((key, index) => (
+              <ImageCard key={key} title={`Visual ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`visual-${index + 1}.jpg`} />
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'google' && (
+          <div className="result-stack">
+            <TextBlock title="Google Business" value={gmbFinal} filename="google-business.txt" />
+            {publishPack.selected_tripadvisor_text && (
+              <TextBlock
+                title="TripAdvisor"
+                value={`${publishPack.selected_tripadvisor_title || ''}\n\n${publishPack.selected_tripadvisor_text || ''}`.trim()}
+                filename="tripadvisor.txt"
+              />
+            )}
+          </div>
+        )}
+
+        {activeTab === 'sito' && (
+          <div className="result-stack">
+            <ShowcasePublishPanel apiUrl={apiUrl} runId={runId} />
+          </div>
         )}
       </div>
+
+      <section className="result-block advanced">
+        <button type="button" onClick={() => setAdvancedOpen((value) => !value)} className="btn-secondary result-button full">
+          {advancedOpen ? 'Nascondi dettagli avanzati' : 'Mostra strategia completa'}
+        </button>
+        {advancedOpen && (
+          <div className="result-stack spaced">
+            <TextBlock title="Piano statico JSON" value={results.strategy_plan || ''} filename="piano-statico.json" />
+            <TextBlock title="Analisi prodotto" value={results.analisi || ''} filename="analisi-prodotto.txt" />
+            <TextBlock title="Prompt immagini" value={results.instagram_visual_prompts || ''} filename="prompt-images-2.txt" />
+          </div>
+        )}
+      </section>
     </div>
   );
 }

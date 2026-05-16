@@ -25,6 +25,7 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 SUPPORTED_OPENROUTER_IMAGE_MODELS = [
+    "openai/gpt-5.4-image-2",
     "google/gemini-3.1-flash-image-preview",
     "black-forest-labs/flux.2-klein-4b",
     "bytedance-seed/seedream-4.5",
@@ -225,7 +226,12 @@ def generate_image_with_openrouter(
     image_path: Path | None = None,
     aspect_ratio: str = "1:1",
 ) -> list[str]:
-    modalities = ["image", "text"] if model.startswith("google/gemini") else ["image"]
+    text_image_models = (
+        model.startswith("google/gemini")
+        or model.startswith("openai/gpt-5.4-image")
+        or model.startswith("openai/gpt-image")
+    )
+    modalities = ["image", "text"] if text_image_models else ["image"]
     image_config = {"aspect_ratio": aspect_ratio, "image_size": "1K"} if model.startswith("google/gemini") else None
 
     payload = openrouter_chat_completion(
@@ -324,14 +330,23 @@ def to_bool(value: object) -> bool:
 
 def strategy_plan_defaults() -> dict:
     return {
-        "product_type": "unknown",
+        "product_type": "other",
+        "product_category": "other",
+        "campaign_angle": "new_arrival",
+        "content_kit": "complete_static",
         "primary_output": "single_post",
-        "secondary_output": "story_recall",
-        "needs_carousel": False,
+        "secondary_output": "story_pack",
+        "needs_carousel": True,
+        "needs_story_pack": True,
         "needs_worn_visual": True,
         "needs_street_visual": True,
         "visual_count": 3,
         "visual_focus": ["hero_clean", "worn", "street_context"],
+        "story_frames": [
+            {"frame": 1, "purpose": "hook", "text_mode": "embedded_text", "text_lines": ["Nuovo arrivo", "I Monili Ravenna"]},
+            {"frame": 2, "purpose": "detail", "text_mode": "clean", "text_lines": []},
+            {"frame": 3, "purpose": "cta", "text_mode": "embedded_text", "text_lines": ["Scrivici su WhatsApp"]},
+        ],
         "styling_items": [],
         "model_direction": "realistic adult model, natural pose",
         "scene_concepts": ["premium product hero", "worn lifestyle", "Italian street context"],
@@ -348,7 +363,10 @@ def strategy_plan_summary(plan: dict) -> str:
     visual_count = int(plan.get("visual_count", 3))
     visual_focus = normalize_string_list(plan.get("visual_focus"), max_items=8)
     scenes = normalize_string_list(plan.get("scene_concepts"), max_items=5)
+    category = str(plan.get("product_category", plan.get("product_type", "other")))
+    angle = str(plan.get("campaign_angle", "new_arrival"))
     return (
+        f"product_category={category}; campaign_angle={angle}; "
         f"primary_output={primary}; secondary_output={secondary}; "
         f"needs_carousel={needs_carousel}; needs_worn_visual={needs_worn}; "
         f"needs_street_visual={needs_street}; visual_count={visual_count}; "
@@ -542,14 +560,23 @@ Brief: {brief if brief else "Nessun brief"}
 
 Restituisci SOLO JSON valido con queste chiavi:
 {{
-  "product_type": "jewelry|clothing|accessory|other",
+  "product_type": "jewelry|clothing|bag|belt|shoes|gift|accessory|other",
+  "product_category": "ring|earrings|necklace|bracelet|bag|dress|shirt|kimono|coat|trousers|belt|shoes|gift|home_object|other",
+  "campaign_angle": "new_arrival|gift_idea|ceremony|unique_piece|seasonal_outfit|material_detail|price_push|local_boutique",
+  "content_kit": "quick_static|complete_static|stories_only|post_and_stories",
   "primary_output": "single_post|carousel_product|carousel_educational|gmb_post|story_pack",
   "secondary_output": "single_post|carousel_product|carousel_educational|gmb_post|story_pack",
   "needs_carousel": true/false,
+  "needs_story_pack": true,
   "needs_worn_visual": true/false,
   "needs_street_visual": true/false,
   "visual_count": 2-5,
   "visual_focus": ["hero_clean","worn","street_context","material_closeup","outfit_match","local_store_context","editorial_detail","gift_context"],
+  "story_frames": [
+    {{"frame": 1, "purpose": "hook|new_arrival|gift|detail|cta", "text_mode": "embedded_text|clean", "text_lines": ["max 2 short Italian lines"]}},
+    {{"frame": 2, "purpose": "detail|worn|outfit|material", "text_mode": "embedded_text|clean", "text_lines": []}},
+    {{"frame": 3, "purpose": "cta|whatsapp|store_visit", "text_mode": "embedded_text|clean", "text_lines": ["max 2 short Italian lines"]}}
+  ],
   "styling_items": ["item1", "item2", "item3"],
   "model_direction": "descrizione breve della modella/posa se utile",
   "scene_concepts": ["scena fotorealistica 1", "scena fotorealistica 2", "scena fotorealistica 3"],
@@ -557,9 +584,13 @@ Restituisci SOLO JSON valido con queste chiavi:
 }}
 
 Regole:
+- Questo sistema produce solo contenuti statici: post, stories, carousel, Google Business e sito.
+- Le stories statiche sono parte del kit standard: needs_story_pack deve essere true.
+- Se serve testo dentro alcune immagini, pianificalo in story_frames con text_mode=embedded_text. Non usare overlay lato frontend.
+- Sii specifico per categoria: una borsa richiede proporzioni/manici, un anello macro e mano, un abito vestibilita e silhouette, una cintura fibbia e outfit.
 - Se prodotto e abbigliamento, normalmente needs_worn_visual=true.
-- Se primary_output non e carousel, needs_carousel=false.
-- Evita output ripetitivo, scegli il formato in base al prodotto.
+- Genera carousel per prodotti con dettagli, styling o storia utile; altrimenti puo essere false.
+- Evita output ripetitivo, scegli il formato in base al prodotto ma consegna comunque post + stories.
 - Puoi usare modella AI, location inventate, styling e props se aiutano a vendere, ma il prodotto deve restare identico.
 - Nessun testo fuori JSON."""
     raw = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1200)
@@ -570,9 +601,13 @@ Regole:
 
     base = strategy_plan_defaults()
     base["product_type"] = str(parsed.get("product_type", base["product_type"])).strip() or base["product_type"]
+    base["product_category"] = str(parsed.get("product_category", base["product_category"])).strip() or base["product_category"]
+    base["campaign_angle"] = str(parsed.get("campaign_angle", base["campaign_angle"])).strip() or base["campaign_angle"]
+    base["content_kit"] = str(parsed.get("content_kit", base["content_kit"])).strip() or base["content_kit"]
     base["primary_output"] = str(parsed.get("primary_output", base["primary_output"])).strip() or base["primary_output"]
     base["secondary_output"] = str(parsed.get("secondary_output", base["secondary_output"])).strip() or base["secondary_output"]
     base["needs_carousel"] = to_bool(parsed.get("needs_carousel"))
+    base["needs_story_pack"] = True
     base["needs_worn_visual"] = to_bool(parsed.get("needs_worn_visual"))
     base["needs_street_visual"] = to_bool(parsed.get("needs_street_visual"))
     try:
@@ -591,11 +626,25 @@ Regole:
     scene_concepts = normalize_string_list(parsed.get("scene_concepts"), max_items=5)
     if scene_concepts:
         base["scene_concepts"] = scene_concepts
+    story_frames = parsed.get("story_frames")
+    if isinstance(story_frames, list):
+        clean_frames = []
+        for idx, frame in enumerate(story_frames[:3], start=1):
+            if not isinstance(frame, dict):
+                continue
+            clean_frames.append(
+                {
+                    "frame": int(frame.get("frame", idx)) if str(frame.get("frame", idx)).isdigit() else idx,
+                    "purpose": str(frame.get("purpose", "story")).strip() or "story",
+                    "text_mode": "embedded_text" if str(frame.get("text_mode", "")).strip() == "embedded_text" else "clean",
+                    "text_lines": normalize_string_list(frame.get("text_lines"), max_items=2),
+                }
+            )
+        if clean_frames:
+            base["story_frames"] = clean_frames
     base["rationale"] = str(parsed.get("rationale", base["rationale"])).strip() or base["rationale"]
 
     primary = base["primary_output"]
-    if primary not in {"carousel_product", "carousel_educational"}:
-        base["needs_carousel"] = False
     if primary in {"carousel_product", "carousel_educational"}:
         base["needs_carousel"] = True
     return base
@@ -761,11 +810,12 @@ def agent_instagram_visual_prompts(
     plan: dict,
     brief: str,
 ) -> str:
-    log("INSTAGRAM VISUAL", "Prompt dedicati feed e stories...")
+    log("INSTAGRAM VISUAL", "Prompt dedicati post e stories statiche...")
     prompt_knowledge = load_prompt_knowledge()
     plan_summary = strategy_plan_summary(plan)
+    story_frames = json.dumps(plan.get("story_frames", []), ensure_ascii=False)
     prompt = f"""Sei un senior art director per immagini Instagram fotorealistiche.
-Devi creare prompt dedicati, non riciclati da visual extra o carousel.
+Devi creare prompt dedicati per contenuti statici, non riciclati da visual extra o carousel.
 {BRAND}
 Knowledge prompt immagine:
 {prompt_knowledge}
@@ -774,18 +824,24 @@ Analisi prodotto: {analisi[:900]}
 Strategia: {strategy[:900]}
 Merchandising/styling: {merchandising[:1200]}
 Piano strategist: {plan_summary}
+Story frames pianificati: {story_frames}
 Brief: {brief if brief else "Nessun brief"}
 
-Restituisci solo due righe:
+Restituisci solo queste quattro righe:
 FEED_PROMPT_EN: ...
-STORY_PROMPT_EN: ...
+STORY_PROMPT_EN_1: ...
+STORY_PROMPT_EN_2: ...
+STORY_PROMPT_EN_3: ...
 
 Regole:
 - FEED_PROMPT_EN deve essere una singola immagine hero pubblicabile su Instagram feed, premium, desiderabile, senza testo.
-- STORY_PROMPT_EN deve essere verticale, fotorealistica, con spazio pulito per eventuale testo aggiunto dopo, ma senza testo dentro l'immagine.
+- Ogni STORY_PROMPT_EN deve essere verticale 9:16, pronta da pubblicare come storia statica.
+- Se lo story frame ha text_mode=embedded_text, chiedi a Images 2 di scrivere ESATTAMENTE quelle righe dentro l'immagine, in italiano, in spazio pulito e senza coprire il prodotto.
+- Se lo story frame ha text_mode=clean, non inserire testo nell'immagine.
+- Scrivi prompt diversi per categoria: gioiello macro/mano, borsa proporzioni/manici, abito vestibilita/silhouette, cintura fibbia/outfit, regalo still life.
 - Puoi inventare modella, location, styling, props e luci se aiutano a vendere.
 - Mantieni il prodotto identico alla foto reference: forma, colore, materiali, proporzioni, pietre, dettagli.
-- Niente telefoni, chat screen, interfacce, loghi, watermark, scritte leggibili, packaging fake.
+- Niente telefoni, chat screen, interfacce, loghi, watermark, packaging fake.
 - Massimo fotorealismo, pelle naturale, mani realistiche, scala corretta."""
     result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1200)
     log("INSTAGRAM VISUAL", "Prompt feed/stories pronti", "success")
@@ -810,7 +866,9 @@ def generate_instagram_images(
 
     prompt_specs = [
         ("feed_source", "FEED_PROMPT_EN", "1:1", "instagram_feed_source.png"),
-        ("story_source", "STORY_PROMPT_EN", "9:16", "instagram_story_source.png"),
+        ("story_1_source", "STORY_PROMPT_EN_1", "9:16", "instagram_story_1_source.png"),
+        ("story_2_source", "STORY_PROMPT_EN_2", "9:16", "instagram_story_2_source.png"),
+        ("story_3_source", "STORY_PROMPT_EN_3", "9:16", "instagram_story_3_source.png"),
     ]
     for key, label, aspect_ratio, filename in prompt_specs:
         prompt = extract_labeled_prompt(instagram_prompts, label)
@@ -825,6 +883,14 @@ Use the uploaded reference photo as source-of-truth for the product.
 Preserve exact product shape, color, material, proportions, stones and distinctive details.
 Invent only model, setting, outfit, props and lighting.
 No text, no logos, no watermark, no phone screens, no fake UI."""
+            if label.startswith("STORY_PROMPT_EN"):
+                controlled = f"""{prompt}
+
+Use the uploaded reference photo as source-of-truth for the product.
+Preserve exact product shape, color, material, proportions, stones and distinctive details.
+Invent only model, setting, outfit, props and lighting.
+If the prompt asks for embedded text, spell the text exactly and place it in clean negative space.
+No logos, no watermark, no phone screens, no fake UI."""
             data_urls = generate_image_with_openrouter(
                 api_key,
                 model,
@@ -836,6 +902,8 @@ No text, no logos, no watermark, no phone screens, no fake UI."""
                 target = target_dir / filename
                 if save_data_url_image(data_urls[0], target):
                     outputs[key] = str(target)
+                    if key == "story_1_source":
+                        outputs["story_source"] = str(target)
         except Exception as e:
             log("INSTAGRAM VISUAL", f"{label} non generata: {e}", "warn")
 
@@ -878,11 +946,13 @@ Regole obbligatorie:
 - Use the uploaded product photo as strict reference
 - preserve exact product details, colors, shape and materials
 - photorealistic, natural daylight, authentic Italian boutique mood
+- For slide 1 only, if useful, include 1-2 very short Italian words directly inside the image, spelled exactly, placed in clean negative space.
+- Slides 2-5 should normally be clean product/lifestyle photos without text.
 - invent believable Ravenna/Italian boutique lifestyle scenes when useful, without recognizable fake landmarks
 - use realistic model, hand, ear, neck, outfit, props and complementary products when they help sell the item
 - make every slide look like a finished publishable photo, not a planning mockup
 - no phones, no chat screens, no fake UI, no readable text, no fake labels
-- no text overlays, no logos, no watermark
+- no external overlay instructions, no logos, no watermark
 - if model is present, realistic adult model only
 - each slide must have different framing and purpose (hero, worn detail, context, mix&match, CTA-ready visual)
 
@@ -932,6 +1002,7 @@ def generate_carousel_images(
 Use the uploaded reference photo as source-of-truth for the product.
 The product must remain faithful to the reference.
 You may invent model, location, outfit, props and lighting to make the slide more desirable.
+If the prompt asks for embedded text, the text must be generated directly inside the image and spelled exactly.
 The result must look like a finished premium photorealistic still photo for Instagram carousel."""
             data_urls = generate_image_with_openrouter(api_key, model, controlled, image_path=foto)
             if not data_urls:
@@ -1558,6 +1629,14 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         results[f"image_ai_{idx}"] = image_path
     for idx, image_path in enumerate(carousel_images, start=1):
         results[f"image_carousel_{idx}"] = image_path
+    for idx in range(1, 4):
+        story_source = instagram_sources.get(f"story_{idx}_source")
+        if story_source:
+            story_path = Path(story_source)
+            try:
+                results[f"image_story_{idx}"] = f"{output_dir.name}/{story_path.relative_to(output_dir).as_posix()}"
+            except ValueError:
+                results[f"image_story_{idx}"] = str(story_path)
 
     # Persist full recoverable manifest for frontend history.
     manifest = {

@@ -68,6 +68,7 @@ MIME_TO_EXT = {
 cleanup_task: asyncio.Task | None = None
 DEFAULT_HISTORY_LIMIT = int(os.environ.get("HISTORY_LIMIT", "20"))
 SUPPORTED_OPENROUTER_IMAGE_MODELS = [
+    "openai/gpt-5.4-image-2",
     "google/gemini-3.1-flash-image-preview",
     "black-forest-labs/flux.2-klein-4b",
     "bytedance-seed/seedream-4.5",

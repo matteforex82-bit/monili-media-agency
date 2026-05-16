@@ -38,18 +38,11 @@ interface HistoryItem {
 
 // â”€â”€ CONFIGURAZIONE AGENTI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const INITIAL_AGENTS: AgentDef[] = [
-  { id: 'supervising-agency',    name: 'SUPERVISOR',  role: 'Direttore Creativo', icon: 'S', status: 'offline', progress: 0 },
-  { id: 'researching-trends',    name: 'TREND',       role: 'Intelligence P/E',   icon: 'T', status: 'offline', progress: 0 },
-  { id: 'analyzing-products',    name: 'ANALISTA',    role: 'Vision AI',          icon: 'A', status: 'offline', progress: 0 },
-  { id: 'planning-strategy',     name: 'STRATEGIST',  role: 'Scelta formato',     icon: 'S', status: 'offline', progress: 0 },
-  { id: 'merchandising-product', name: 'MERCHANT',    role: 'Styling vendibile',  icon: 'M', status: 'offline', progress: 0 },
-  { id: 'directing-photography', name: 'FOTO DIR.',   role: 'Foto reali',         icon: 'F', status: 'offline', progress: 0 },
-  { id: 'visual-ai',             name: 'VISUAL AI',   role: 'Try-on realistico',  icon: 'V', status: 'offline', progress: 0 },
-  { id: 'planning-carousel',     name: 'CAROUSEL',    role: 'Statici utili',      icon: 'C', status: 'offline', progress: 0 },
-  { id: 'local-visibility',      name: 'LOCAL SEO',   role: 'Ravenna & AI search', icon: 'L', status: 'offline', progress: 0 },
-  { id: 'distribution-plan',     name: 'DISTRIB.',    role: 'Caption & canali',   icon: 'D', status: 'offline', progress: 0 },
-  { id: 'optimizing-photos',     name: 'FOTO OTT.',   role: 'Foto Instagram',     icon: 'O', status: 'offline', progress: 0 },
-  { id: 'updating-memory',       name: 'MEMORIA',     role: 'Auto-Learning',      icon: 'M', status: 'offline', progress: 0 },
+  { id: 'product-analyst',       name: 'ANALISTA',    role: 'Categoria e dettagli', icon: 'A', status: 'offline', progress: 0 },
+  { id: 'content-director',      name: 'DIRECTOR',    role: 'Post, stories, carousel', icon: 'D', status: 'offline', progress: 0 },
+  { id: 'visual-prompts',        name: 'VISUAL',      role: 'Prompt Images 2', icon: 'V', status: 'offline', progress: 0 },
+  { id: 'copywriter',            name: 'COPY',        role: 'Caption e testi', icon: 'C', status: 'offline', progress: 0 },
+  { id: 'publisher',             name: 'PACK',        role: 'Kit pronto', icon: 'P', status: 'offline', progress: 0 },
 ];
 
 // â”€â”€ SIMULAZIONE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -165,6 +158,7 @@ const OPENROUTER_TEXT_MODELS = [
   'anthropic/claude-3.7-sonnet',
 ] as const;
 const OPENROUTER_IMAGE_MODELS = [
+  'openai/gpt-5.4-image-2',
   'google/gemini-3.1-flash-image-preview',
   'black-forest-labs/flux.2-klein-4b',
   'bytedance-seed/seedream-4.5',
@@ -195,7 +189,7 @@ export default function Home() {
   const [results, setResults] = useState<Record<string, string>>({});
   const [countdown, setCountdown] = useState<number | null>(null);
   const [textModel, setTextModel] = useState('openai/gpt-4.1-mini');
-  const [imageModel, setImageModel] = useState('google/gemini-3.1-flash-image-preview');
+  const [imageModel, setImageModel] = useState('openai/gpt-5.4-image-2');
   const [modelsDialogOpen, setModelsDialogOpen] = useState(false);
   const [checkingOpenRouter, setCheckingOpenRouter] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -329,10 +323,13 @@ export default function Home() {
 
     // â”€â”€ SSE stream: aggiornamenti in tempo reale â”€â”€
     const agentKeywords: [string, number][] = [
-      ['SUPERVISOR',    0], ['Trend',       1], ['Analisi',  2],
-      ['STRATEGIST',    3], ['MERCHANDISER', 4], ['FOTO DIR', 5],
-      ['VISUAL',        6], ['CAROUSEL',      7], ['LOCAL SEO', 8],
-      ['DISTRIBUZIONE', 9], ['FOTO OTT',     10], ['performance', 11],
+      ['ANALISTA', 0],
+      ['STRATEGIST', 1],
+      ['INSTAGRAM VISUAL', 2],
+      ['CAROUSEL VISUAL', 2],
+      ['PUBLISH PACK', 3],
+      ['FOTO OTT', 4],
+      ['MEMORIA', 4],
     ];
 
     let currentAgentIdx = 0;
@@ -520,7 +517,7 @@ export default function Home() {
     setModelsDialogOpen(false);
     setCheckingOpenRouter(false);
     setTextModel('openai/gpt-4.1-mini');
-    setImageModel('google/gemini-3.1-flash-image-preview');
+    setImageModel('openai/gpt-5.4-image-2');
     setAgents(INITIAL_AGENTS.map(a => ({ ...a, status: 'standby' })));
   }, []);
 
@@ -708,9 +705,32 @@ export default function Home() {
                     Cosa riceverai
                   </div>
                   <div style={{ display: 'grid', gap: 6, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.45 }}>
-                    <span>Visual AI fotorealistici: sfondo migliore, indossato, lifestyle e styling.</span>
-                    <span>Post, carousel o story pack scelti dallo strategist in base al prodotto.</span>
-                    <span>Caption, WhatsApp, Google Business e local SEO Ravenna.</span>
+                    <span>Post statico, stories e carousel scelti in base al prodotto.</span>
+                    <span>Prompt specifici per gioielli, borse, abiti, cinture e accessori.</span>
+                    <span>Caption, WhatsApp, Google Business e invio al sito vetrina.</span>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      Motore immagini
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setImageModel('openai/gpt-5.4-image-2')}
+                        className={imageModel === 'openai/gpt-5.4-image-2' ? 'btn-mission' : 'btn-secondary'}
+                        style={{ padding: '7px 12px', fontSize: 12 }}
+                      >
+                        Images 2
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageModel('google/gemini-3.1-flash-image-preview')}
+                        className={imageModel === 'google/gemini-3.1-flash-image-preview' ? 'btn-mission' : 'btn-secondary'}
+                        style={{ padding: '7px 12px', fontSize: 12 }}
+                      >
+                        Gemini
+                      </button>
+                    </div>
                   </div>
                   <details style={{ marginTop: 12 }}>
                     <summary style={{ cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', fontWeight: 600 }}>
