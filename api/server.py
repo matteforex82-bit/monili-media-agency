@@ -420,7 +420,12 @@ async def _run_mission(job_id: str, foto_path: Path, brief: str, image_model: st
         )
         job = jobs.get(job_id)
         if job:
-            job["status"] = "done" if returncode == 0 else "error"
+            if returncode == 0 and not isinstance(job.get("results"), dict):
+                logs = job["logs"]
+                logs.append("ERRORE: processo terminato senza risultati JSON. Nessuna foto recuperabile.")
+                job["status"] = "error"
+            else:
+                job["status"] = "done" if returncode == 0 else "error"
             job["completed_at"] = datetime.now().isoformat()
             job["last_update"] = datetime.now().isoformat()
     except asyncio.TimeoutError:

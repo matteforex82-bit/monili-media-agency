@@ -396,24 +396,24 @@ export default function Home() {
             setOverallProgress(100);
 
             fetch(`${API_URL}/mission/${jobId}/status`)
-              .then(r => r.json())
+              .then(async r => {
+                const data = await r.json();
+                if (!r.ok) throw new Error(data?.error || `HTTP ${r.status}`);
+                return data;
+              })
               .then(data => {
                 if (data.results) {
                   setResults(data.results);
+                  setMissionState('complete');
+                  addLog('SISTEMA', 'Missione completata. Kit marketing pronto.', 'success');
                 } else {
-                  // fallback se results non disponibili
-                  setResults({
-                    analisi:  '# Analisi completata\nVedi cartella output sul server.',
-                    strategy: '# Strategia 2.0 completata\nVedi cartella output sul server.',
-                    shooting: '# Guida foto reale generata\nVedi cartella output sul server.',
-                    visual_prompts: '# Prompt visual AI generati\nVedi cartella output sul server.',
-                    carousel: '# Carousel statici generati\nVedi cartella output sul server.',
-                    local_visibility: '# Local visibility generata\nVedi cartella output sul server.',
-                    distribution: '# Caption, WhatsApp e piano generati\nVedi cartella output sul server.',
-                  });
+                  setMissionState('error');
+                  addLog('SISTEMA', 'Missione chiusa senza risultati. Le foto non sono state generate.', 'warn');
                 }
-                setMissionState('complete');
-                addLog('SISTEMA', 'Missione completata. Kit marketing pronto.', 'success');
+              })
+              .catch((err) => {
+                setMissionState('error');
+                addLog('SISTEMA', `Risultati non recuperabili: ${err}. Rilancia la missione.`, 'warn');
               });
           } else {
             setMissionState('error');
@@ -437,17 +437,29 @@ export default function Home() {
     try {
       const res = await fetch(`${API_URL}/mission/${jobId}/status`);
       const data = await res.json();
+      if (!res.ok) {
+        setCurrentJobId('');
+        try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
+        setMissionState('error');
+        addLog('SISTEMA', `Missione non recuperabile: ${data?.error || `HTTP ${res.status}`}. Rilancia il test.`, 'warn');
+        return;
+      }
       if (data.status === 'running') {
         setCurrentJobId(jobId);
         setTimeout(() => pollStatus(jobId), 2000);
       } else {
         setCurrentJobId('');
         try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
-        INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
-        setOverallProgress(100);
-        if (data.results) setResults(data.results);
-        setMissionState(data.status === 'error' ? 'error' : 'complete');
-        addLog('SISTEMA', data.status === 'error' ? 'Missione terminata con errore.' : 'Missione completata.', data.status === 'error' ? 'warn' : 'success');
+        if (data.status === 'done' && data.results) {
+          INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
+          setOverallProgress(100);
+          setResults(data.results);
+          setMissionState('complete');
+          addLog('SISTEMA', 'Missione completata.', 'success');
+        } else {
+          setMissionState('error');
+          addLog('SISTEMA', data.status === 'error' ? 'Missione terminata con errore.' : 'Missione chiusa senza risultati o foto generate.', 'warn');
+        }
       }
     } catch {
       setTimeout(() => pollStatus(jobId), 3000);
