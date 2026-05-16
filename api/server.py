@@ -489,6 +489,28 @@ def missions_history(limit: int = DEFAULT_HISTORY_LIMIT):
     return {"items": _collect_history(limit=limit)}
 
 
+@app.get("/ops/jobs")
+def active_jobs():
+    items = []
+    for job in jobs.values():
+        logs = job.get("logs", [])
+        items.append(
+            {
+                "id": job.get("id"),
+                "status": job.get("status"),
+                "image_model": job.get("image_model"),
+                "text_model": job.get("text_model"),
+                "started_at": job.get("started_at"),
+                "last_update": job.get("last_update"),
+                "completed_at": job.get("completed_at"),
+                "run_id": job.get("run_id"),
+                "output_dir": job.get("output_dir"),
+                "log_tail": logs[-12:] if isinstance(logs, list) else [],
+            }
+        )
+    return {"items": items}
+
+
 @app.get("/missions/{run_id}")
 def mission_by_run_id(run_id: str):
     run_id = run_id.strip()

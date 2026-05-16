@@ -867,9 +867,16 @@ def generate_instagram_images(
     prompt_specs = [
         ("feed_source", "FEED_PROMPT_EN", "1:1", "instagram_feed_source.png"),
         ("story_1_source", "STORY_PROMPT_EN_1", "9:16", "instagram_story_1_source.png"),
-        ("story_2_source", "STORY_PROMPT_EN_2", "9:16", "instagram_story_2_source.png"),
-        ("story_3_source", "STORY_PROMPT_EN_3", "9:16", "instagram_story_3_source.png"),
     ]
+    if not model.startswith("openai/gpt-5.4-image") and not model.startswith("openai/gpt-image"):
+        prompt_specs.extend(
+            [
+                ("story_2_source", "STORY_PROMPT_EN_2", "9:16", "instagram_story_2_source.png"),
+                ("story_3_source", "STORY_PROMPT_EN_3", "9:16", "instagram_story_3_source.png"),
+            ]
+        )
+    else:
+        log("INSTAGRAM VISUAL", "Images 2 in modalita rapida: genero post + prima story, poi consegno il kit.", "data")
     for key, label, aspect_ratio, filename in prompt_specs:
         prompt = extract_labeled_prompt(instagram_prompts, label)
         if not prompt:
@@ -1443,6 +1450,10 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         log("INSTAGRAM VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     should_generate_carousel = to_bool(strategy_plan.get("needs_carousel"))
+    should_generate_carousel_images = should_generate_carousel and not (
+        selected_image_model.startswith("openai/gpt-5.4-image")
+        or selected_image_model.startswith("openai/gpt-image")
+    )
     if should_generate_carousel:
         try:
             carousel = agent_carousel(selected_text_model, api_key, analisi, strategy, trend)
@@ -1450,6 +1461,10 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         except Exception as e:
             log("CAROUSEL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
+    if should_generate_carousel and not should_generate_carousel_images:
+        log("CAROUSEL VISUAL", "Images 2: salto immagini carousel nel primo giro per evitare blocchi. Testi carousel pronti nel kit.", "data")
+
+    if should_generate_carousel_images:
         try:
             carousel_visual_prompts = agent_carousel_visual_prompts(
                 selected_text_model,
