@@ -126,38 +126,67 @@ def _read_run_manifest(manifest_path: Path) -> dict | None:
     return None
 
 
+def _history_item_from_payload(payload: dict) -> dict | None:
+    run_id = str(payload.get("run_id", "")).strip()
+    output_dir = str(payload.get("output_dir", "")).strip()
+    if not run_id or not output_dir:
+        return None
+
+    created_at = str(payload.get("created_at", "")).strip()
+    brief = str(payload.get("brief", "")).strip()
+    source_photo = str(payload.get("source_photo", "")).strip()
+    results = payload.get("results")
+    selected_format = ""
+    if isinstance(results, dict):
+        try:
+            pack = json.loads(str(results.get("publish_pack_json", "{}")))
+            if isinstance(pack, dict):
+                selected_format = str(pack.get("selected_format", "")).strip()
+        except Exception:
+            selected_format = ""
+
+    return {
+        "run_id": run_id,
+        "created_at": created_at,
+        "brief": brief,
+        "source_photo": Path(source_photo).name if source_photo else "",
+        "output_dir": Path(output_dir).name,
+        "selected_format": selected_format,
+    }
+
+
+def _history_item_from_job(job: dict) -> dict | None:
+    if job.get("status") != "done" or not isinstance(job.get("results"), dict):
+        return None
+
+    results = job["results"]
+    payload = {
+        "run_id": results.get("run_id") or job.get("run_id"),
+        "created_at": job.get("completed_at") or job.get("started_at") or "",
+        "brief": job.get("brief", ""),
+        "source_photo": job.get("foto_path", ""),
+        "output_dir": results.get("output_dir") or job.get("output_dir"),
+        "results": results,
+    }
+    return _history_item_from_payload(payload)
+
+
 def _collect_history(limit: int = DEFAULT_HISTORY_LIMIT) -> list[dict]:
     manifests: list[dict] = []
     for path in OUTPUT_DIR.glob("*/run_manifest.json"):
         payload = _read_run_manifest(path)
         if not payload:
             continue
-        run_id = str(payload.get("run_id", "")).strip()
-        output_dir = str(payload.get("output_dir", "")).strip()
-        if not run_id or not output_dir:
-            continue
-        created_at = str(payload.get("created_at", "")).strip()
-        brief = str(payload.get("brief", "")).strip()
-        source_photo = str(payload.get("source_photo", "")).strip()
-        results = payload.get("results")
-        selected_format = ""
-        if isinstance(results, dict):
-            try:
-                pack = json.loads(str(results.get("publish_pack_json", "{}")))
-                if isinstance(pack, dict):
-                    selected_format = str(pack.get("selected_format", "")).strip()
-            except Exception:
-                selected_format = ""
-        manifests.append(
-            {
-                "run_id": run_id,
-                "created_at": created_at,
-                "brief": brief,
-                "source_photo": Path(source_photo).name if source_photo else "",
-                "output_dir": Path(output_dir).name,
-                "selected_format": selected_format,
-            }
-        )
+        item = _history_item_from_payload(payload)
+        if item:
+            manifests.append(item)
+
+    seen = {item["run_id"] for item in manifests}
+    for job in jobs.values():
+        item = _history_item_from_job(job)
+        if item and item["run_id"] not in seen:
+            manifests.append(item)
+            seen.add(item["run_id"])
 
     manifests.sort(key=lambda item: item.get("created_at", ""), reverse=True)
     return manifests[: max(1, min(limit, 100))]
@@ -532,6 +561,19 @@ def mission_by_run_id(run_id: str):
                 "status": payload.get("status", "done"),
                 "created_at": payload.get("created_at"),
                 "results": payload.get("results", {}),
+            }
+
+    for job in jobs.values():
+        results = job.get("results")
+        if not isinstance(results, dict):
+            continue
+        job_run_id = str(results.get("run_id") or job.get("run_id") or "").strip()
+        if job_run_id == run_id:
+            return {
+                "run_id": run_id,
+                "status": job.get("status", "done"),
+                "created_at": job.get("completed_at") or job.get("started_at"),
+                "results": results,
             }
     return JSONResponse({"error": "Run non trovato"}, status_code=404)
 
