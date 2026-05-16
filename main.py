@@ -1375,11 +1375,8 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         except Exception as e:
             log("SISTEMA", f"Scrittura file fallita ({path.name}): {e}", "warn")
 
-    try:
-        trend = agent_trend(selected_text_model, api_key)
-        safe_write(output_dir / "00_TREND" / "trend_report.md", f"# Trend Report P/E 2026\n\n{trend}")
-    except Exception as e:
-        log("TREND", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+    trend = "Flusso rapido Static Content Studio: focus su post, stories, carousel copy, WhatsApp e sito."
+    log("TREND INTEL", "Saltato nel flusso rapido: uso regole brand/locali gia memorizzate.", "data")
 
     try:
         analisi = agent_analisi(selected_text_model, api_key, foto, brief)
@@ -1387,11 +1384,12 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     except Exception as e:
         log("ANALISTA", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
-    try:
-        strategy = agent_strategy(selected_text_model, api_key, foto, analisi, brief, trend)
-        safe_write(output_dir / "02_STRATEGIA" / "strategy.md", f"# Strategia 2.0\n\n{strategy}")
-    except Exception as e:
-        log("STRATEGIST", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+    strategy = (
+        "Strategia rapida: creare un kit statico pronto per negozio locale "
+        "con post Instagram, stories, eventuale carousel copy, WhatsApp, Google Business e sito vetrina."
+    )
+    safe_write(output_dir / "02_STRATEGIA" / "strategy.md", f"# Strategia Rapida\n\n{strategy}")
+    log("STRATEGIST", "Strategia rapida impostata senza report lungo.", "success")
 
     try:
         merchandising = agent_merchandising(selected_text_model, api_key, foto, analisi, brief)
@@ -1495,17 +1493,17 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     else:
         log("CAROUSEL", "Saltato: strategist ha scelto formato non-carousel per questo prodotto.", "data")
 
-    try:
-        local_visibility = agent_local_visibility(selected_text_model, api_key, analisi, strategy, brief)
-        safe_write(output_dir / "05_LOCAL_VISIBILITY" / "local_visibility.md", f"# Local Visibility\n\n{local_visibility}")
-    except Exception as e:
-        log("LOCAL SEO", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
-
-    try:
-        distribution = agent_distribution(selected_text_model, api_key, analisi, strategy, strategy_plan, carousel)
-        safe_write(output_dir / "06_DISTRIBUZIONE" / "caption_whatsapp_piano.md", f"# Distribuzione\n\n{distribution}")
-    except Exception as e:
-        log("DISTRIBUZIONE", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+    local_visibility = (
+        "Usa sempre local intent: I Monili Ravenna, centro storico, Via Cavour, "
+        "WhatsApp e passaggio in negozio."
+    )
+    distribution = (
+        "Distribuzione rapida: pubblica il post oggi, usa 3 stories statiche come richiamo, "
+        "riusa il testo breve su Google Business e WhatsApp."
+    )
+    safe_write(output_dir / "05_LOCAL_VISIBILITY" / "local_visibility.md", f"# Local Visibility Rapida\n\n{local_visibility}")
+    safe_write(output_dir / "06_DISTRIBUZIONE" / "caption_whatsapp_piano.md", f"# Distribuzione Rapida\n\n{distribution}")
+    log("DISTRIBUZIONE", "Piano rapido creato senza chiamata lunga.", "success")
 
     try:
         publish_pack = agent_publish_pack(
