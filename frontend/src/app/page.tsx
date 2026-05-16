@@ -196,6 +196,7 @@ export default function Home() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
   const [currentJobId, setCurrentJobId] = useState('');
+  const [lastProgressAt, setLastProgressAt] = useState<number | null>(null);
   const briefRef = useRef<HTMLTextAreaElement>(null);
 
   // Boot: offline â†’ standby
@@ -288,6 +289,7 @@ export default function Home() {
     setMissionState('running');
     setLogs([]);
     setOverallProgress(0);
+    setLastProgressAt(Date.now());
 
     // â”€â”€ Invia foto + brief al backend â”€â”€
     const formData = new FormData();
@@ -325,8 +327,14 @@ export default function Home() {
     const agentKeywords: [string, number][] = [
       ['ANALISTA', 0],
       ['STRATEGIST', 1],
+      ['MERCHANDISER', 1],
       ['INSTAGRAM VISUAL', 2],
       ['CAROUSEL VISUAL', 2],
+      ['VISUAL GEN', 2],
+      ['FOTO DIR', 2],
+      ['CAROUSEL', 2],
+      ['LOCAL SEO', 3],
+      ['DISTRIBUZIONE', 3],
       ['PUBLISH PACK', 3],
       ['FOTO OTT', 4],
       ['MEMORIA', 4],
@@ -374,6 +382,7 @@ export default function Home() {
             msg.match(/#\w+|trend|reach|\d+\s?(EUR|euro)/i)   ? 'data'    : 'info';
 
           addLog(INITIAL_AGENTS[currentAgentIdx]?.name || 'SISTEMA', msg, type);
+          setLastProgressAt(Date.now());
         }
 
         if (payload.type === 'status') {
@@ -458,8 +467,25 @@ export default function Home() {
     setCurrentJobId(stored);
     setAgents(prev => prev.map(a => ({ ...a, status: 'standby', progress: 0 })));
     setLogs(prev => prev.length ? prev : [{ time: now(), agent: 'SISTEMA', msg: `Ripresa missione in corso: ${stored}`, type: 'info' }]);
+    setLastProgressAt(Date.now());
     pollStatus(stored);
   }, [pollStatus]);
+
+  useEffect(() => {
+    if (missionState !== 'running' || !lastProgressAt) return;
+    const interval = setInterval(() => {
+      const silentFor = Date.now() - lastProgressAt;
+      if (silentFor > 90000) {
+        addLog(
+          'SISTEMA',
+          'Sto ancora aspettando la risposta del modello immagini. Images 2 puo richiedere qualche minuto sulle foto piu pesanti.',
+          'info',
+        );
+        setLastProgressAt(Date.now());
+      }
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [missionState, lastProgressAt, addLog]);
 
   const checkOpenRouter = useCallback(async () => {
     setCheckingOpenRouter(true);
@@ -512,6 +538,7 @@ export default function Home() {
     setOverallProgress(0);
     setResults({});
     setCurrentJobId('');
+    setLastProgressAt(null);
     try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
     setCountdown(null);
     setModelsDialogOpen(false);

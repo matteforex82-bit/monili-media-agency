@@ -45,6 +45,7 @@ READ_CHUNK_SIZE = 1024 * 1024
 MAX_JOB_LOG_LINES = int(os.environ.get("MAX_JOB_LOG_LINES", "500"))
 JOB_RETENTION_SECONDS = int(os.environ.get("JOB_RETENTION_SECONDS", "21600"))  # 6 hours
 CLEANUP_INTERVAL_SECONDS = int(os.environ.get("CLEANUP_INTERVAL_SECONDS", "300"))
+MISSION_TIMEOUT_SECONDS = int(os.environ.get("MISSION_TIMEOUT_SECONDS", "900"))
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 HEIC_EXTENSIONS = {".heic", ".heif"}
 ALLOWED_IMAGE_CONTENT_TYPES = {
@@ -413,10 +414,25 @@ async def _run_mission(job_id: str, foto_path: Path, brief: str, image_model: st
         return proc.wait()
 
     try:
-        returncode = await asyncio.to_thread(_run_subprocess_blocking)
+        returncode = await asyncio.wait_for(
+            asyncio.to_thread(_run_subprocess_blocking),
+            timeout=MISSION_TIMEOUT_SECONDS,
+        )
         job = jobs.get(job_id)
         if job:
             job["status"] = "done" if returncode == 0 else "error"
+            job["completed_at"] = datetime.now().isoformat()
+            job["last_update"] = datetime.now().isoformat()
+    except asyncio.TimeoutError:
+        job = jobs.get(job_id)
+        if job:
+            logs = job["logs"]
+            logs.append(
+                f"ERRORE: missione oltre {MISSION_TIMEOUT_SECONDS // 60} minuti. Riprova con kit rapido o modello immagini Gemini."
+            )
+            if len(logs) > MAX_JOB_LOG_LINES:
+                del logs[:-MAX_JOB_LOG_LINES]
+            job["status"] = "error"
             job["completed_at"] = datetime.now().isoformat()
             job["last_update"] = datetime.now().isoformat()
     except Exception as e:

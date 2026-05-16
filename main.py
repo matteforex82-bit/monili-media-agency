@@ -340,7 +340,7 @@ def strategy_plan_defaults() -> dict:
         "needs_story_pack": True,
         "needs_worn_visual": True,
         "needs_street_visual": True,
-        "visual_count": 3,
+        "visual_count": 1,
         "visual_focus": ["hero_clean", "worn", "street_context"],
         "story_frames": [
             {"frame": 1, "purpose": "hook", "text_mode": "embedded_text", "text_lines": ["Nuovo arrivo", "I Monili Ravenna"]},
@@ -570,7 +570,7 @@ Restituisci SOLO JSON valido con queste chiavi:
   "needs_story_pack": true,
   "needs_worn_visual": true/false,
   "needs_street_visual": true/false,
-  "visual_count": 2-5,
+  "visual_count": 1-3,
   "visual_focus": ["hero_clean","worn","street_context","material_closeup","outfit_match","local_store_context","editorial_detail","gift_context"],
   "story_frames": [
     {{"frame": 1, "purpose": "hook|new_arrival|gift|detail|cta", "text_mode": "embedded_text|clean", "text_lines": ["max 2 short Italian lines"]}},
@@ -611,7 +611,7 @@ Regole:
     base["needs_worn_visual"] = to_bool(parsed.get("needs_worn_visual"))
     base["needs_street_visual"] = to_bool(parsed.get("needs_street_visual"))
     try:
-        base["visual_count"] = max(2, min(5, int(parsed.get("visual_count", base["visual_count"]))))
+        base["visual_count"] = max(1, min(3, int(parsed.get("visual_count", base["visual_count"]))))
     except Exception:
         pass
     focus = normalize_string_list(parsed.get("visual_focus"), max_items=8)
@@ -877,6 +877,7 @@ def generate_instagram_images(
             continue
         try:
             log("INSTAGRAM VISUAL", f"Generazione {label}", "data")
+            log("INSTAGRAM VISUAL", "Attendo OpenRouter: questa chiamata puo richiedere 1-3 minuti.", "data")
             controlled = f"""{prompt}
 
 Use the uploaded reference photo as source-of-truth for the product.
@@ -974,6 +975,13 @@ def extract_carousel_slide_prompts(raw_text: str, max_slides: int = 5) -> list[s
     return prompts
 
 
+def desired_carousel_slide_count(plan: dict) -> int:
+    product_category = str(plan.get("product_category", "")).lower()
+    if product_category in {"ring", "earrings", "necklace", "bracelet", "belt"}:
+        return 2
+    return 3
+
+
 def generate_carousel_images(
     output_dir: Path,
     api_key: str,
@@ -997,6 +1005,7 @@ def generate_carousel_images(
     for idx, prompt in enumerate(slide_prompts, start=1):
         try:
             log("CAROUSEL VISUAL", f"Generazione slide {idx}/{len(slide_prompts)}", "data")
+            log("CAROUSEL VISUAL", "Attendo OpenRouter per la slide: puo richiedere qualche minuto.", "data")
             controlled = f"""{prompt}
 
 Use the uploaded reference photo as source-of-truth for the product.
@@ -1390,11 +1399,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     except Exception as e:
         log("STRATEGIST", f"ERRORE piano dinamico: {e}\n{traceback.format_exc()}", "warn")
 
-    try:
-        shooting = agent_shooting(selected_text_model, api_key, foto, analisi)
-        safe_write(output_dir / "03_ASSET_STATICI" / "guida_foto_reale.md", f"# Guida Foto Reale\n\n{shooting}")
-    except Exception as e:
-        log("FOTO DIR.", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+    log("FOTO DIR.", "Guida foto reale saltata nel flusso rapido: creo direttamente asset statici AI.", "data")
 
     try:
         visual_prompts = agent_visual_prompts(
@@ -1408,14 +1413,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
             strategy_plan,
         )
         safe_write(output_dir / "03_ASSET_STATICI" / "visual_ai_prompts.md", f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}")
-        ai_images = agent_visual_gen(
-            output_dir,
-            visual_prompts,
-            selected_image_model,
-            api_key,
-            foto,
-            max_visuals_override=int(strategy_plan.get("visual_count", 3)),
-        )
+        log("VISUAL GEN", "Visual extra saltati: priorita a post, stories e carousel.", "data")
     except Exception as e:
         log("VISUAL GEN", f"ERRORE: {e}", "warn")
 
@@ -1466,7 +1464,10 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
                 output_dir / "04_CAROUSEL" / "carousel_visual_prompts.txt",
                 carousel_visual_prompts,
             )
-            slide_prompts = extract_carousel_slide_prompts(carousel_visual_prompts, max_slides=5)
+            slide_prompts = extract_carousel_slide_prompts(
+                carousel_visual_prompts,
+                max_slides=desired_carousel_slide_count(strategy_plan),
+            )
             carousel_images = generate_carousel_images(
                 output_dir,
                 api_key,
