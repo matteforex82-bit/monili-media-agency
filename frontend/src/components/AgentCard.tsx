@@ -23,26 +23,29 @@ const STATUS_COLOR: Record<string, string> = {
   error:   'var(--rose-err)',
 };
 
+const TEAM_COLORS: Record<string, { bg: string; fg: string }> = {
+  Anna: { bg: 'var(--bot-anna)', fg: 'var(--bot-anna-fg)' },
+  Dario: { bg: 'var(--bot-dario)', fg: 'var(--bot-dario-fg)' },
+  Vera: { bg: 'var(--bot-vera)', fg: 'var(--bot-vera-fg)' },
+  Carla: { bg: 'var(--bot-carla)', fg: 'var(--bot-carla-fg)' },
+  Paolo: { bg: 'var(--bot-paolo)', fg: 'var(--bot-paolo-fg)' },
+};
+
 export default function AgentCard({ agent }: Props) {
-  const { name, role, icon, status, progress } = agent;
+  const { name, role, status, progress } = agent;
   const isActive  = status === 'active';
   const isDone    = status === 'done';
   const isStandby = status === 'standby' || status === 'offline';
+  const colors = TEAM_COLORS[name] || TEAM_COLORS.Anna;
 
   return (
     <div
       className={`agent-card ${isActive ? 'active' : ''} ${isDone ? 'done' : ''} ${isStandby ? 'standby' : ''}`}
       style={{ padding: '14px 12px' }}
     >
-      {/* Icon + status dot */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{
-          fontSize: 22,
-          lineHeight: 1,
-          filter: isStandby ? 'grayscale(0.7) opacity(0.6)' : 'none',
-          transition: 'filter 0.3s',
-        }}>
-          {isDone ? 'OK' : icon}
+        <span className="bot-avatar" style={{ background: colors.bg, color: colors.fg }}>
+          {name[0]}
         </span>
         <span style={{
           width: 7,
@@ -63,7 +66,7 @@ export default function AgentCard({ agent }: Props) {
 
       {/* Name */}
       <div style={{
-        fontFamily: 'DM Sans',
+        fontFamily: 'var(--bot-font-sans)',
         fontSize: 10,
         fontWeight: 700,
         letterSpacing: '0.06em',
@@ -85,7 +88,7 @@ export default function AgentCard({ agent }: Props) {
         color: 'var(--espresso-dim)',
         marginBottom: 10,
         lineHeight: 1.35,
-        fontFamily: 'DM Sans',
+        fontFamily: 'var(--bot-font-sans)',
       }}>
         {role}
       </div>
@@ -105,7 +108,7 @@ export default function AgentCard({ agent }: Props) {
         fontSize: 10,
         fontWeight: 600,
         color: STATUS_COLOR[status],
-        fontFamily: 'DM Sans',
+        fontFamily: 'var(--bot-font-sans)',
         display: 'flex',
         alignItems: 'center',
         gap: 4,
@@ -118,3 +121,4 @@ export default function AgentCard({ agent }: Props) {
     </div>
   );
 }
+

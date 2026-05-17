@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import AgentCard from '@/components/AgentCard';
@@ -581,7 +581,7 @@ export default function Home() {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: 'DM Sans',
+              fontFamily: 'var(--bot-font-sans)',
               fontSize: 12,
               fontWeight: 800,
               color: 'var(--terracotta-dark)',
@@ -590,10 +590,10 @@ export default function Home() {
               IM
             </span>
             <div>
-              <div style={{ fontFamily: 'Playfair Display', fontWeight: 700, fontSize: 17, color: 'var(--espresso)', lineHeight: 1.1 }}>
+              <div style={{ fontFamily: 'var(--bot-font-display)', fontWeight: 700, fontSize: 17, color: 'var(--espresso)', lineHeight: 1.1 }}>
                 I Monili
               </div>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 10, color: 'var(--espresso-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 10, color: 'var(--espresso-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                 Studio AI
               </div>
             </div>
@@ -605,7 +605,7 @@ export default function Home() {
               <div style={{ flex: 1, height: 6, background: 'var(--cream-3)', borderRadius: 99, overflow: 'hidden' }}>
                 <div className="progress-bar-fill" style={{ width: `${overallProgress}%`, height: '100%' }} />
               </div>
-              <span style={{ fontFamily: 'DM Mono', fontSize: 12, color: 'var(--terracotta-dark)', fontWeight: 500, minWidth: 36 }}>
+              <span style={{ fontFamily: 'var(--bot-font-mono)', fontSize: 12, color: 'var(--terracotta-dark)', fontWeight: 500, minWidth: 36 }}>
                 {overallProgress}%
               </span>
             </div>
@@ -614,7 +614,7 @@ export default function Home() {
           {/* Right: status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className={`status-dot ${missionState === 'idle' ? 'online' : missionState === 'running' ? 'active' : 'done'}`} />
-            <span style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', fontWeight: 500 }}>
+            <span style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-mid)', fontWeight: 500 }}>
               {missionState === 'idle' && 'Pronta'}
               {missionState === 'running' && 'In elaborazione'}
               {missionState === 'complete' && 'Completata'}
@@ -640,7 +640,7 @@ export default function Home() {
             {/* Hero */}
             <div style={{ textAlign: 'center', marginBottom: 40 }}>
               <div style={{
-                fontFamily: 'DM Sans',
+                fontFamily: 'var(--bot-font-sans)',
                 fontSize: 11,
                 letterSpacing: '0.20em',
                 textTransform: 'uppercase',
@@ -648,10 +648,10 @@ export default function Home() {
                 fontWeight: 600,
                 marginBottom: 14,
               }}>
-                Mini reparto marketing
+                Bottega Monili
               </div>
               <h1 style={{
-                fontFamily: 'Playfair Display',
+                fontFamily: 'var(--bot-font-display)',
                 fontSize: 38,
                 fontWeight: 700,
                 color: 'var(--espresso)',
@@ -659,11 +659,10 @@ export default function Home() {
                 margin: '0 auto 14px',
                 maxWidth: 560,
               }}>
-                Carica una foto.<br />
-                <span className="text-terracotta-gradient">Ottieni il kit giusto.</span>
+                Cosa lanciamo<br />`r`n                <span className="text-terracotta-gradient">oggi in vetrina?</span>
               </h1>
               <p style={{
-                fontFamily: 'DM Sans',
+                fontFamily: 'var(--bot-font-sans)',
                 fontSize: 15,
                 color: 'var(--espresso-mid)',
                 lineHeight: 1.6,
@@ -682,10 +681,10 @@ export default function Home() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                   <div className="step-badge">1</div>
                   <div>
-                    <div style={{ fontFamily: 'DM Sans', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', marginBottom: 2 }}>
+                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', marginBottom: 2 }}>
                       1. Carica la foto base
                     </div>
-                    <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>
+                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-dim)' }}>
                       Anche una foto semplice va bene: l'AI la usa come riferimento reale.
                     </div>
                   </div>
@@ -703,11 +702,11 @@ export default function Home() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
                   <div className="step-badge" style={{ opacity: 0.6 }}>2</div>
                   <div>
-                    <div style={{ fontFamily: 'DM Sans', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', marginBottom: 2 }}>
+                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', marginBottom: 2 }}>
                       2. Aggiungi contesto
                       <span style={{
                         marginLeft: 8,
-                        fontFamily: 'DM Sans',
+                        fontFamily: 'var(--bot-font-sans)',
                         fontSize: 11,
                         fontWeight: 500,
                         color: 'var(--espresso-dim)',
@@ -720,7 +719,7 @@ export default function Home() {
                         Opzionale
                       </span>
                     </div>
-                    <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>
+                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-dim)' }}>
                       Prezzo, occasione, materiale o obiettivo. Puoi lasciarlo vuoto.
                     </div>
                   </div>
@@ -740,16 +739,16 @@ export default function Home() {
                   background: 'var(--cream-2)',
                   border: '1px solid var(--border)',
                 }}>
-                  <div style={{ fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso)', marginBottom: 8, fontWeight: 700 }}>
+                  <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso)', marginBottom: 8, fontWeight: 700 }}>
                     Cosa riceverai
                   </div>
-                  <div style={{ display: 'grid', gap: 6, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.45 }}>
+                  <div style={{ display: 'grid', gap: 6, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.45 }}>
                     <span>Post statico, stories e carousel scelti in base al prodotto.</span>
                     <span>Prompt specifici per gioielli, borse, abiti, cinture e accessori.</span>
                     <span>Caption, WhatsApp, Google Business e invio al sito vetrina.</span>
                   </div>
                   <div style={{ marginTop: 12 }}>
-                    <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                       Motore immagini
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -772,10 +771,10 @@ export default function Home() {
                     </div>
                   </div>
                   <details style={{ marginTop: 12 }}>
-                    <summary style={{ cursor: 'pointer', fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', fontWeight: 600 }}>
+                    <summary style={{ cursor: 'pointer', fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)', fontWeight: 600 }}>
                       Impostazioni tecniche
                     </summary>
-                    <div style={{ marginTop: 8, fontFamily: 'DM Mono', fontSize: 10.5, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
+                    <div style={{ marginTop: 8, fontFamily: 'var(--bot-font-mono)', fontSize: 10.5, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
                       <div>Text: {textModel}</div>
                       <div>Image: {imageModel}</div>
                     </div>
@@ -790,7 +789,7 @@ export default function Home() {
                         border: '1px solid var(--terracotta-light)',
                         background: 'var(--cream-2)',
                         color: 'var(--espresso)',
-                        fontFamily: 'DM Sans',
+                        fontFamily: 'var(--bot-font-sans)',
                         fontSize: 12,
                         fontWeight: 600,
                         cursor: checkingOpenRouter ? 'not-allowed' : 'pointer',
@@ -802,7 +801,7 @@ export default function Home() {
                   </details>
                 </div>
                 {brief.length > 0 && (
-                  <div style={{ marginTop: 8, fontFamily: 'DM Mono', fontSize: 10, color: 'var(--espresso-dim)' }}>
+                  <div style={{ marginTop: 8, fontFamily: 'var(--bot-font-mono)', fontSize: 10, color: 'var(--espresso-dim)' }}>
                     {brief.length} caratteri
                   </div>
                 )}
@@ -820,16 +819,16 @@ export default function Home() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontFamily: 'DM Sans',
+                fontFamily: 'var(--bot-font-sans)',
                 fontWeight: 800,
                 fontSize: 12,
                 flexShrink: 0,
               }}>AI</span>
               <div>
-                <div style={{ fontFamily: 'DM Sans', fontWeight: 600, fontSize: 13, color: 'var(--espresso)', marginBottom: 2 }}>
+                <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--espresso)', marginBottom: 2 }}>
                   Il flusso e semplice
                 </div>
-                <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
+                <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)' }}>
                   1. Carichi la foto  2. Aggiungi note opzionali  3. Generi il kit  4. Scarichi testi e immagini
                 </div>
               </div>
@@ -848,7 +847,7 @@ export default function Home() {
                     key={countdown}
                     className="countdown-pop"
                     style={{
-                      fontFamily: 'Playfair Display',
+                      fontFamily: 'var(--bot-font-display)',
                       fontSize: 72,
                       fontWeight: 700,
                       color: 'var(--terracotta)',
@@ -858,7 +857,7 @@ export default function Home() {
                   >
                     {countdown === 0 ? 'Via' : countdown}
                   </div>
-                  <div style={{ fontFamily: 'DM Sans', fontSize: 14, color: 'var(--espresso-mid)', fontWeight: 500 }}>
+                  <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 14, color: 'var(--espresso-mid)', fontWeight: 500 }}>
                     {countdown === 0 ? 'Avvio del team...' : 'Il team si sta preparando...'}
                   </div>
                 </div>
@@ -870,12 +869,12 @@ export default function Home() {
                     className="btn-mission"
                     style={{ padding: '18px 52px', fontSize: 16 }}
                   >
-                    Genera kit marketing
+                    Avvia il team
                   </button>
 
                   {!photo && (
-                    <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--espresso-dim)' }}>
-                      Carica prima una foto prodotto per continuare
+                    <p style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 13, color: 'var(--espresso-dim)' }}>
+                      Carica una foto per cominciare
                     </p>
                   )}
                 </>
@@ -902,20 +901,20 @@ export default function Home() {
                 <span className="spin-slow" style={{ display: 'inline-block' }}>...</span>
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'DM Sans', fontWeight: 700, fontSize: 16, color: 'var(--espresso)', marginBottom: 4 }}>
-                  Il team sta lavorando al tuo prodotto...
+                <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 700, fontSize: 16, color: 'var(--espresso)', marginBottom: 4 }}>
+                  Il team sta preparando la vetrina.
                 </div>
-                <div style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--espresso-mid)' }}>
+                <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 13, color: 'var(--espresso-mid)' }}>
                   {activeAgent
                     ? <span>Ora attivo: <strong style={{ color: 'var(--terracotta-dark)' }}>{activeAgent.name}</strong> - {activeAgent.role}</span>
                     : 'Finalizzazione in corso...'}
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontFamily: 'Playfair Display', fontSize: 36, fontWeight: 700, color: 'var(--terracotta)', lineHeight: 1 }}>
+                <div style={{ fontFamily: 'var(--bot-font-display)', fontSize: 36, fontWeight: 700, color: 'var(--terracotta)', lineHeight: 1 }}>
                   {overallProgress}%
                 </div>
-                <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', marginTop: 2 }}>
+                <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)', marginTop: 2 }}>
                   {doneCount} di {INITIAL_AGENTS.length} completati
                 </div>
               </div>
@@ -923,7 +922,7 @@ export default function Home() {
 
             {/* Agent grid */}
             <div style={{ marginBottom: 6 }}>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Il team
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
@@ -935,7 +934,7 @@ export default function Home() {
 
             {/* Activity feed */}
             <div>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Cosa sta succedendo
               </div>
               <TerminalLog logs={logs} />
@@ -946,11 +945,11 @@ export default function Home() {
         {/* â•â• ERROR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
         {missionState === 'error' && (
           <div className="fade-up" style={{ textAlign: 'center', padding: '60px 24px' }}>
-            <div style={{ fontSize: 32, marginBottom: 16, fontFamily: 'DM Sans', fontWeight: 800 }}>!</div>
-            <h2 style={{ fontFamily: 'Playfair Display', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', marginBottom: 12 }}>
+            <div style={{ fontSize: 32, marginBottom: 16, fontFamily: 'var(--bot-font-sans)', fontWeight: 800 }}>!</div>
+            <h2 style={{ fontFamily: 'var(--bot-font-display)', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', marginBottom: 12 }}>
               Qualcosa e andato storto
             </h2>
-            <p style={{ fontFamily: 'DM Sans', fontSize: 14, color: 'var(--espresso-mid)', maxWidth: 400, margin: '0 auto 28px' }}>
+            <p style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 14, color: 'var(--espresso-mid)', maxWidth: 400, margin: '0 auto 28px' }}>
               Errore durante l'elaborazione. Controlla OPENROUTER_API_KEY nel backend locale e riprova.
             </p>
             <div style={{ marginBottom: 20 }}>
@@ -980,13 +979,13 @@ export default function Home() {
                 OK
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'DM Sans', fontSize: 11, fontWeight: 600, color: 'var(--sage)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>
+                <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--sage)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>
                   Missione completata
                 </div>
-                <h2 style={{ fontFamily: 'Playfair Display', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', margin: 0 }}>
-                  Il kit marketing e pronto!
+                <h2 style={{ fontFamily: 'var(--bot-font-display)', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', margin: 0 }}>
+                  Il tuo kit di oggi è pronto.
                 </h2>
-                <p style={{ fontFamily: 'DM Sans', fontSize: 13, color: 'var(--espresso-mid)', margin: '4px 0 0' }}>
+                <p style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 13, color: 'var(--espresso-mid)', margin: '4px 0 0' }}>
                   Strategia, visual AI, contenuto scelto dallo strategist, Google Business, caption, WhatsApp e foto ottimizzate: tutto pronto da usare.
                 </p>
               </div>
@@ -1001,7 +1000,7 @@ export default function Home() {
 
             {/* Agent recap */}
             <div style={{ marginBottom: 28 }}>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Il team - {INITIAL_AGENTS.length}/{INITIAL_AGENTS.length} completati
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
@@ -1025,7 +1024,7 @@ export default function Home() {
         {missionState !== 'running' && (
           <div style={{ marginTop: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Cronologia lavori
               </div>
               <button onClick={fetchHistory} className="btn-secondary" style={{ padding: '6px 10px', fontSize: 11 }}>
@@ -1035,13 +1034,13 @@ export default function Home() {
 
             <div className="card" style={{ padding: 14 }}>
               {historyLoading && (
-                <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>Caricamento cronologia...</p>
+                <p style={{ margin: 0, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-dim)' }}>Caricamento cronologia...</p>
               )}
               {!historyLoading && historyError && (
-                <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--rose-err)' }}>{historyError}</p>
+                <p style={{ margin: 0, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--rose-err)' }}>{historyError}</p>
               )}
               {!historyLoading && !historyError && historyItems.length === 0 && (
-                <p style={{ margin: 0, fontFamily: 'DM Sans', fontSize: 12, color: 'var(--espresso-dim)' }}>
+                <p style={{ margin: 0, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-dim)' }}>
                   Nessuna missione salvata ancora.
                 </p>
               )}
@@ -1050,14 +1049,14 @@ export default function Home() {
                   {historyItems.map(item => (
                     <div key={item.run_id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: 'DM Sans', fontSize: 12, fontWeight: 700, color: 'var(--espresso)' }}>
+                        <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 700, color: 'var(--espresso)' }}>
                           {item.selected_format || 'formato dinamico'} · {item.source_photo || 'foto prodotto'}
                         </div>
-                        <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {item.created_at ? new Date(item.created_at).toLocaleString('it-IT') : '-'} · {item.run_id}
                         </div>
                         {item.brief && (
-                          <div style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-mid)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-mid)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {item.brief}
                           </div>
                         )}
@@ -1075,7 +1074,7 @@ export default function Home() {
               )}
             </div>
             {currentJobId && (
-              <p style={{ margin: '8px 2px 0', fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
+              <p style={{ margin: '8px 2px 0', fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)' }}>
                 Missione attiva salvata nel browser: {currentJobId}
               </p>
             )}
@@ -1086,10 +1085,10 @@ export default function Home() {
       {/* â”€â”€ FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <footer style={{ borderTop: '1px solid var(--border)', padding: '14px 24px', marginTop: 40 }}>
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <span style={{ fontFamily: 'DM Sans', fontSize: 11, color: 'var(--espresso-dim)' }}>
+          <span style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)' }}>
             I Monili Ravenna / Studio AI / Powered by OpenRouter
           </span>
-          <span style={{ fontFamily: 'DM Mono', fontSize: 11, color: 'var(--cream-border)' }}>
+          <span style={{ fontFamily: 'var(--bot-font-mono)', fontSize: 11, color: 'var(--cream-border)' }}>
             P/E 2026
           </span>
         </div>
@@ -1097,4 +1096,7 @@ export default function Home() {
     </div>
   );
 }
+
+
+
 

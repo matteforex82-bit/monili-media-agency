@@ -25,14 +25,14 @@ export default function TerminalLog({ logs }: Props) {
     <div className="activity-feed" style={{ maxHeight: 280, overflowY: 'auto' }}>
       {/* Header */}
       <div className="activity-feed-header">
-        <span style={{ fontSize: 14 }}>📋</span>
-        <span style={{ fontFamily: 'DM Sans', fontWeight: 600, fontSize: 12, color: 'var(--espresso-mid)' }}>
-          Aggiornamenti in tempo reale
+        <span className="bot-avatar tiny" style={{ background: 'var(--bot-carla)', color: 'var(--bot-carla-fg)' }}>C</span>
+        <span style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 600, fontSize: 12, color: 'var(--espresso-mid)' }}>
+          Il team sta aggiornando il lavoro
         </span>
         {logs.length > 0 && (
           <span style={{
             marginLeft: 'auto',
-            fontFamily: 'DM Mono',
+            fontFamily: 'var(--bot-font-mono)',
             fontSize: 10,
             color: 'var(--espresso-dim)',
           }}>
@@ -47,7 +47,7 @@ export default function TerminalLog({ logs }: Props) {
           <div style={{
             padding: '14px 16px',
             color: 'var(--espresso-dim)',
-            fontFamily: 'DM Sans',
+            fontFamily: 'var(--bot-font-sans)',
             fontSize: 13,
             display: 'flex',
             alignItems: 'center',
@@ -71,7 +71,7 @@ export default function TerminalLog({ logs }: Props) {
             >
               {/* Timestamp */}
               <span style={{
-                fontFamily: 'DM Mono',
+                fontFamily: 'var(--bot-font-mono)',
                 fontSize: 10,
                 color: 'var(--espresso-dim)',
                 flexShrink: 0,
@@ -83,7 +83,7 @@ export default function TerminalLog({ logs }: Props) {
 
               {/* Agent pill */}
               <span style={{
-                fontFamily: 'DM Sans',
+                fontFamily: 'var(--bot-font-sans)',
                 fontSize: 10,
                 fontWeight: 700,
                 color: 'var(--terracotta-dark)',
@@ -98,7 +98,7 @@ export default function TerminalLog({ logs }: Props) {
 
               {/* Message */}
               <span style={{
-                fontFamily: 'DM Sans',
+                fontFamily: 'var(--bot-font-sans)',
                 fontSize: 12,
                 color: cfg.color,
                 lineHeight: 1.5,
@@ -115,3 +115,4 @@ export default function TerminalLog({ logs }: Props) {
     </div>
   );
 }
+

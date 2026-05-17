@@ -32,21 +32,23 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
     if (file) handleFile(file);
   }, [handleFile]);
 
-  /* ── STATO: foto caricata ── */
+  /* Stato: foto caricata */
   if (photo && photoPreview) {
     return (
       <div style={{
         position: 'relative',
-        borderRadius: 14,
+        borderRadius: 22,
         overflow: 'hidden',
-        border: '1.5px solid rgba(126,158,114,0.45)',
-        boxShadow: '0 0 0 3px var(--sage-pale), var(--shadow-sm)',
+        border: '1px solid var(--bot-border)',
+        boxShadow: 'var(--bot-shadow-lg)',
+        background: '#fff',
+        padding: 10,
       }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={photoPreview}
           alt="Prodotto caricato"
-          style={{ width: '100%', height: 240, objectFit: 'cover', display: 'block' }}
+          style={{ width: '100%', height: 260, objectFit: 'cover', display: 'block', borderRadius: 18 }}
         />
         <div style={{
           position: 'absolute',
@@ -58,10 +60,10 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
         }}>
           <div style={{ flex: 1 }}>
             <div style={{
-              fontFamily: 'DM Sans',
+              fontFamily: 'var(--bot-font-sans)',
               fontWeight: 700,
-              fontSize: 12,
-              color: 'var(--sage-light)',
+              fontSize: 13,
+              color: 'var(--bot-moss-bg)',
               marginBottom: 3,
               display: 'flex',
               alignItems: 'center',
@@ -70,7 +72,7 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
               Foto caricata
             </div>
             <div style={{
-              fontFamily: 'DM Mono',
+              fontFamily: 'var(--bot-font-mono)',
               fontSize: 10,
               color: 'rgba(255,255,255,0.5)',
               overflow: 'hidden',
@@ -93,65 +95,27 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
     );
   }
 
-  /* ── STATO: zona upload ── */
+  /* Stato: zona upload */
   return (
-    <label
-      className={`upload-zone ${isDragging ? 'drag-over' : ''}`}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 240,
-        cursor: 'pointer',
-        gap: 16,
-        textAlign: 'center',
-        padding: '28px 24px',
-      }}
-      onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={onDrop}
-    >
+    <label className={`bot-upload-card ${isDragging ? 'drag-over' : ''}`} onDragOver={e => { e.preventDefault(); setIsDragging(true); }} onDragLeave={() => setIsDragging(false)} onDrop={onDrop}>
       <input type="file" accept="image/*,.heic,.heif" style={{ display: 'none' }} onChange={onInputChange} />
 
-      {/* Camera icon */}
-      <div style={{
-        width: 68,
-        height: 68,
-        borderRadius: '50%',
-        background: isDragging ? 'var(--terracotta-pale)' : 'var(--cream-3)',
-        border: `2px solid ${isDragging ? 'var(--terracotta)' : 'var(--cream-border)'}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 28,
-        transition: 'all 0.3s cubic-bezier(0.16,1,0.3,1)',
-        boxShadow: isDragging ? '0 0 0 6px var(--terracotta-pale)' : 'none',
-      }}>
-        {isDragging ? 'DROP' : 'FOTO'}
+      <div className="bot-upload-mark">
+        {isDragging ? 'OK' : '+'}
       </div>
 
       <div>
-        <div style={{
-          fontFamily: 'DM Sans',
-          fontWeight: 600,
-          fontSize: 15,
-          color: isDragging ? 'var(--terracotta-dark)' : 'var(--espresso-mid)',
-          marginBottom: 6,
-          transition: 'color 0.3s',
-        }}>
-          {isDragging ? 'Rilascia qui la foto' : 'Trascina la foto del prodotto'}
+        <div className="bot-upload-title">
+          {isDragging ? 'Rilascia qui la foto' : 'Carica la foto del prodotto'}
         </div>
-        <div style={{ fontSize: 13, color: 'var(--espresso-dim)' }}>
-          oppure{' '}
-          <span style={{ color: 'var(--terracotta)', fontWeight: 600 }}>
-            clicca per scegliere
-          </span>
+        <div className="bot-upload-sub">
+          Anche scattata al volo va bene · JPG · PNG · HEIC
         </div>
-        <div style={{ fontSize: 11, color: 'var(--cream-border)', marginTop: 8, letterSpacing: '0.08em' }}>
-          JPG / PNG / WEBP / HEIC iPhone
+        <div className="bot-upload-button">
+          Sfoglia dall'iPhone
         </div>
       </div>
     </label>
   );
 }
+

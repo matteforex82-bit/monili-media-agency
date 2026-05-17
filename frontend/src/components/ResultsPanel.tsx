@@ -109,10 +109,17 @@ function CopyActions({ value, filename }: { value: string; filename: string }) {
 
 function TextBlock({ title, value, filename }: { title: string; value: string; filename: string }) {
   const safeValue = value.trim();
+  const author = title.toLowerCase().includes('caption') || title.toLowerCase().includes('hashtag') || title.toLowerCase().includes('whatsapp') ? 'Carla' : 'Paolo';
   return (
     <section className="result-block">
       <div className="result-block-header">
-        <h3>{title}</h3>
+        <div className="bot-card-title-with-avatar">
+          <span className="bot-avatar small">{author[0]}</span>
+          <div>
+            <h3>{title}</h3>
+            <p>{author} ha preparato questo testo, pronto da copiare.</p>
+          </div>
+        </div>
         <CopyActions value={safeValue} filename={filename} />
       </div>
       <pre className="result-text">{safeValue || 'Non disponibile'}</pre>
@@ -149,16 +156,14 @@ function ImageCard({
 
   return (
     <article className="result-image-card">
-      <div className="result-image-title">{title}</div>
+      <div className="result-image-title"><span className="bot-avatar small vera">V</span>{title}</div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={imageUrl} alt={title} className="result-image" />
       {note && <p className="result-image-note">{note}</p>}
       <div className="result-actions">
-        <a href={imageUrl} download={filename} className="btn-mission result-button">
-          Scarica
-        </a>
+        <a href={imageUrl} download={filename} className="btn-mission result-button">.jpg</a>
         <button type="button" onClick={onSave} className="btn-secondary result-button">
-          {status === 'saving' ? 'Salvo...' : status === 'done' ? 'Apri Condividi' : status === 'fallback' ? 'Aperta' : 'Salva su iPhone'}
+          {status === 'saving' ? 'Salvo...' : status === 'done' ? 'Salvato' : status === 'fallback' ? 'Aperta' : 'Salva su iPhone'}
         </button>
       </div>
     </article>
@@ -311,6 +316,20 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
 
   return (
     <div className="results-shell">
+      <div className="bot-kit-banner">
+        <div className="bot-avatar-stack" aria-hidden="true">
+          <span className="bot-avatar">A</span>
+          <span className="bot-avatar dario">D</span>
+          <span className="bot-avatar vera">V</span>
+          <span className="bot-avatar carla">C</span>
+          <span className="bot-avatar paolo">P</span>
+        </div>
+        <div>
+          <div className="label-eyebrow">Kit pronto</div>
+          <h2>Il tuo kit di oggi è pronto.</h2>
+          <p>Vera ha scelto i visual · Carla ha scritto i testi · Paolo ha preparato il pacchetto.</p>
+        </div>
+      </div>
       <nav className="results-tabs" aria-label="Risultati contenuti">
         {tabs.map((tab) => (
           <button
@@ -418,3 +437,4 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
     </div>
   );
 }
+
