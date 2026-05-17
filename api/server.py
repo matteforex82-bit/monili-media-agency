@@ -46,8 +46,10 @@ def _resolve_storage_root() -> Path:
 STORAGE_ROOT = _resolve_storage_root()
 INPUT_DIR    = STORAGE_ROOT / "input"
 OUTPUT_DIR   = STORAGE_ROOT / "output"
+SHOWCASE_DRAFTS_DIR = STORAGE_ROOT / "showcase-drafts"
 INPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+SHOWCASE_DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/files", StaticFiles(directory=str(OUTPUT_DIR)), name="files")
 
@@ -203,6 +205,60 @@ def _collect_history(limit: int = DEFAULT_HISTORY_LIMIT) -> list[dict]:
 
     manifests.sort(key=lambda item: item.get("created_at", ""), reverse=True)
     return manifests[: max(1, min(limit, 100))]
+
+
+def _find_mission_payload(run_id: str) -> dict | None:
+    run_id = run_id.strip()
+    for path in OUTPUT_DIR.glob("*/run_manifest.json"):
+        payload = _read_run_manifest(path)
+        if payload and str(payload.get("run_id", "")).strip() == run_id:
+            return payload
+
+    for job in jobs.values():
+        results = job.get("results")
+        if not isinstance(results, dict):
+            continue
+        job_run_id = str(results.get("run_id") or job.get("run_id") or "").strip()
+        if job_run_id == run_id:
+            return {
+                "run_id": run_id,
+                "created_at": job.get("completed_at") or job.get("started_at"),
+                "status": job.get("status", "done"),
+                "results": results,
+            }
+    return None
+
+
+def _showcase_image_candidates(results: dict) -> list[dict]:
+    candidate_keys = [
+        "image_feed",
+        "image_stories",
+        "image_story_1",
+        "image_story_2",
+        "image_story_3",
+    ]
+    candidate_keys.extend(sorted(key for key in results if key.startswith("image_ai_")))
+    candidate_keys.extend(sorted(key for key in results if key.startswith("image_carousel_")))
+
+    seen: set[str] = set()
+    items: list[dict] = []
+    for key in candidate_keys:
+        src = str(results.get(key, "")).strip()
+        if not src or src in seen:
+            continue
+        seen.add(src)
+        file_path = OUTPUT_DIR / src
+        available = file_path.exists() and file_path.is_file()
+        items.append(
+            {
+                "src": src,
+                "available": available,
+                "recommended": key in {"image_feed", "image_stories", "image_story_1"},
+                "kind": key,
+                "error": None if available else "File non trovato nello storage locale.",
+            }
+        )
+    return items
 
 
 def _convert_heic_to_jpeg(source: Path) -> Path:
@@ -567,31 +623,74 @@ def mission_by_run_id(run_id: str):
     if not run_id:
         return JSONResponse({"error": "run_id mancante"}, status_code=400)
 
-    for path in OUTPUT_DIR.glob("*/run_manifest.json"):
-        payload = _read_run_manifest(path)
-        if not payload:
-            continue
-        if str(payload.get("run_id", "")).strip() == run_id:
-            return {
-                "run_id": run_id,
-                "status": payload.get("status", "done"),
-                "created_at": payload.get("created_at"),
-                "results": payload.get("results", {}),
-            }
-
-    for job in jobs.values():
-        results = job.get("results")
-        if not isinstance(results, dict):
-            continue
-        job_run_id = str(results.get("run_id") or job.get("run_id") or "").strip()
-        if job_run_id == run_id:
-            return {
-                "run_id": run_id,
-                "status": job.get("status", "done"),
-                "created_at": job.get("completed_at") or job.get("started_at"),
-                "results": results,
-            }
+    payload = _find_mission_payload(run_id)
+    if payload:
+        return {
+            "run_id": run_id,
+            "status": payload.get("status", "done"),
+            "created_at": payload.get("created_at"),
+            "results": payload.get("results", {}),
+        }
     return JSONResponse({"error": "Run non trovato"}, status_code=404)
+
+
+@app.get("/missions/{run_id}/showcase/candidates")
+def showcase_candidates(run_id: str):
+    payload = _find_mission_payload(run_id)
+    if not payload:
+        return JSONResponse({"error": "Run non trovato"}, status_code=404)
+    results = payload.get("results", {})
+    if not isinstance(results, dict):
+        return JSONResponse({"error": "Risultati missione non disponibili."}, status_code=404)
+
+    return {
+        "run_id": run_id,
+        "items": _showcase_image_candidates(results),
+    }
+
+
+@app.post("/missions/{run_id}/showcase/publish")
+async def showcase_publish(run_id: str, body: dict | None = None):
+    payload = _find_mission_payload(run_id)
+    if not payload:
+        return JSONResponse({"error": "Run non trovato"}, status_code=404)
+    results = payload.get("results", {})
+    if not isinstance(results, dict):
+        return JSONResponse({"error": "Risultati missione non disponibili."}, status_code=404)
+
+    selected = []
+    if isinstance(body, dict) and isinstance(body.get("selected_images"), list):
+        selected = [str(item).strip() for item in body["selected_images"] if str(item).strip()]
+
+    available = {item["src"] for item in _showcase_image_candidates(results) if item.get("available")}
+    selected = [src for src in selected if src in available]
+    if not selected:
+        return JSONResponse({"error": "Seleziona almeno una foto disponibile."}, status_code=400)
+
+    draft_id = f"draft-{run_id}"
+    draft = {
+        "id": draft_id,
+        "run_id": run_id,
+        "created_at": datetime.now().isoformat(),
+        "selected_images": selected,
+        "publish_pack_json": results.get("publish_pack_json", ""),
+        "publish_pack": results.get("publish_pack", ""),
+        "source": "local-content-app",
+        "status": "local-draft",
+        "note": "Draft locale salvato dall'agenzia. Collegare SHOWCASE_INGEST_URL per inviarlo automaticamente al sito vetrina.",
+    }
+    target = SHOWCASE_DRAFTS_DIR / f"{draft_id}.json"
+    target.write_text(json.dumps(draft, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    return {
+        "mode": "local-draft",
+        "draft_path": str(target),
+        "ingest": {
+            "ok": True,
+            "created_id": draft_id,
+            "status": "saved-local",
+        },
+    }
 
 
 if __name__ == "__main__":
