@@ -10,6 +10,13 @@ Da PowerShell, nella cartella del progetto:
 .\scripts\start-local.ps1
 ```
 
+Lo script mostra in console anche l'URL esatto da aprire su iPhone, per esempio:
+
+```text
+iPhone:   http://192.168.1.20:3000
+API URL:  http://192.168.1.20:8000
+```
+
 Storage predefinito:
 
 ```text
@@ -25,7 +32,7 @@ Per scegliere una cartella diversa:
 ## URL
 
 - Dal portatile: `http://localhost:3000`
-- Da iPhone sulla stessa rete Wi-Fi: `http://IP_DEL_PORTATILE:3000`
+- Da iPhone sulla stessa rete Wi-Fi: usa l'URL `iPhone:` stampato dallo script
 
 Per trovare l'IP del portatile:
 
