@@ -33,6 +33,7 @@ SUPPORTED_OPENROUTER_IMAGE_MODELS = [
 DEFAULT_OPENROUTER_IMAGE_MODEL = SUPPORTED_OPENROUTER_IMAGE_MODELS[0]
 
 SUPPORTED_OPENROUTER_TEXT_MODELS = [
+    "openai/gpt-5.5",
     "openai/gpt-4.1-mini",
     "google/gemini-2.5-flash",
     "google/gemini-2.5-pro",

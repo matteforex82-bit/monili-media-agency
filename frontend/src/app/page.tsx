@@ -152,6 +152,7 @@ const SIMULATION: Array<{
 // â”€â”€ CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-backend.onrender.com';
 const OPENROUTER_TEXT_MODELS = [
+  'openai/gpt-5.5',
   'openai/gpt-4.1-mini',
   'google/gemini-2.5-flash',
   'google/gemini-2.5-pro',
@@ -188,7 +189,7 @@ export default function Home() {
   const [overallProgress, setOverallProgress] = useState(0);
   const [results, setResults] = useState<Record<string, string>>({});
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [textModel, setTextModel] = useState('openai/gpt-4.1-mini');
+  const [textModel, setTextModel] = useState('openai/gpt-5.5');
   const [imageModel, setImageModel] = useState('openai/gpt-5.4-image-2');
   const [modelsDialogOpen, setModelsDialogOpen] = useState(false);
   const [checkingOpenRouter, setCheckingOpenRouter] = useState(false);
@@ -555,7 +556,7 @@ export default function Home() {
     setCountdown(null);
     setModelsDialogOpen(false);
     setCheckingOpenRouter(false);
-    setTextModel('openai/gpt-4.1-mini');
+    setTextModel('openai/gpt-5.5');
     setImageModel('openai/gpt-5.4-image-2');
     setAgents(INITIAL_AGENTS.map(a => ({ ...a, status: 'standby' })));
   }, []);
