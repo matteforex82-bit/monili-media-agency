@@ -20,7 +20,7 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="Monili Media Agency API")
-load_dotenv()
+load_dotenv(encoding="utf-8-sig")
 
 app.add_middleware(
     CORSMiddleware,
@@ -341,7 +341,7 @@ async def start_mission(
     selected_text_model = text_model.strip() if text_model.strip() else DEFAULT_OPENROUTER_TEXT_MODEL
     if not os.environ.get("OPENROUTER_API_KEY", "").strip():
         return JSONResponse(
-            {"error": "OPENROUTER_API_KEY non configurata su Render."},
+            {"error": "OPENROUTER_API_KEY non configurata nel backend locale."},
             status_code=400,
         )
 

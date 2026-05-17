@@ -417,7 +417,7 @@ export default function Home() {
               });
           } else {
             setMissionState('error');
-            addLog('SISTEMA', 'Errore durante la missione. Controlla le API keys su Render.', 'warn');
+            addLog('SISTEMA', 'Errore durante la missione. Controlla OPENROUTER_API_KEY nel backend locale.', 'warn');
           }
         }
       } catch {
@@ -951,7 +951,7 @@ export default function Home() {
               Qualcosa e andato storto
             </h2>
             <p style={{ fontFamily: 'DM Sans', fontSize: 14, color: 'var(--espresso-mid)', maxWidth: 400, margin: '0 auto 28px' }}>
-              Errore durante l'elaborazione. Controlla OPENROUTER_API_KEY su Render e riprova.
+              Errore durante l'elaborazione. Controlla OPENROUTER_API_KEY nel backend locale e riprova.
             </p>
             <div style={{ marginBottom: 20 }}>
               <TerminalLog logs={logs} />
