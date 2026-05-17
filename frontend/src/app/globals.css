@@ -592,6 +592,32 @@ body > * { position: relative; z-index: 1; }
   border-radius: 8px;
 }
 
+.showcase-pick small {
+  font-family: var(--bot-font-sans);
+  font-size: 11px;
+  color: var(--espresso-mid);
+}
+
+.result-empty {
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.56);
+  font-family: var(--bot-font-sans);
+  color: var(--espresso-mid);
+}
+
+.result-empty strong {
+  display: block;
+  color: var(--espresso);
+  margin-bottom: 6px;
+}
+
+.result-empty p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 .result-error {
   color: var(--rose-err);
   font-size: 12px;

@@ -16,6 +16,7 @@ from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
+from PIL import Image, ImageOps
 
 load_dotenv(encoding="utf-8-sig")
 
@@ -234,6 +235,35 @@ def save_data_url_image(data_url: str, destination: Path) -> bool:
 
     destination.write_bytes(raw_bytes)
     return True
+
+
+def save_jpeg_budget(img: Image.Image, destination: Path, target_kb: int = 420) -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    for quality in (88, 84, 80, 76, 72):
+        img.save(destination, "JPEG", quality=quality, optimize=True, progressive=True)
+        if destination.stat().st_size <= target_kb * 1024:
+            return destination
+    return destination
+
+
+def export_ratio_jpeg(
+    source_path: Path,
+    destination: Path,
+    size: tuple[int, int],
+    mode: str = "fit",
+    target_kb: int = 420,
+) -> Path:
+    with Image.open(source_path) as source:
+        image = source.convert("RGB")
+        if mode == "contain":
+            image.thumbnail((size[0] - 80, size[1] - 80), Image.LANCZOS)
+            canvas = Image.new("RGB", size, (250, 247, 240))
+            offset = ((size[0] - image.width) // 2, (size[1] - image.height) // 2)
+            canvas.paste(image, offset)
+            final = canvas
+        else:
+            final = ImageOps.fit(image, size, Image.LANCZOS, centering=(0.5, 0.5))
+    return save_jpeg_budget(final, destination, target_kb=target_kb)
 
 
 def generate_image_with_openrouter(
@@ -937,6 +967,114 @@ No logos, no watermark, no phone screens, no fake UI."""
     return outputs
 
 
+def agent_showcase_visual_prompts(
+    text_model: str,
+    api_key: str,
+    foto: Path,
+    analisi: str,
+    strategy: str,
+    merchandising: str,
+    brief: str,
+) -> str:
+    log("SITO VISUAL", "Prompt dedicati sito vetrina: prodotto, indossata, terza scelta...")
+    prompt_knowledge = load_prompt_knowledge()
+    prompt = f"""Sei un e-commerce art director per il sito vetrina I Monili Ravenna.
+Devi creare 3 prompt in inglese per immagini prodotto dedicate al sito, non social.
+{BRAND}
+Knowledge prompt immagine:
+{prompt_knowledge}
+
+Analisi prodotto: {analisi[:1100]}
+Strategia: {strategy[:700]}
+Merchandising/styling: {merchandising[:1000]}
+Brief utente: {brief if brief else "Nessun brief"}
+
+Restituisci solo queste tre righe:
+SITE_PROMPT_EN_1: ...
+SITE_PROMPT_EN_2: ...
+SITE_PROMPT_EN_3: ...
+
+Obiettivo immagini:
+1. SITE_PROMPT_EN_1 = clean product catalog photo, neutral warm ivory background, no model, product centered, premium boutique e-commerce, generous negative space.
+2. SITE_PROMPT_EN_2 = product worn naturally by a realistic adult model or hand/ear/neck/body depending on product type, correct scale and fit.
+3. SITE_PROMPT_EN_3 = decide based on the product: macro detail for jewelry, outfit/styling context for clothing, handle/texture detail for bag, buckle/outfit detail for belt, gift/lifestyle still life for accessories.
+
+Regole obbligatorie:
+- Use the uploaded reference photo as strict source of truth.
+- Preserve exact product shape, color, material, proportions, stones, texture and distinctive details.
+- Website-ready product photography, photorealistic, clean, sharp, premium but natural.
+- Aspect ratio must work perfectly in 4:5 product cards, no important detail near edges.
+- No readable text, no logo, no watermark, no fake label, no phone, no UI.
+- No collage, no carousel layout, no multiple panels.
+- Keep file result visually simple and fast-loading friendly, not overly busy.
+"""
+    result = generate_text_with_openrouter(api_key, text_model, prompt, image_path=foto, max_tokens=1200)
+    log("SITO VISUAL", "Prompt sito pronti", "success")
+    return result
+
+
+def generate_showcase_images(
+    output_dir: Path,
+    api_key: str,
+    selected_model: str,
+    foto: Path,
+    showcase_prompts: str,
+) -> list[str]:
+    if not api_key:
+        log("SITO VISUAL", "OPENROUTER_API_KEY mancante - salto immagini sito dedicate", "warn")
+        return []
+
+    model = select_openrouter_image_model(selected_model)
+    source_dir = output_dir / "07_SHOWCASE" / "sources"
+    final_dir = output_dir / "07_SHOWCASE"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    final_dir.mkdir(parents=True, exist_ok=True)
+
+    specs = [
+        ("SITE_PROMPT_EN_1", "site_product_clean_source.png", "site_01_product_clean.jpg"),
+        ("SITE_PROMPT_EN_2", "site_worn_source.png", "site_02_worn.jpg"),
+        ("SITE_PROMPT_EN_3", "site_context_source.png", "site_03_context.jpg"),
+    ]
+    generated: list[str] = []
+
+    for index, (label, source_name, final_name) in enumerate(specs, start=1):
+        prompt = extract_labeled_prompt(showcase_prompts, label)
+        if not prompt:
+            log("SITO VISUAL", f"Prompt mancante: {label}", "warn")
+            continue
+        try:
+            log("SITO VISUAL", f"Generazione foto sito {index}/3", "data")
+            controlled = f"""{prompt}
+
+Use the uploaded reference photo as source-of-truth for the product.
+Preserve exact product shape, color, material, proportions, stones and distinctive details.
+Create a single website-ready product photograph, composed safely for 4:5 product cards.
+No text, no logos, no watermark, no phone screens, no fake UI."""
+            data_urls = generate_image_with_openrouter(
+                api_key,
+                model,
+                controlled,
+                image_path=foto,
+                aspect_ratio="4:5",
+            )
+            if not data_urls:
+                continue
+            source_path = source_dir / source_name
+            if not save_data_url_image(data_urls[0], source_path):
+                continue
+            final_path = final_dir / final_name
+            export_ratio_jpeg(source_path, final_path, (1200, 1500), mode="fit", target_kb=420)
+            generated.append(f"{output_dir.name}/07_SHOWCASE/{final_name}")
+        except Exception as e:
+            log("SITO VISUAL", f"{label} non generata: {e}", "warn")
+
+    if generated:
+        log("SITO VISUAL", f"{len(generated)} foto sito dedicate create in 07_SHOWCASE", "success")
+    else:
+        log("SITO VISUAL", "Nessuna foto sito dedicata generata", "warn")
+    return generated
+
+
 def agent_carousel_visual_prompts(
     text_model: str,
     api_key: str,
@@ -1037,13 +1175,21 @@ The product must remain faithful to the reference.
 You may invent model, location, outfit, props and lighting to make the slide more desirable.
 If the prompt asks for embedded text, the text must be generated directly inside the image and spelled exactly.
 The result must look like a finished premium photorealistic still photo for Instagram carousel."""
-            data_urls = generate_image_with_openrouter(api_key, model, controlled, image_path=foto)
+            data_urls = generate_image_with_openrouter(
+                api_key,
+                model,
+                controlled,
+                image_path=foto,
+                aspect_ratio="4:5",
+            )
             if not data_urls:
                 continue
-            filename = f"carousel_slide_{idx}.png"
-            file_path = target_dir / filename
-            if save_data_url_image(data_urls[0], file_path):
-                generated.append(f"{output_dir.name}/04_CAROUSEL/images/{filename}")
+            source_path = target_dir / f"carousel_slide_{idx}_source.png"
+            final_name = f"carousel_slide_{idx}_1080x1350.jpg"
+            final_path = target_dir / final_name
+            if save_data_url_image(data_urls[0], source_path):
+                export_ratio_jpeg(source_path, final_path, (1080, 1350), mode="fit", target_kb=450)
+                generated.append(f"{output_dir.name}/04_CAROUSEL/images/{final_name}")
         except Exception as e:
             log("CAROUSEL VISUAL", f"Slide {idx} non generata: {e}", "warn")
 
@@ -1384,6 +1530,8 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     image_stories = ""
     carousel_visual_prompts = ""
     carousel_images: list[str] = []
+    showcase_visual_prompts = ""
+    showcase_images: list[str] = []
 
     def safe_write(path: Path, content: str):
         try:
@@ -1464,11 +1612,29 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     except Exception as e:
         log("INSTAGRAM VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
+    try:
+        showcase_visual_prompts = agent_showcase_visual_prompts(
+            selected_text_model,
+            api_key,
+            foto,
+            analisi,
+            strategy,
+            merchandising,
+            brief,
+        )
+        safe_write(output_dir / "07_SHOWCASE" / "showcase_visual_prompts.txt", showcase_visual_prompts)
+        showcase_images = generate_showcase_images(
+            output_dir,
+            api_key,
+            selected_image_model,
+            foto,
+            showcase_visual_prompts,
+        )
+    except Exception as e:
+        log("SITO VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+
     should_generate_carousel = to_bool(strategy_plan.get("needs_carousel"))
-    should_generate_carousel_images = should_generate_carousel and not (
-        selected_image_model.startswith("openai/gpt-5.4-image")
-        or selected_image_model.startswith("openai/gpt-image")
-    )
+    should_generate_carousel_images = should_generate_carousel and os.environ.get("MAX_CAROUSEL_IMAGES", "1").strip() != "0"
     if should_generate_carousel:
         try:
             carousel = agent_carousel(selected_text_model, api_key, analisi, strategy, trend)
@@ -1477,7 +1643,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
             log("CAROUSEL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     if should_generate_carousel and not should_generate_carousel_images:
-        log("CAROUSEL VISUAL", "Images 2: salto immagini carousel nel primo giro per evitare blocchi. Testi carousel pronti nel kit.", "data")
+        log("CAROUSEL VISUAL", "CAROSELLO non generato: immagini carousel disattivate da MAX_CAROUSEL_IMAGES=0.", "data")
 
     if should_generate_carousel_images:
         try:
@@ -1508,7 +1674,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         except Exception as e:
             log("CAROUSEL VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
     else:
-        log("CAROUSEL", "Saltato: strategist ha scelto formato non-carousel per questo prodotto.", "data")
+        log("CAROUSEL", "CAROSELLO non presente nella strategia: lo strategist ha scelto un formato non-carousel per questo prodotto.", "data")
 
     local_visibility = (
         "Usa sempre local intent: I Monili Ravenna, centro storico, Via Cavour, "
@@ -1595,9 +1761,9 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         else:
             optimize(str(instagram_source), str(output_dir / "05_FOTO_OTTIMIZZATE"))
         output_subdir = output_dir.name
-        image_feed = f"{output_subdir}/05_FOTO_OTTIMIZZATE/feed_1080x1080.jpg"
+        image_feed = f"{output_subdir}/05_FOTO_OTTIMIZZATE/post_1080x1350.jpg"
         image_stories = f"{output_subdir}/05_FOTO_OTTIMIZZATE/stories_1080x1920.jpg"
-        log("FOTO OTT.", "Feed 1080x1080 e Stories 1080x1920 salvate", "success")
+        log("FOTO OTT.", "Post 1080x1350 e Stories 1080x1920 salvate leggere", "success")
     except Exception as e:
         log("FOTO OTT.", f"Ottimizzazione non riuscita: {e}\n{traceback.format_exc()}", "warn")
 
@@ -1622,6 +1788,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
                 "merchandising": merchandising[:1200],
                 "ai_images": ai_images,
                 "instagram_sources": instagram_sources,
+                "showcase_images": showcase_images,
                 "carousel_slide_texts": carousel_slide_texts,
             }
         )
@@ -1646,6 +1813,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         "shooting": f"# Guida Foto Reale\n\n{shooting}",
         "visual_prompts": f"# Prompt Visual AI Fotorealistici\n\n{visual_prompts}",
         "instagram_visual_prompts": instagram_visual_prompts,
+        "showcase_visual_prompts": showcase_visual_prompts,
         "carousel_visual_prompts": carousel_visual_prompts,
         "carousel_slide_texts_json": json.dumps(carousel_slide_texts, ensure_ascii=False),
         "carousel": f"# Carousel Statici\n\n{carousel}",
@@ -1656,6 +1824,8 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         "image_feed": image_feed,
         "image_stories": image_stories,
     }
+    for idx, image_path in enumerate(showcase_images, start=1):
+        results[f"image_site_{idx}"] = image_path
     for idx, image_path in enumerate(ai_images, start=1):
         results[f"image_ai_{idx}"] = image_path
     for idx, image_path in enumerate(carousel_images, start=1):

@@ -64,7 +64,7 @@ READ_CHUNK_SIZE = 1024 * 1024
 MAX_JOB_LOG_LINES = int(os.environ.get("MAX_JOB_LOG_LINES", "500"))
 JOB_RETENTION_SECONDS = int(os.environ.get("JOB_RETENTION_SECONDS", "21600"))  # 6 hours
 CLEANUP_INTERVAL_SECONDS = int(os.environ.get("CLEANUP_INTERVAL_SECONDS", "300"))
-MISSION_TIMEOUT_SECONDS = int(os.environ.get("MISSION_TIMEOUT_SECONDS", "900"))
+MISSION_TIMEOUT_SECONDS = int(os.environ.get("MISSION_TIMEOUT_SECONDS", "1800"))
 SHOWCASE_INGEST_TIMEOUT_SECONDS = int(os.environ.get("SHOWCASE_INGEST_TIMEOUT_SECONDS", "45"))
 SHOWCASE_IMAGE_WIDTH = int(os.environ.get("SHOWCASE_IMAGE_WIDTH", "1200"))
 SHOWCASE_IMAGE_HEIGHT = int(os.environ.get("SHOWCASE_IMAGE_HEIGHT", "1500"))
@@ -627,6 +627,9 @@ def _build_showcase_payload(run_id: str, selected_images: list[str]) -> dict[str
 
 def _showcase_image_candidates(results: dict) -> list[dict]:
     candidate_keys = [
+        "image_site_1",
+        "image_site_2",
+        "image_site_3",
         "image_feed",
         "image_stories",
         "image_story_1",
@@ -655,7 +658,7 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
             {
                 "src": _relative_to_output(file_path) if available else src,
                 "available": available,
-                "recommended": key in {"image_feed", "image_story_1"} and (not quality or bool(quality.get("passes_source_gate"))),
+                "recommended": key.startswith("image_site_") or (key in {"image_feed", "image_story_1"} and (not quality or bool(quality.get("passes_source_gate")))),
                 "kind": key,
                 "quality": quality,
                 "error": None if available else "File non trovato nello storage locale.",

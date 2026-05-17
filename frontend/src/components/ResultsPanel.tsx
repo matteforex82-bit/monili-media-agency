@@ -35,6 +35,7 @@ type ShowcaseCandidate = {
   src: string;
   available: boolean;
   recommended?: boolean;
+  kind?: string;
   error?: string;
 };
 
@@ -204,6 +205,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
             available: Boolean(obj.available),
             recommended: Boolean(obj.recommended),
             error: typeof obj.error === 'string' ? obj.error : undefined,
+            kind: typeof obj.kind === 'string' ? obj.kind : undefined,
           };
         })
         .filter((item: ShowcaseCandidate | null): item is ShowcaseCandidate => Boolean(item));
@@ -276,10 +278,11 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
               />
               {item.available ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={`${apiUrl}/files/${item.src}`} alt={`Foto sito ${index + 1}`} />
+                  <img src={`${apiUrl}/files/${item.src}`} alt={`Foto sito ${index + 1}`} />
               ) : (
                 <span>{item.error || 'File non disponibile'}</span>
               )}
+              <small>{item.kind?.startsWith('image_site_') ? 'Foto dedicata sito 4:5' : 'Adattabile al sito'}</small>
             </label>
           ))}
         </div>
@@ -347,7 +350,7 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
         {activeTab === 'today' && (
           <div className="result-stack">
             {results.image_feed && (
-              <ImageCard title="Post Instagram" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="post-instagram.jpg" />
+              <ImageCard title="Post Instagram 4:5" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="post-instagram-4x5.jpg" />
             )}
             <TextBlock title="Caption Instagram" value={publishPack.selected_caption || ''} filename="caption-instagram.txt" />
             <TextBlock title="Hashtag" value={hashtags} filename="hashtag.txt" />
@@ -388,13 +391,19 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
                 />
               ))}
             </div>
+            {carouselImageKeys.length === 0 && (
+              <div className="result-empty">
+                <strong>CAROSELLO non presente nella strategia.</strong>
+                <p>Per questo prodotto il sistema ha preparato post, stories e foto sito. Se lo vuoi comunque, scrivilo nel brief: "voglio anche un carosello".</p>
+              </div>
+            )}
             <TextBlock title="Caption carousel" value={carouselCopy.carousel_caption || publishPack.selected_caption || ''} filename="caption-carousel.txt" />
           </div>
         )}
 
         {activeTab === 'photos' && (
           <div className="result-image-grid">
-            {results.image_feed && <ImageCard title="Feed 1:1" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="feed-1080.jpg" />}
+            {results.image_feed && <ImageCard title="Post Instagram 4:5" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="post-1080x1350.jpg" />}
             {results.image_stories && <ImageCard title="Story ottimizzata" imageUrl={`${apiUrl}/files/${results.image_stories}`} filename="story-1080x1920.jpg" />}
             {aiImageKeys.map((key, index) => (
               <ImageCard key={key} title={`Visual ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`visual-${index + 1}.jpg`} />
