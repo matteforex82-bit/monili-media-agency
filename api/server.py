@@ -4,15 +4,19 @@ Riceve la foto + brief dal frontend, lancia main.py via subprocess,
 restituisce SSE con gli aggiornamenti in tempo reale.
 """
 import asyncio
+import base64
 import json
 import os
+import re
 import subprocess
 import sys
 import uuid
 from pathlib import Path
 from datetime import datetime, timedelta
+from typing import Any
 import requests
 from dotenv import load_dotenv
+from PIL import Image, ImageFilter, ImageOps, ImageStat
 
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -61,6 +65,14 @@ MAX_JOB_LOG_LINES = int(os.environ.get("MAX_JOB_LOG_LINES", "500"))
 JOB_RETENTION_SECONDS = int(os.environ.get("JOB_RETENTION_SECONDS", "21600"))  # 6 hours
 CLEANUP_INTERVAL_SECONDS = int(os.environ.get("CLEANUP_INTERVAL_SECONDS", "300"))
 MISSION_TIMEOUT_SECONDS = int(os.environ.get("MISSION_TIMEOUT_SECONDS", "900"))
+SHOWCASE_INGEST_TIMEOUT_SECONDS = int(os.environ.get("SHOWCASE_INGEST_TIMEOUT_SECONDS", "45"))
+SHOWCASE_IMAGE_WIDTH = int(os.environ.get("SHOWCASE_IMAGE_WIDTH", "1200"))
+SHOWCASE_IMAGE_HEIGHT = int(os.environ.get("SHOWCASE_IMAGE_HEIGHT", "1500"))
+SHOWCASE_IMAGE_QUALITY = int(os.environ.get("SHOWCASE_IMAGE_QUALITY", "86"))
+SHOWCASE_MAX_IMAGE_BYTES = int(os.environ.get("SHOWCASE_MAX_IMAGE_BYTES", "650000"))
+SHOWCASE_MIN_IMAGE_WIDTH = int(os.environ.get("SHOWCASE_MIN_IMAGE_WIDTH", "900"))
+SHOWCASE_MIN_IMAGE_HEIGHT = int(os.environ.get("SHOWCASE_MIN_IMAGE_HEIGHT", "900"))
+SHOWCASE_MIN_SHARPNESS_SCORE = float(os.environ.get("SHOWCASE_MIN_SHARPNESS_SCORE", "14.0"))
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 HEIC_EXTENSIONS = {".heic", ".heif"}
 ALLOWED_IMAGE_CONTENT_TYPES = {
@@ -229,6 +241,389 @@ def _find_mission_payload(run_id: str) -> dict | None:
     return None
 
 
+def _find_manifest_by_run_id(run_id: str) -> tuple[Path, dict] | None:
+    run_id = run_id.strip()
+    for path in OUTPUT_DIR.glob("*/run_manifest.json"):
+        payload = _read_run_manifest(path)
+        if payload and str(payload.get("run_id", "")).strip() == run_id:
+            return path, payload
+    return None
+
+
+def _relative_to_output(path: Path) -> str:
+    return str(path.relative_to(OUTPUT_DIR)).replace("\\", "/")
+
+
+def _resolve_output_relative_path(raw_path: str) -> Path | None:
+    cleaned = str(raw_path or "").strip().replace("\\", "/")
+    if not cleaned:
+        return None
+    if cleaned.startswith("output/"):
+        cleaned = cleaned[len("output/") :]
+    cleaned = cleaned.lstrip("/")
+    if not cleaned:
+        return None
+    candidate = (OUTPUT_DIR / cleaned).resolve()
+    output_root = OUTPUT_DIR.resolve()
+    try:
+        candidate.relative_to(output_root)
+    except ValueError:
+        return None
+    return candidate if candidate.exists() and candidate.is_file() else None
+
+
+def _parse_json_loose(value: Any) -> dict:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def _strip_markdown(text: str) -> str:
+    return (
+        text.replace("`n", "\n")
+        .replace("\\n", "\n")
+        .replace("**", "")
+        .strip()
+    )
+
+
+def _first_meaningful_line(text: str) -> str:
+    clean = _strip_markdown(text)
+    for raw_line in clean.splitlines():
+        line = re.sub(r"^#+\s+", "", raw_line).strip()
+        if not line or line.lower() == "scheda prodotto" or line.startswith("```"):
+            continue
+        if line.lower() in {"identificazione", "analisi", "analisi prodotto", "scheda", "prodotto"}:
+            continue
+        if line.lower().startswith("[errore"):
+            continue
+        return line[:120]
+    return ""
+
+
+def _slugify(value: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "-", value.lower())
+    return re.sub(r"(^-+|-+$)", "", cleaned)[:80] or "prodotto"
+
+
+def _pick_category(text: str) -> str:
+    source = text.lower()
+    if re.search(r"collana|bracciale|anello|orecchini|gioiell", source):
+        return "gioielli"
+    if re.search(r"borsa|cintura|foulard|accessorio|regalo", source):
+        return "accessori"
+    if re.search(r"camicia|abito|maglia|giacca|pantalone|lino", source):
+        return "abbigliamento"
+    return "bijoux"
+
+
+def _pick_location(category: str, text: str) -> list[str]:
+    source = text.lower()
+    if category in {"gioielli", "bijoux"}:
+        return ["via-cavour-17"]
+    if category in {"abbigliamento", "accessori"} or re.search(r"borsa|abbigliamento|regalo|lifestyle", source):
+        return ["via-cavour-21"]
+    return ["via-cavour-17"]
+
+
+def _pick_state(text: str) -> str:
+    source = text.lower()
+    if re.search(r"vendut|sold[-\s]?out|non disponibile", source):
+        return "sold"
+    if re.search(r"su richiesta|personalizz|fatto su misura", source):
+        return "req"
+    if re.search(r"pezzo unico|unico", source):
+        return "unique"
+    return "disp"
+
+
+def _pick_whatsapp_preset(state: str, text: str) -> str:
+    source = text.lower()
+    if state == "req":
+        return "richiesta"
+    if state == "sold":
+        return "simili"
+    if re.search(r"negozio|passare|orari|boutique", source):
+        return "negozio"
+    return "prodotto"
+
+
+def _extract_materials(text: str) -> list[str] | None:
+    keywords = [
+        "argento 925",
+        "argento",
+        "pietra dura",
+        "ottone",
+        "acciaio",
+        "oro",
+        "ecopelle",
+        "pelle",
+        "lino",
+        "seta",
+        "cotone",
+    ]
+    source_match = re.search(
+        r"materiali identificati[^:\n]*:\s*(.+?)(?:\n-|$)",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    source = (source_match.group(1) if source_match else text[:900]).lower()
+    found = []
+    for item in keywords:
+        if item in source and item not in found:
+            found.append(item)
+    return found or None
+
+
+def _extract_tags_from_pack(publish_pack: dict) -> list[str] | None:
+    tags = publish_pack.get("selected_hashtags")
+    if not isinstance(tags, list):
+        return None
+    clean = [str(tag).replace("#", "").strip() for tag in tags if str(tag).strip()]
+    return clean[:12] or None
+
+
+def _compute_sharpness_score(image: Image.Image) -> float:
+    gray = image.convert("L")
+    edges = gray.filter(ImageFilter.FIND_EDGES)
+    stat = ImageStat.Stat(edges)
+    return float(stat.stddev[0] if stat.stddev else 0.0)
+
+
+def _image_quality_report(image_path: Path) -> dict[str, Any]:
+    with Image.open(image_path) as image:
+        width, height = image.size
+        sharpness_score = _compute_sharpness_score(image)
+    size_bytes = image_path.stat().st_size
+    ratio = round(width / height, 4) if height else 0.0
+    target_ratio = round(SHOWCASE_IMAGE_WIDTH / SHOWCASE_IMAGE_HEIGHT, 4)
+    passes = (
+        width >= SHOWCASE_MIN_IMAGE_WIDTH
+        and height >= SHOWCASE_MIN_IMAGE_HEIGHT
+        and sharpness_score >= SHOWCASE_MIN_SHARPNESS_SCORE
+    )
+    return {
+        "width": width,
+        "height": height,
+        "ratio": ratio,
+        "target_ratio": target_ratio,
+        "ratio_delta": round(abs(ratio - target_ratio), 4),
+        "size_bytes": size_bytes,
+        "size_kb": round(size_bytes / 1024, 1),
+        "sharpness_score": round(sharpness_score, 2),
+        "passes_source_gate": passes,
+    }
+
+
+def _transform_for_showcase(source_path: Path, destination_path: Path) -> None:
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(source_path) as image:
+        fitted = ImageOps.fit(
+            image.convert("RGB"),
+            (SHOWCASE_IMAGE_WIDTH, SHOWCASE_IMAGE_HEIGHT),
+            method=Image.LANCZOS,
+            centering=(0.5, 0.5),
+        )
+        fitted.save(
+            destination_path,
+            "JPEG",
+            quality=SHOWCASE_IMAGE_QUALITY,
+            optimize=True,
+            progressive=True,
+        )
+
+
+def _image_to_data_url(image_path: Path) -> str:
+    encoded = base64.b64encode(image_path.read_bytes()).decode("ascii")
+    return f"data:image/jpeg;base64,{encoded}"
+
+
+def _send_payload_to_showcase(payload: dict) -> dict:
+    ingest_url = os.environ.get("SHOWCASE_INGEST_URL", "").strip()
+    if not ingest_url:
+        return {
+            "ok": False,
+            "status_code": None,
+            "error": "SHOWCASE_INGEST_URL non configurata. Imposta l'endpoint ingest del sito vetrina.",
+        }
+
+    headers = {"Content-Type": "application/json"}
+    admin_token = os.environ.get("SHOWCASE_ADMIN_TOKEN", "").strip()
+    if admin_token:
+        headers["x-admin-token"] = admin_token
+
+    try:
+        response = requests.post(
+            ingest_url,
+            json=payload,
+            headers=headers,
+            timeout=SHOWCASE_INGEST_TIMEOUT_SECONDS,
+        )
+        parsed_body = None
+        try:
+            parsed_body = response.json()
+        except Exception:
+            parsed_body = None
+        if response.status_code >= 400:
+            return {
+                "ok": False,
+                "status_code": response.status_code,
+                "error": response.text[:800],
+                "body": parsed_body,
+            }
+        item = parsed_body.get("item") if isinstance(parsed_body, dict) else None
+        return {
+            "ok": True,
+            "status_code": response.status_code,
+            "created_id": item.get("id") if isinstance(item, dict) else None,
+            "body": parsed_body,
+        }
+    except Exception as exc:
+        return {"ok": False, "status_code": None, "error": str(exc)}
+
+
+def _build_showcase_payload(run_id: str, selected_images: list[str]) -> dict[str, Any]:
+    found = _find_manifest_by_run_id(run_id)
+    if not found:
+        raise ValueError("Run non trovato.")
+    manifest_path, manifest = found
+    results = manifest.get("results")
+    if not isinstance(results, dict):
+        raise ValueError("Risultati missione non disponibili.")
+
+    publish_pack = _parse_json_loose(results.get("publish_pack_json"))
+    strategy_plan = _parse_json_loose(results.get("strategy_plan"))
+    analisi = str(results.get("analisi", ""))
+    gmb_title = str(publish_pack.get("selected_gmb_title", "")).strip()
+    gmb_title = re.sub(r"\s+[–-]\s+I Monili Ravenna$", "", gmb_title, flags=re.IGNORECASE).strip()
+    product_signal_text = "\n".join([gmb_title, analisi])
+    raw_text = "\n".join(
+        [
+            analisi,
+            str(results.get("strategy", "")),
+            str(results.get("copy", "")),
+            json.dumps(publish_pack, ensure_ascii=False),
+            json.dumps(strategy_plan, ensure_ascii=False),
+        ]
+    )
+
+    title = (
+        gmb_title
+        or _first_meaningful_line(analisi)
+        or f"Prodotto {run_id}"
+    )
+    category = _pick_category(product_signal_text)
+    state = _pick_state(product_signal_text)
+    product_id = _slugify(f"{title}-{run_id}")
+    output_dir_name = manifest_path.parent.name
+
+    prepared_images: list[dict[str, str]] = []
+    quality_report: list[dict[str, Any]] = []
+    rejected_sources: list[dict[str, Any]] = []
+    processed: set[str] = set()
+
+    for idx, raw_src in enumerate(selected_images[:8]):
+        source_abs = _resolve_output_relative_path(raw_src)
+        if not source_abs:
+            rejected_sources.append({"src": raw_src, "reason": "file-not-found-or-outside-output"})
+            continue
+        source_rel = _relative_to_output(source_abs)
+        if source_rel in processed:
+            continue
+        processed.add(source_rel)
+
+        source_quality = _image_quality_report(source_abs)
+        if not source_quality["passes_source_gate"]:
+            rejected_sources.append(
+                {
+                    "src": source_rel,
+                    "reason": "source-quality-below-threshold",
+                    "source_quality": source_quality,
+                }
+            )
+            continue
+
+        transformed_abs = OUTPUT_DIR / output_dir_name / "07_SHOWCASE" / f"site_{len(prepared_images) + 1:02d}.jpg"
+        _transform_for_showcase(source_abs, transformed_abs)
+        transformed_quality = _image_quality_report(transformed_abs)
+        transformed_quality["passes_size_budget"] = transformed_quality["size_bytes"] <= SHOWCASE_MAX_IMAGE_BYTES
+        transformed_rel = _relative_to_output(transformed_abs)
+
+        prepared_images.append(
+            {
+                "src": _image_to_data_url(transformed_abs),
+                "alt": f"{title} - I Monili Ravenna" if not prepared_images else f"{title} dettaglio {len(prepared_images) + 1}",
+            }
+        )
+        quality_report.append(
+            {
+                "source": source_rel,
+                "output": transformed_rel,
+                "source_quality": source_quality,
+                "output_quality": transformed_quality,
+            }
+        )
+
+    if not prepared_images:
+        raise ValueError("Nessuna immagine supera il quality gate per il sito.")
+
+    summary = _first_meaningful_line(analisi) or str(publish_pack.get("selected_gmb_text", "")).strip()[:220]
+    story = str(publish_pack.get("selected_caption", "")).strip()
+    product_fiche = {
+        "id": product_id,
+        "title": title,
+        "category": category,
+        "state": state,
+        "price": None,
+        "currency": "EUR",
+        "summary": summary or None,
+        "story": story or None,
+        "materials": _extract_materials(analisi),
+        "images": prepared_images,
+        "availability": {
+            "inStore": state != "req",
+            "reservable": state != "sold",
+            "shipsFrom": "Ravenna",
+        },
+        "availableAt": _pick_location(category, product_signal_text),
+        "whatsappPreset": _pick_whatsapp_preset(state, product_signal_text),
+        "relatedTags": _extract_tags_from_pack(publish_pack),
+        "updatedAt": datetime.now().isoformat(),
+        "publicationStatus": "draft",
+        "sourceSystem": "internal-web-app",
+        "sourceRunId": run_id,
+    }
+    if publish_pack.get("selected_gmb_title") and publish_pack.get("selected_gmb_text"):
+        product_fiche["seo"] = {
+            "title": str(publish_pack["selected_gmb_title"]),
+            "description": str(publish_pack["selected_gmb_text"]),
+        }
+
+    # Drop optional null fields, but keep required nullable contract fields such as price.
+    optional_nullable_fields = {"summary", "story", "materials", "relatedTags"}
+    product_fiche = {
+        k: v
+        for k, v in product_fiche.items()
+        if v is not None or k not in optional_nullable_fields
+    }
+    return {
+        "payload": {"run_id": run_id, "product_fiche": product_fiche},
+        "prepared_images": [
+            {"src": item["output"], "alt": prepared_images[index]["alt"]}
+            for index, item in enumerate(quality_report)
+        ],
+        "quality_report": quality_report,
+        "rejected_sources": rejected_sources,
+        "output_dir": output_dir_name,
+    }
+
+
 def _showcase_image_candidates(results: dict) -> list[dict]:
     candidate_keys = [
         "image_feed",
@@ -247,14 +642,21 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
         if not src or src in seen:
             continue
         seen.add(src)
-        file_path = OUTPUT_DIR / src
+        file_path = _resolve_output_relative_path(src) or (OUTPUT_DIR / src)
         available = file_path.exists() and file_path.is_file()
+        quality = None
+        if available:
+            try:
+                quality = _image_quality_report(file_path)
+            except Exception:
+                quality = None
         items.append(
             {
-                "src": src,
+                "src": _relative_to_output(file_path) if available else src,
                 "available": available,
-                "recommended": key in {"image_feed", "image_stories", "image_story_1"},
+                "recommended": key in {"image_feed", "image_story_1"} and (not quality or bool(quality.get("passes_source_gate"))),
                 "kind": key,
+                "quality": quality,
                 "error": None if available else "File non trovato nello storage locale.",
             }
         )
@@ -667,29 +1069,51 @@ async def showcase_publish(run_id: str, body: dict | None = None):
     if not selected:
         return JSONResponse({"error": "Seleziona almeno una foto disponibile."}, status_code=400)
 
-    draft_id = f"draft-{run_id}"
-    draft = {
-        "id": draft_id,
+    try:
+        prepared = _build_showcase_payload(run_id, selected)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore preparazione payload sito: {exc}"}, status_code=500)
+
+    audit_id = f"showcase-{run_id}"
+    audit_payload = {
+        "id": audit_id,
         "run_id": run_id,
         "created_at": datetime.now().isoformat(),
         "selected_images": selected,
-        "publish_pack_json": results.get("publish_pack_json", ""),
-        "publish_pack": results.get("publish_pack", ""),
+        "prepared_images": prepared["prepared_images"],
+        "quality_report": prepared["quality_report"],
+        "rejected_sources": prepared["rejected_sources"],
         "source": "local-content-app",
-        "status": "local-draft",
-        "note": "Draft locale salvato dall'agenzia. Collegare SHOWCASE_INGEST_URL per inviarlo automaticamente al sito vetrina.",
+        "status": "prepared-for-online-ingest",
     }
-    target = SHOWCASE_DRAFTS_DIR / f"{draft_id}.json"
-    target.write_text(json.dumps(draft, indent=2, ensure_ascii=False), encoding="utf-8")
+    audit_target = SHOWCASE_DRAFTS_DIR / f"{audit_id}.json"
+    audit_target.write_text(json.dumps(audit_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    ingest_result = _send_payload_to_showcase(prepared["payload"])
+    if not ingest_result.get("ok"):
+        return JSONResponse(
+            {
+                "error": "Ingest sul sito vetrina non riuscito.",
+                "details": ingest_result,
+                "prepared_images": prepared["prepared_images"],
+                "quality_report": prepared["quality_report"],
+                "rejected_sources": prepared["rejected_sources"],
+                "audit_path": str(audit_target),
+            },
+            status_code=502 if ingest_result.get("status_code") is None else int(ingest_result.get("status_code") or 502),
+        )
 
     return {
-        "mode": "local-draft",
-        "draft_path": str(target),
-        "ingest": {
-            "ok": True,
-            "created_id": draft_id,
-            "status": "saved-local",
-        },
+        "ok": True,
+        "mode": "publish",
+        "run_id": run_id,
+        "ingest": ingest_result,
+        "prepared_images": prepared["prepared_images"],
+        "quality_report": prepared["quality_report"],
+        "rejected_sources": prepared["rejected_sources"],
+        "audit_path": str(audit_target),
     }
 
 
