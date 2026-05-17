@@ -31,10 +31,23 @@ app.add_middleware(
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent
-INPUT_DIR    = PROJECT_ROOT / "input"
-OUTPUT_DIR   = PROJECT_ROOT / "output"
-INPUT_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
+
+
+def _resolve_storage_root() -> Path:
+    configured = os.environ.get("MONILI_STORAGE_DIR", "").strip()
+    if not configured:
+        return PROJECT_ROOT
+    path = Path(configured).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path.resolve()
+
+
+STORAGE_ROOT = _resolve_storage_root()
+INPUT_DIR    = STORAGE_ROOT / "input"
+OUTPUT_DIR   = STORAGE_ROOT / "output"
+INPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount("/files", StaticFiles(directory=str(OUTPUT_DIR)), name="files")
 
@@ -428,11 +441,14 @@ async def _run_mission(job_id: str, foto_path: Path, brief: str, image_model: st
         job["last_update"] = datetime.now().isoformat()
 
     def _run_subprocess_blocking() -> int:
+        child_env = os.environ.copy()
+        child_env["MONILI_STORAGE_DIR"] = str(STORAGE_ROOT)
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             cwd=str(PROJECT_ROOT),
+            env=child_env,
             text=True,
             encoding="utf-8",
             errors="replace",

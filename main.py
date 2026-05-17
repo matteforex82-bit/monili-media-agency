@@ -39,6 +39,22 @@ SUPPORTED_OPENROUTER_TEXT_MODELS = [
     "anthropic/claude-3.7-sonnet",
 ]
 DEFAULT_OPENROUTER_TEXT_MODEL = SUPPORTED_OPENROUTER_TEXT_MODELS[0]
+PROJECT_ROOT = Path(__file__).parent
+
+
+def resolve_storage_root() -> Path:
+    configured = os.environ.get("MONILI_STORAGE_DIR", "").strip()
+    if not configured:
+        return PROJECT_ROOT
+    path = Path(configured).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path.resolve()
+
+
+STORAGE_ROOT = resolve_storage_root()
+OUTPUT_ROOT = STORAGE_ROOT / "output"
+MEMORY_ROOT = STORAGE_ROOT / "memory"
 
 
 def log(agent: str, msg: str, kind: str = "info"):
@@ -1332,7 +1348,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
 
     nome = foto.stem.lower().replace(" ", "-")
     run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
-    output_dir = Path(f"output/{run_id}_{nome}")
+    output_dir = OUTPUT_ROOT / f"{run_id}_{nome}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("\nMONILI MEDIA AGENCY - avvio pipeline AI", flush=True)
@@ -1559,7 +1575,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
             source_kind = "visual Instagram AI dedicati"
         elif ai_images:
             candidate_rel = ai_images[0]
-            candidate_abs = Path("output") / candidate_rel
+            candidate_abs = OUTPUT_ROOT / candidate_rel
             if candidate_abs.exists():
                 instagram_source = candidate_abs
                 stories_source = candidate_abs
@@ -1586,7 +1602,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
 
     log("MEMORIA", "Aggiornamento performance_log.json...")
     try:
-        memory_path = Path("memory/performance_log.json")
+        memory_path = MEMORY_ROOT / "performance_log.json"
         log_data = json.loads(memory_path.read_text(encoding="utf-8")) if memory_path.exists() else {"sessions": []}
         sessions = log_data.get("sessions")
         if not isinstance(sessions, list):
@@ -1608,7 +1624,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
                 "carousel_slide_texts": carousel_slide_texts,
             }
         )
-        memory_path.parent.mkdir(exist_ok=True)
+        memory_path.parent.mkdir(parents=True, exist_ok=True)
         memory_path.write_text(json.dumps(log_data, indent=2, ensure_ascii=False), encoding="utf-8")
         log("MEMORIA", "Sessione loggata. Memoria persistente aggiornata.", "success")
     except Exception as e:
