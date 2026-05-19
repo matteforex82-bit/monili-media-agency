@@ -380,10 +380,10 @@ def strategy_plan_defaults() -> dict:
         "product_type": "other",
         "product_category": "other",
         "campaign_angle": "new_arrival",
-        "content_kit": "complete_static",
+        "content_kit": "quick_static",
         "primary_output": "single_post",
         "secondary_output": "story_pack",
-        "needs_carousel": True,
+        "needs_carousel": False,
         "needs_story_pack": True,
         "needs_worn_visual": True,
         "needs_street_visual": True,
@@ -399,6 +399,11 @@ def strategy_plan_defaults() -> dict:
         "scene_concepts": ["premium product hero", "worn lifestyle", "Italian street context"],
         "rationale": "Piano fallback: post statico con visual realistici.",
     }
+
+
+def brief_requests_carousel(brief: str) -> bool:
+    source = brief.lower()
+    return any(token in source for token in ("carousel", "carosello", "slide"))
 
 
 def strategy_plan_summary(plan: dict) -> str:
@@ -912,7 +917,7 @@ def generate_instagram_images(
     outputs: dict[str, str] = {}
 
     prompt_specs = [
-        ("feed_source", "FEED_PROMPT_EN", "1:1", "instagram_feed_source.png"),
+        ("feed_source", "FEED_PROMPT_EN", "4:5", "instagram_feed_source.png"),
         ("story_1_source", "STORY_PROMPT_EN_1", "9:16", "instagram_story_1_source.png"),
     ]
     if not model.startswith("openai/gpt-5.4-image") and not model.startswith("openai/gpt-image"):
@@ -1073,6 +1078,70 @@ No text, no logos, no watermark, no phone screens, no fake UI."""
     else:
         log("SITO VISUAL", "Nessuna foto sito dedicata generata", "warn")
     return generated
+
+
+def create_showcase_fallback_images(output_dir: Path, source_path: Path, reason: str) -> list[str]:
+    """
+    Fallback anti-blocco: se Images 2 non consegna le foto sito dedicate,
+    prepariamo comunque immagini sito leggere e proporzionate dalla foto originale.
+    """
+    log("SITO VISUAL", f"Fallback sito da foto originale: {reason}", "warn")
+    final_dir = output_dir / "07_SHOWCASE"
+    final_dir.mkdir(parents=True, exist_ok=True)
+    specs = [
+        ("site_01_product_clean.jpg", "contain"),
+        ("site_02_worn_fallback.jpg", "fit"),
+        ("site_03_detail_fallback.jpg", "fit"),
+    ]
+    generated: list[str] = []
+    for filename, mode in specs:
+        final_path = final_dir / filename
+        export_ratio_jpeg(source_path, final_path, (1200, 1500), mode=mode, target_kb=420)
+        generated.append(f"{output_dir.name}/07_SHOWCASE/{filename}")
+    return generated
+
+
+def image_file_report(relative_path: str) -> dict:
+    path = OUTPUT_ROOT / relative_path
+    if not path.exists() or not path.is_file():
+        return {"src": relative_path, "ok": False, "reason": "missing"}
+    try:
+        with Image.open(path) as img:
+            width, height = img.size
+        return {
+            "src": relative_path,
+            "ok": True,
+            "width": width,
+            "height": height,
+            "ratio": round(width / height, 4) if height else 0,
+            "kb": round(path.stat().st_size / 1024, 1),
+        }
+    except Exception as exc:
+        return {"src": relative_path, "ok": False, "reason": str(exc)}
+
+
+def build_decision_summary(
+    publish_pack: dict,
+    showcase_images: list[str],
+    carousel_images: list[str],
+    story_image_count: int,
+) -> str:
+    selected_format = str(publish_pack.get("selected_format", "single_post")).strip() or "single_post"
+    caption = str(publish_pack.get("selected_caption", "")).strip()
+    whatsapp = str(publish_pack.get("selected_whatsapp", "")).strip()
+    lines = [
+        "COSA USARE ORA",
+        f"Formato consigliato: {selected_format}",
+        "Foto principale: usa il post Instagram 4:5.",
+        f"Stories: {'pronte' if story_image_count else 'fallback 9:16 pronto dalla foto principale'}.",
+        f"Sito vetrina: {'usa le foto dedicate 4:5' if showcase_images else 'usa il fallback sito 4:5'}.",
+        f"Carousel: {'pronto' if carousel_images else 'non necessario/non generato in questa strategia'}.",
+    ]
+    if caption:
+        lines.append(f"Caption scelta: {caption[:180]}")
+    if whatsapp:
+        lines.append(f"WhatsApp: {whatsapp[:180]}")
+    return "\n".join(lines)
 
 
 def agent_carousel_visual_prompts(
@@ -1564,6 +1633,9 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
 
     try:
         strategy_plan = agent_strategy_plan(selected_text_model, api_key, foto, analisi, strategy, merchandising, brief)
+        if brief_requests_carousel(brief):
+            strategy_plan["needs_carousel"] = True
+            strategy_plan["primary_output"] = "carousel_product"
         safe_write(output_dir / "02_STRATEGIA" / "strategy_plan.json", json.dumps(strategy_plan, indent=2, ensure_ascii=False))
         log("STRATEGIST", f"Piano dinamico: {strategy_plan_summary(strategy_plan)}", "data")
     except Exception as e:
@@ -1630,8 +1702,11 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
             foto,
             showcase_visual_prompts,
         )
+        if not showcase_images:
+            showcase_images = create_showcase_fallback_images(output_dir, foto, "Images 2 non ha restituito foto sito dedicate")
     except Exception as e:
         log("SITO VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
+        showcase_images = create_showcase_fallback_images(output_dir, foto, "errore generazione immagini sito")
 
     should_generate_carousel = to_bool(strategy_plan.get("needs_carousel"))
     should_generate_carousel_images = should_generate_carousel and os.environ.get("MAX_CAROUSEL_IMAGES", "1").strip() != "0"
@@ -1838,6 +1913,19 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
                 results[f"image_story_{idx}"] = f"{output_dir.name}/{story_path.relative_to(output_dir).as_posix()}"
             except ValueError:
                 results[f"image_story_{idx}"] = str(story_path)
+
+    story_image_count = len([key for key in results if key.startswith("image_story_")])
+    asset_reports = []
+    for key, value in results.items():
+        if key.startswith("image_") and isinstance(value, str) and value:
+            asset_reports.append(image_file_report(value))
+    results["decision_summary"] = build_decision_summary(
+        publish_pack,
+        showcase_images,
+        carousel_images,
+        story_image_count,
+    )
+    results["asset_report_json"] = json.dumps(asset_reports, ensure_ascii=False)
 
     # Persist full recoverable manifest for frontend history.
     manifest = {

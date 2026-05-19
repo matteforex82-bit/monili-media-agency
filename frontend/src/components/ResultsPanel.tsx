@@ -307,6 +307,7 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
   const storyImageKeys = useMemo(() => getResultImages(results, 'image_story_'), [results]);
   const carouselImageKeys = useMemo(() => getResultImages(results, 'image_carousel_'), [results]);
   const aiImageKeys = useMemo(() => getResultImages(results, 'image_ai_'), [results]);
+  const siteImageKeys = useMemo(() => getResultImages(results, 'image_site_'), [results]);
 
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: 'today', label: 'Oggi' },
@@ -349,6 +350,7 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
       <div className="results-body">
         {activeTab === 'today' && (
           <div className="result-stack">
+            <TextBlock title="Scelta consigliata" value={results.decision_summary || 'Usa il post 4:5, poi stories e invio draft al sito vetrina.'} filename="scelta-consigliata.txt" />
             {results.image_feed && (
               <ImageCard title="Post Instagram 4:5" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="post-instagram-4x5.jpg" />
             )}
@@ -374,6 +376,12 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
                 <ImageCard title="Story 9:16" imageUrl={`${apiUrl}/files/${results.image_stories}`} filename="story-verticale.jpg" />
               )}
             </div>
+            {storyImageKeys.length === 0 && !results.image_stories && (
+              <div className="result-empty">
+                <strong>STORIES non generate.</strong>
+                <p>Il sistema non ha ricevuto immagini story valide. Puoi rilanciare o usare il post 4:5 come contenuto principale.</p>
+              </div>
+            )}
             <TextBlock title="Testi stories" value={storyFrames.map((frame, idx) => `Story ${idx + 1}: ${frame}`).join('\n')} filename="testi-stories.txt" />
           </div>
         )}
@@ -397,7 +405,9 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
                 <p>Per questo prodotto il sistema ha preparato post, stories e foto sito. Se lo vuoi comunque, scrivilo nel brief: "voglio anche un carosello".</p>
               </div>
             )}
-            <TextBlock title="Caption carousel" value={carouselCopy.carousel_caption || publishPack.selected_caption || ''} filename="caption-carousel.txt" />
+            {carouselImageKeys.length > 0 && (
+              <TextBlock title="Caption carousel" value={carouselCopy.carousel_caption || publishPack.selected_caption || ''} filename="caption-carousel.txt" />
+            )}
           </div>
         )}
 
@@ -405,6 +415,9 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
           <div className="result-image-grid">
             {results.image_feed && <ImageCard title="Post Instagram 4:5" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="post-1080x1350.jpg" />}
             {results.image_stories && <ImageCard title="Story ottimizzata" imageUrl={`${apiUrl}/files/${results.image_stories}`} filename="story-1080x1920.jpg" />}
+            {siteImageKeys.map((key, index) => (
+              <ImageCard key={key} title={`Sito vetrina ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`sito-vetrina-${index + 1}.jpg`} />
+            ))}
             {aiImageKeys.map((key, index) => (
               <ImageCard key={key} title={`Visual ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`visual-${index + 1}.jpg`} />
             ))}
@@ -426,6 +439,13 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
 
         {activeTab === 'sito' && (
           <div className="result-stack">
+            {siteImageKeys.length > 0 && (
+              <div className="result-image-grid">
+                {siteImageKeys.map((key, index) => (
+                  <ImageCard key={key} title={`Foto sito ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`foto-sito-${index + 1}.jpg`} />
+                ))}
+              </div>
+            )}
             <ShowcasePublishPanel apiUrl={apiUrl} runId={runId} />
           </div>
         )}
@@ -440,6 +460,7 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
             <TextBlock title="Piano statico JSON" value={results.strategy_plan || ''} filename="piano-statico.json" />
             <TextBlock title="Analisi prodotto" value={results.analisi || ''} filename="analisi-prodotto.txt" />
             <TextBlock title="Prompt immagini" value={results.instagram_visual_prompts || ''} filename="prompt-images-2.txt" />
+            <TextBlock title="Report asset" value={results.asset_report_json || ''} filename="report-asset.json" />
           </div>
         )}
       </section>
