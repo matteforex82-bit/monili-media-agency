@@ -28,8 +28,8 @@ if hasattr(sys.stderr, "reconfigure"):
 SUPPORTED_OPENROUTER_IMAGE_MODELS = [
     "openai/gpt-5.4-image-2",
     "google/gemini-3.1-flash-image-preview",
-    "black-forest-labs/flux.2-klein-4b",
-    "bytedance-seed/seedream-4.5",
+    "google/gemini-3.1-flash-image",
+    "google/gemini-3-pro-image",
 ]
 DEFAULT_OPENROUTER_IMAGE_MODEL = SUPPORTED_OPENROUTER_IMAGE_MODELS[0]
 
@@ -38,7 +38,7 @@ SUPPORTED_OPENROUTER_TEXT_MODELS = [
     "openai/gpt-4.1-mini",
     "google/gemini-2.5-flash",
     "google/gemini-2.5-pro",
-    "anthropic/claude-3.7-sonnet",
+    "anthropic/claude-sonnet-5.5",
 ]
 DEFAULT_OPENROUTER_TEXT_MODEL = SUPPORTED_OPENROUTER_TEXT_MODELS[0]
 PROJECT_ROOT = Path(__file__).parent
