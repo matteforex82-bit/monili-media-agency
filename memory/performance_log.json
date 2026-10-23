@@ -2,7 +2,7 @@
   "meta": {
     "negozio": "I Monili Ravenna",
     "versione": "1.0",
-    "ultimo_aggiornamento": null,
+    "ultimo_aggiornamento": "2026-10-23",
     "totale_sessioni": 0
   },
   "sessioni": [],
@@ -20,6 +20,18 @@
     "giovedi_1830": null,
     "sabato_1830": null
   },
-  "prodotti_top": [],
-  "insight_brand": []
+  "prodotti_top": [
+    "bracciale pietre multicolore su ardesia",
+    "orecchini smaltati a fiore",
+    "orecchini poster fiori bianchi e turchese"
+  ],
+  "insight_brand": [
+    "Insights ago-ott 2026: 25.989 visualizzazioni - Storie 62,4%, Reel 34%, post statici 3,7%: priorita Story video e Reel",
+    "40% delle visualizzazioni da non follower: i Reel portano persone nuove",
+    "Contenuti piu visti: Reel in negozio con persona reale ('Tempo di shopping' 690, look con borsa 661), bracciale su ardesia 716, poster orecchini 627",
+    "Post statici: poche visualizzazioni ma 59% delle interazioni (like dei follower fedeli)",
+    "627 visite al profilo ma 1 solo tocco sull'indirizzo: ogni contenuto deve chiudere con invito al DM o al negozio",
+    "1071 follower. Orari di attivita da verificare (grafico indica 18:00 come ora meno attiva)",
+    "Evitare: scritte stile fumetto/neon, modelle AI diverse ogni volta, difetti di generazione non controllati"
+  ]
 }

@@ -24,11 +24,30 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
   video Higgsfield (Kling 3.0 / Seedance 2.5), clip reali opzionali, montaggio 9:16, testi. Dettagli in `docs/reel-studio.md`.
   Testato con AI simulata (API + browser iPhone); **non ancora testato con Higgsfield reale** (manca la key).
 
+## Analisi Instagram (Insights ago-ott 2026, screenshot di Matteo)
+- 25.989 visualizzazioni: Storie 62,4%, Reel 34%, post statici 3,7% → video-first confermato.
+- 40% visualizzazioni da non follower (Reel). 1.071 follower. 298 interazioni (59% sui post, da follower fedeli).
+- 627 visite profilo ma **1 tocco sull'indirizzo** → ogni contenuto chiude con invito al DM.
+- Più visti: Reel in negozio con Anastasia (690, 661), bracciale su ardesia (716), poster orecchini (627).
+- Problemi del feed: troppa AI generica (modelle diverse ogni volta), stili misti (scritte fumetto/neon),
+  un difetto pubblicato (rettangolo nero sull'anello rubini), highlight ancora "Saldi/Vestiti estate".
+- Anastasia costava 150 €/giorno: Matteo non ha budget → **Modella Monili AI ricorrente** + mani/negozio veri.
+- Orari: il grafico indica le 18 come ora meno attiva, ma ha picchi alle 3 → da verificare (fuso orario?).
+
+## Fatto il 2026-10-23 (seconda parte)
+- Memoria brand aggiornata con l'identità reale (colorata, artigianale, boho-etnica) in `CLAUDE.md` e `main.BRAND`;
+  Insights salvati in `memory/performance_log.json` (li leggono gli agenti).
+- Reel Studio: 6 ricette (`/libera`, `/modella-monili`, `/mani-bancone`, `/pietra-settimana`, `/tre-modi`,
+  `/colori-ravenna`), Modella Monili persistente, copertina poster serif/crema, controllo qualità AI
+  fotogramma vs foto reale con 1 rigenerazione. Testato con AI simulata.
+
 ## Prossimi passi
 1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` locale / su Render.
 2. Primo Reel vero con un prodotto reale: verificare fedeltà del gioiello e costo effettivo vs stima.
 3. Tarare le stime (`HF_FALLBACK_USD_PER_SEC_*`) con i costi reali.
-4. Chiudere il ciclo performance: `memory/performance_log.json` è ancora vuoto → schermata per inserire reach/visite dopo la pubblicazione.
+4. Matteo: verificare il fuso orario del grafico "Periodi di maggiore attività" dall'app e aggiornare le storie in evidenza (ferme all'estate).
+5. Raccogliere da Matteo 2-3 comandi ChatGPT che usa (/poster, /carouselart) per affinare le ricette.
+6. Chiudere il ciclo performance: `memory/performance_log.json` ha solo gli insight generali → serve una schermata (o l API Meta) per i numeri di ogni singolo Reel.
 
 ## Aperti / da sapere
 - **Sito vetrina non online**: l'URL nel codice (`web-five-theta-58.vercel.app`) ora ospita un'altra app ("Alfred");

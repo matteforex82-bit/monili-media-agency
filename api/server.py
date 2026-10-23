@@ -1126,6 +1126,7 @@ async def showcase_publish(run_id: str, body: dict | None = None):
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 import higgsfield_client  # noqa: E402
+import reel_kit  # noqa: E402
 import reel_studio  # noqa: E402
 
 MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
@@ -1181,7 +1182,54 @@ def reel_config():
         "transitions": list(reel_studio.TRANSITIONS.keys()),
         "purposes": reel_studio.SHOT_PURPOSES,
         "budget_eur": reel_studio.REEL_BUDGET_EUR,
+        "recipes": [
+            {"id": key, "label": spec["label"], "description": spec["description"], "formats": spec["formats"], "uses_model": spec["uses_model"]}
+            for key, spec in reel_kit.RECIPES.items()
+        ],
+        "default_recipe": reel_kit.DEFAULT_RECIPE,
+        "persona": reel_kit.load_persona(),
     }
+
+
+@app.get("/reel/persona")
+def reel_persona_get():
+    return reel_kit.load_persona()
+
+
+@app.post("/reel/persona")
+async def reel_persona_set(description: str = Form(default=""), photo: UploadFile | None = File(default=None)):
+    reference: Path | None = None
+    if photo is not None and photo.filename:
+        content_type = (photo.content_type or "").lower().strip()
+        ext = Path(photo.filename).suffix.lower()
+        if not _is_supported_upload(content_type, ext):
+            return JSONResponse({"error": "Foto non supportata. Usa JPG, PNG, WEBP o HEIC."}, status_code=400)
+        reference = reel_kit.BRAND_ASSETS_DIR / f"persona_upload{ext if ext in ALLOWED_IMAGE_EXTENSIONS else '.jpg'}"
+        reference.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            await _save_upload(photo, reference, MAX_UPLOAD_BYTES)
+            if reference.suffix.lower() in HEIC_EXTENSIONS:
+                reference = _convert_heic_to_jpeg(reference)
+        except (ValueError, RuntimeError) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+    persona = await asyncio.to_thread(reel_kit.save_persona, description or None, reference)
+    if reference is not None:
+        reference.unlink(missing_ok=True)
+    return persona
+
+
+@app.post("/reel/persona/from-keyframe")
+async def reel_persona_from_keyframe(body: dict):
+    reel_id = str(body.get("reel_id") or "")
+    shot_id = str(body.get("shot_id") or "")
+    state = reel_studio.load_state(reel_id)
+    if not state:
+        return JSONResponse({"error": "Reel non trovato"}, status_code=404)
+    shot = next((s for s in (state.get("results") or {}).get("shots", []) if s.get("id") == shot_id), None)
+    if not shot or not shot.get("keyframe"):
+        return JSONResponse({"error": "Fotogramma non trovato"}, status_code=404)
+    persona = await asyncio.to_thread(reel_kit.save_persona, None, OUTPUT_DIR / shot["keyframe"])
+    return persona
 
 
 @app.get("/reels")
@@ -1199,6 +1247,8 @@ async def reel_create(
     video_model: str = Form(default=""),
     keyframe_model: str = Form(default=DEFAULT_OPENROUTER_IMAGE_MODEL),
     text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
+    recipe: str = Form(default=""),
+    poster_cover: bool = Form(default=True),
 ):
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
@@ -1248,6 +1298,8 @@ async def reel_create(
         video_model,
         keyframe_model,
         text_model,
+        recipe,
+        poster_cover,
     )
     asyncio.create_task(asyncio.to_thread(reel_studio.plan_reel, reel_id, api_key))
     return _public_reel(state)

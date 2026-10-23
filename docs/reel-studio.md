@@ -21,6 +21,42 @@ Pagina: `/reel` (link "Reel Studio" in alto nella pagina principale).
 Il video è **senza audio**: l'audio lo scegli tra quelli di tendenza nell'editor di Instagram, che premia
 gli audio trending.
 
+## Ricette ("comandi" alla Monili)
+
+Come i comandi `/poster` di ChatGPT, ma tarati sul negozio. Si scelgono nel modulo e il regista segue la struttura fissa:
+
+| Ricetta | Cosa fa |
+|---|---|
+| `/libera` | il regista sceglie la struttura migliore |
+| `/modella-monili` | la Modella Monili indossa il prodotto: hook, dettaglio, look, chiusura |
+| `/mani-bancone` | mani che prendono e provano il gioiello al bancone (anelli, bracciali), niente volto |
+| `/pietra-settimana` | una pietra: significato e abbinamento |
+| `/tre-modi` | lo stesso pezzo in 3 look: giorno, ufficio, sera |
+| `/colori-ravenna` | il gioiello accostato ai colori dei mosaici di Ravenna |
+
+Le ricette sono in `reel_kit.py` (`RECIPES`): per aggiungerne una basta un nuovo blocco.
+
+## Modella Monili
+
+Un solo volto AI ricorrente, sempre la stessa donna. Si imposta una volta: descrizione (in inglese rende meglio) +
+foto di riferimento. Il modo più semplice: fai un primo Reel con `/modella-monili`, poi nel risultato tocca
+**"Usa come Modella Monili"** sul fotogramma che ti piace. Da lì ogni scena con la modella usa quella foto come
+riferimento. Dati in `memory/modella_monili.json`, foto in `output/brand/modella_monili.jpg`.
+
+Su Instagram, per contenuti AI realistici, attiva l'etichetta **"Info sull'AI"** quando pubblichi.
+
+## Controllo qualità
+
+Ogni fotogramma AI viene confrontato con la foto reale del prodotto (forma, pietre, colori, metallo, difetti
+come rettangoli neri o dita deformate). Se il voto è sotto 6/10 viene rigenerato una volta; se è ancora diverso
+il risultato mostra **"Controlla prima di pubblicare"**. Anche la copertina poster viene controllata (testo
+scritto giusto + prodotto).
+
+## Copertina poster
+
+Opzione attiva di default: copertina 9:16 in stile editoriale Monili (serif su fondo crema, come
+"Non sono semplici orecchini."). C'è sempre anche la copertina foto semplice come alternativa.
+
 ## Modalità anteprima (senza Higgsfield)
 
 Senza API key Higgsfield tutto il flusso funziona lo stesso: le scene AI diventano un lento zoom sul fotogramma
@@ -48,8 +84,10 @@ testi prima di attivare i video veri.
 |---|---|
 | Fotogramma chiave AI (gpt-5.4-image-2) | ~0,10 € |
 | Video Kling 3.0 Standard | ~0,09 €/secondo (stima prudente finché non c'è la key) |
+| Controllo qualità per fotogramma | ~0,02 € |
+| Copertina poster | ~0,12 € |
 | Testi e regia | ~0,09 € |
-| **Reel 12 s, 4 inquadrature** | **~1,2-1,8 €** |
+| **Reel 12-14 s, 4 inquadrature** | **~1,2-1,9 €** |
 
 I lavori falliti o bloccati dalla moderazione non vengono addebitati da Higgsfield.
 
@@ -84,3 +122,5 @@ I lavori falliti o bloccati dalla moderazione non vengono addebitati da Higgsfie
 | PUT | `/reel/{id}/storyboard` | salva le modifiche e ricalcola la stima |
 | POST | `/reel/{id}/render` | avvia la produzione (`confirm_over_budget` se sopra budget) |
 | GET | `/reels` | archivio |
+| GET/POST | `/reel/persona` | leggi / salva la Modella Monili (descrizione + foto) |
+| POST | `/reel/persona/from-keyframe` | usa un fotogramma (`reel_id`, `shot_id`) come Modella Monili |

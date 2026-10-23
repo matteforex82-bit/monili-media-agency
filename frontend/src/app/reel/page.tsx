@@ -19,6 +19,7 @@ interface Shot {
   clip_start: number;
   photo_index: number;
   keyframe_mode: 'ai' | 'original_photo';
+  use_model: boolean;
   duration: number;
   camera: string;
   angle: string;
@@ -69,10 +70,34 @@ interface ReelCopy {
   alt_text?: string;
 }
 
+interface QaResult {
+  ok: boolean;
+  score: number | null;
+  issues: string;
+  checked?: boolean;
+}
+
+interface Persona {
+  name: string;
+  description: string;
+  reference_image: string | null;
+  updated_at: string | null;
+}
+
+interface Recipe {
+  id: string;
+  label: string;
+  description: string;
+  formats: ReelFormat[];
+  uses_model: boolean;
+}
+
 interface ReelState {
   id: string;
   status: ReelStatus;
   format: ReelFormat;
+  recipe?: string;
+  poster_cover?: boolean;
   brief: string;
   target_seconds: number;
   video_model: string;
@@ -86,8 +111,11 @@ interface ReelState {
   results: {
     final_video?: string;
     cover?: string;
+    cover_plain?: string;
+    cover_qa?: QaResult | null;
+    qa_warnings?: { id: string; score: number | null; issues: string }[];
     copy_markdown?: string;
-    shots?: { id: string; video: string; keyframe: string | null; duration: number; engine: string }[];
+    shots?: { id: string; video: string; keyframe: string | null; duration: number; engine: string; qa?: QaResult | null }[];
     copy?: ReelCopy;
     preview_only?: boolean;
     fallback_used?: boolean;
@@ -102,6 +130,9 @@ interface ReelConfig {
   transitions: string[];
   purposes: string[];
   budget_eur: number;
+  recipes: Recipe[];
+  default_recipe: string;
+  persona: Persona;
 }
 
 interface ReelListItem {
@@ -151,6 +182,7 @@ function emptyShot(index: number): Shot {
     clip_start: 0,
     photo_index: 0,
     keyframe_mode: 'ai',
+    use_model: false,
     duration: 4,
     camera: 'slow push-in',
     angle: '',
@@ -257,6 +289,9 @@ export default function ReelStudioPage() {
   const [format, setFormat] = useState<ReelFormat>('reel');
   const [seconds, setSeconds] = useState(12);
   const [videoModel, setVideoModel] = useState('');
+  const [recipe, setRecipe] = useState('libera');
+  const [posterCover, setPosterCover] = useState(true);
+  const [persona, setPersona] = useState<Persona | null>(null);
 
   const photoPreviews = useMemo(() => photos.map((file) => URL.createObjectURL(file)), [photos]);
   useEffect(() => () => photoPreviews.forEach((url) => URL.revokeObjectURL(url)), [photoPreviews]);
@@ -296,6 +331,8 @@ export default function ReelStudioPage() {
           const cfg: ReelConfig = await res.json();
           setConfig(cfg);
           setVideoModel(cfg.default_video_model);
+          setRecipe(cfg.default_recipe || 'libera');
+          setPersona(cfg.persona || null);
         } else {
           setError('Backend raggiungibile ma Reel Studio non attivo: aggiorna il backend.');
         }
@@ -371,6 +408,8 @@ export default function ReelStudioPage() {
       form.append('format', format);
       form.append('target_seconds', String(seconds));
       form.append('video_model', videoModel);
+      form.append('recipe', recipe);
+      form.append('poster_cover', posterCover ? 'true' : 'false');
       const res = await fetch(`${API_URL}/reel/create`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(await readError(res));
       const data: ReelState = await res.json();
@@ -564,6 +603,30 @@ export default function ReelStudioPage() {
               />
             </Field>
 
+            <Field label="Ricetta">
+              <div className="rs-recipes">
+                {(config?.recipes || []).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`rs-recipe ${recipe === item.id ? 'rs-recipe-on' : ''}`}
+                    onClick={() => {
+                      setRecipe(item.id);
+                      if (!item.formats.includes(format)) setFormat(item.formats[0]);
+                    }}
+                  >
+                    <span className="rs-recipe-title">/{item.id.replace(/_/g, '-')}</span>
+                    <span className="rs-recipe-label">{item.label}</span>
+                    <span className="rs-recipe-desc">{item.description}</span>
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            {config?.recipes.find((item) => item.id === recipe)?.uses_model && (
+              <PersonaPanel persona={persona} onSaved={setPersona} />
+            )}
+
             <div className="rs-grid-3">
               <Field label="Formato">
                 <div className="rs-toggle">
@@ -597,6 +660,11 @@ export default function ReelStudioPage() {
               </Field>
             </div>
 
+            <label className="rs-check">
+              <input type="checkbox" checked={posterCover} onChange={(e) => setPosterCover(e.target.checked)} />
+              <span>Copertina poster in stile Monili (serif su fondo crema, ~0,12 €)</span>
+            </label>
+
             <button type="button" className="btn-mission rs-cta" disabled={busy || !photos.length || !config} onClick={createReel}>
               {busy ? 'Caricamento...' : 'Crea storyboard'}
             </button>
@@ -609,7 +677,10 @@ export default function ReelStudioPage() {
           <section className="card rs-card">
             <div className="rs-reel-head">
               <div>
-                <div className="label-eyebrow">{reel.format === 'story' ? 'Story video' : 'Reel'} · {STATUS_LABELS[reel.status]}</div>
+                <div className="label-eyebrow">
+                  {reel.format === 'story' ? 'Story video' : 'Reel'}
+                  {reel.recipe && reel.recipe !== 'libera' ? ` · /${reel.recipe.replace(/_/g, '-')}` : ''} · {STATUS_LABELS[reel.status]}
+                </div>
                 <h1 className="rs-h1">{reel.storyboard?.title || 'Nuovo reel'}</h1>
                 {reel.storyboard?.concept && <p className="rs-muted">{reel.storyboard.concept}</p>}
               </div>
@@ -629,7 +700,7 @@ export default function ReelStudioPage() {
 
             {/* risultato */}
             {reel.status === 'done' && reel.results.final_video && (
-              <ResultView reel={reel} />
+              <ResultView reel={reel} onPersona={setPersona} />
             )}
 
             {/* storyboard */}
@@ -795,6 +866,12 @@ function ShotEditor({
               />
             </Field>
           </div>
+          {shot.source === 'ai' && shot.keyframe_mode === 'ai' && (
+            <label className="rs-check">
+              <input type="checkbox" checked={!!shot.use_model} onChange={(e) => onChange({ use_model: e.target.checked })} />
+              <span>Con la Modella Monili</span>
+            </label>
+          )}
           {shot.source === 'clip' && (
             <Field label="Parti dal secondo">
               <input className="rs-input" type="number" min={0} max={Math.max(0, (reel.clips[shot.clip_index ?? 0]?.duration ?? 1) - 1)} step={0.5} value={shot.clip_start} onChange={(e) => onChange({ clip_start: Number(e.target.value) })} />
@@ -902,7 +979,7 @@ function EstimatePanel({
 }
 
 // ── RISULTATO ───────────────────────────────────────────────────────────────
-function ResultView({ reel }: { reel: ReelState }) {
+function ResultView({ reel, onPersona }: { reel: ReelState; onPersona: (p: Persona) => void }) {
   const results = reel.results;
   const copy = results.copy || {};
   const [saving, setSaving] = useState('');
@@ -925,6 +1002,19 @@ function ResultView({ reel }: { reel: ReelState }) {
       {results.preview_only && (
         <div className="rs-banner">Questa è un&apos;<strong>anteprima</strong>: le scene AI sono fotogrammi animati. Con Higgsfield collegato diventano video AI veri.</div>
       )}
+      {results.qa_warnings && results.qa_warnings.length > 0 && (
+        <div className="rs-error">
+          <strong>Controlla prima di pubblicare:</strong> il controllo qualità ha trovato possibili differenze dal prodotto vero.
+          <ul className="rs-list">
+            {results.qa_warnings.map((w) => (
+              <li key={w.id}>{w.id.replace('shot_', 'Inquadratura ')}: {w.score != null ? `${w.score}/10 — ` : ''}{w.issues || 'prodotto diverso'}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {results.cover_qa && !results.cover_qa.ok && (
+        <div className="rs-warn">Copertina poster da controllare: {results.cover_qa.issues || 'testo o prodotto non perfetti'}. C&apos;è anche la copertina foto.</div>
+      )}
       {results.fallback_used && (
         <div className="rs-warn">Alcune inquadrature non sono riuscite con il video AI e sono state sostituite da un&apos;animazione del fotogramma. Vedi il diario.</div>
       )}
@@ -935,12 +1025,17 @@ function ResultView({ reel }: { reel: ReelState }) {
             <button type="button" className="btn-mission rs-small-btn" onClick={() => save(results.final_video!, `monili-${reel.format}.mp4`)}>
               {saving.endsWith('.mp4') ? 'Salvo...' : 'Salva video'}
             </button>
-            {results.cover && (
-              <button type="button" className="btn-secondary rs-small-btn" onClick={() => save(results.cover!, 'copertina.jpg')}>
-                {saving === 'copertina.jpg' ? 'Salvo...' : 'Salva copertina'}
-              </button>
-            )}
           </div>
+          <div className="rs-covers">
+            {[results.cover, results.cover_plain].filter((c, i, arr): c is string => !!c && arr.indexOf(c) === i).map((cover, i) => (
+              <button key={cover} type="button" className="rs-cover" onClick={() => save(cover, i === 0 ? 'copertina.jpg' : 'copertina-foto.jpg')}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={fileUrl(cover)} alt="copertina" />
+                <span>{saving === (i === 0 ? 'copertina.jpg' : 'copertina-foto.jpg') ? 'Salvo...' : i === 0 && reel.poster_cover ? 'Salva copertina poster' : 'Salva copertina foto'}</span>
+              </button>
+            ))}
+          </div>
+          <ModelPicker reel={reel} onPersona={onPersona} />
         </div>
 
         <div className="rs-copy">
@@ -980,6 +1075,92 @@ function ResultView({ reel }: { reel: ReelState }) {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── MODELLA MONILI ──────────────────────────────────────────────────────────
+function PersonaPanel({ persona, onSaved }: { persona: Persona | null; onSaved: (p: Persona) => void }) {
+  const [description, setDescription] = useState(persona?.description || '');
+  const [file, setFile] = useState<File | null>(null);
+  const [state, setState] = useState('');
+  useEffect(() => setDescription(persona?.description || ''), [persona?.description]);
+
+  const save = async () => {
+    setState('Salvo...');
+    try {
+      const form = new FormData();
+      form.append('description', description);
+      if (file) form.append('photo', file);
+      const res = await fetch(`${API_URL}/reel/persona`, { method: 'POST', body: form });
+      if (!res.ok) throw new Error(await readError(res));
+      onSaved(await res.json());
+      setFile(null);
+      setState('Salvata ✓');
+    } catch (exc) {
+      setState(exc instanceof Error ? exc.message : String(exc));
+    }
+  };
+
+  return (
+    <div className="rs-persona">
+      <div className="rs-persona-head">
+        {persona?.reference_image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={`${fileUrl(persona.reference_image)}?v=${encodeURIComponent(persona.updated_at || '')}`} alt="Modella Monili" />
+        ) : (
+          <div className="rs-persona-empty">Nessuna foto</div>
+        )}
+        <div>
+          <div className="rs-persona-title">La Modella Monili</div>
+          <p className="rs-muted rs-small">
+            Sempre la stessa donna in ogni video. Descrivila una volta (in inglese funziona meglio) e, appena hai un
+            fotogramma che ti piace, usalo come foto di riferimento.
+          </p>
+        </div>
+      </div>
+      <textarea className="brief-area" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+      <div className="rs-actions">
+        <label className="btn-secondary rs-small-btn rs-file-btn">
+          {file ? file.name : persona?.reference_image ? 'Cambia foto di riferimento' : 'Carica foto di riferimento'}
+          <input type="file" accept="image/*,.heic,.heif" hidden onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        </label>
+        <button type="button" className="btn-secondary rs-small-btn" onClick={save}>Salva modella</button>
+        {state && <span className="rs-muted rs-small">{state}</span>}
+      </div>
+    </div>
+  );
+}
+
+function ModelPicker({ reel, onPersona }: { reel: ReelState; onPersona: (p: Persona) => void }) {
+  const [saved, setSaved] = useState('');
+  const modelShots = (reel.results.shots || []).filter(
+    (item) => item.keyframe && reel.storyboard?.shots.find((s) => s.id === item.id)?.use_model,
+  );
+  if (!modelShots.length) return null;
+  const choose = async (shotId: string) => {
+    const res = await fetch(`${API_URL}/reel/persona/from-keyframe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reel_id: reel.id, shot_id: shotId }),
+    });
+    if (res.ok) {
+      onPersona(await res.json());
+      setSaved(shotId);
+    }
+  };
+  return (
+    <div className="rs-copy-block">
+      <div className="rs-copy-head"><span>Ti piace questa modella? Rendila ufficiale</span></div>
+      <div className="rs-covers">
+        {modelShots.map((item) => (
+          <button key={item.id} type="button" className="rs-cover" onClick={() => choose(item.id)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={fileUrl(item.keyframe!)} alt={item.id} />
+            <span>{saved === item.id ? 'Modella Monili ✓' : 'Usa come Modella Monili'}</span>
+          </button>
+        ))}
       </div>
     </div>
   );

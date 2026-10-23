@@ -21,6 +21,7 @@ from pathlib import Path
 from PIL import Image, ImageOps
 
 import higgsfield_client as hf
+import reel_kit as kit
 from main import (
     BRAND,
     MEMORY_ROOT,
@@ -28,9 +29,7 @@ from main import (
     SEASON,
     agent_analisi,
     extract_json_object,
-    generate_image_with_openrouter,
     generate_text_with_openrouter,
-    save_data_url_image,
     select_openrouter_image_model,
     select_openrouter_text_model,
 )
@@ -203,6 +202,8 @@ def create_reel(
     video_model: str,
     keyframe_model: str,
     text_model: str,
+    recipe: str = "",
+    poster_cover: bool = True,
 ) -> dict:
     fmt = fmt if fmt in FORMATS else "reel"
     spec = FORMATS[fmt]
@@ -221,6 +222,8 @@ def create_reel(
         "created_at": datetime.now().isoformat(),
         "brief": brief,
         "format": fmt,
+        "recipe": kit.select_recipe(recipe),
+        "poster_cover": bool(poster_cover),
         "target_seconds": target_seconds,
         "video_model": hf.select_video_model(video_model),
         "keyframe_model": select_openrouter_image_model(keyframe_model),
@@ -378,6 +381,7 @@ def agent_storyboard(state: dict, photo: Path) -> dict:
     clips = state.get("clips") or []
     clip_lines = "\n".join(f"- clip_index {i}: durata {c['duration']}s" for i, c in enumerate(clips)) or "- nessuna clip reale caricata"
     n_photos = len(state.get("photos") or [])
+    persona = kit.load_persona()
     prompt = f"""Sei il direttore creativo video di I Monili Ravenna: crei Reel e Story video Instagram che fermano lo scroll.
 {BRAND}
 
@@ -390,13 +394,19 @@ FOTO PRODOTTO DISPONIBILI: {n_photos} (photo_index da 0 a {max(0, n_photos - 1)}
 CLIP REALI CARICATE DALL'UTENTE:
 {clip_lines}
 
+{kit.recipe_prompt_block(state.get('recipe', ''))}
+
+MODELLA MONILI (volto ricorrente del brand, sempre la stessa donna): {persona['description']}
+Usa use_model true nelle inquadrature dove compare una donna: sara sempre la Modella Monili.
+
 REGOLE:
 - I primi 1.5 secondi sono un HOOK visivo forte (movimento, luce che colpisce le pietre, gesto).
 - Se ci sono clip reali usale (source "clip") dove rendono di piu: l'autenticita del negozio vende.
 - Le inquadrature AI partono da un fotogramma chiave generato dalla foto reale: il prodotto deve restare identico.
 - Gioielli piccoli: preferisci movimenti lenti (slow push-in, orbit leggero, rack focus), evita rotazioni veloci.
 - Luce coerente col brand: calda, naturale, golden hour Ravenna o interno caldo del negozio.
-- Ogni inquadratura AI dura 3-6 secondi; l'ultima e una CTA morbida (vieni in negozio / scrivici).
+- Ogni inquadratura AI dura 3-6 secondi; l'ultima chiude SEMPRE con invito concreto: "Scrivici, te lo mettiamo da parte" o "Ti aspettiamo in centro a Ravenna".
+- Stile: luce naturale calda, sfondi crema/neutri che fanno risaltare i colori del prodotto. Mai effetti pacchiani.
 - on_screen_text in italiano, max 6 parole, tono da amica.
 - keyframe_prompt_en e motion_prompt_en in inglese, concreti e visivi.
 - keyframe_mode "original_photo" = usa la foto reale cosi com'e (massima fedelta, utile per il dettaglio prodotto).
@@ -416,6 +426,7 @@ Rispondi SOLO con JSON valido:
       "clip_start": 0,
       "photo_index": 0,
       "keyframe_mode": "ai|original_photo",
+      "use_model": false,
       "duration": 4,
       "camera": "es. slow push-in macro",
       "angle": "es. 45 gradi dall'alto",
@@ -484,6 +495,7 @@ def normalize_storyboard(state: dict, storyboard: dict) -> dict:
                 "clip_start": clip_start,
                 "photo_index": min(max(photo_index, 0), n_photos - 1),
                 "keyframe_mode": "original_photo" if raw.get("keyframe_mode") == "original_photo" else "ai",
+                "use_model": raw.get("use_model") is True or str(raw.get("use_model")).lower() == "true",
                 "duration": duration,
                 "camera": str(raw.get("camera") or "").strip(),
                 "angle": str(raw.get("angle") or "").strip(),
@@ -521,8 +533,9 @@ def estimate_reel(state: dict) -> dict:
             lines.append({"shot": shot["id"], "label": "Clip reale", "usd": 0.0})
             continue
         if shot["keyframe_mode"] == "ai":
-            keyframe_usd = KEYFRAME_USD.get(state.get("keyframe_model", ""), KEYFRAME_USD_DEFAULT)
-            lines.append({"shot": shot["id"], "label": "Fotogramma chiave AI", "usd": keyframe_usd})
+            keyframe_usd = KEYFRAME_USD.get(state.get("keyframe_model", ""), KEYFRAME_USD_DEFAULT) + kit.QA_USD
+            label = "Fotogramma AI" + (" con Modella Monili" if shot.get("use_model") else "") + " + controllo qualita"
+            lines.append({"shot": shot["id"], "label": label, "usd": keyframe_usd})
             total_usd += keyframe_usd
         video_usd = None
         credits = None
@@ -544,6 +557,10 @@ def estimate_reel(state: dict) -> dict:
             }
         )
         total_usd += video_usd
+    if state.get("poster_cover", True):
+        poster_usd = kit.POSTER_USD + kit.QA_USD
+        lines.append({"shot": "-", "label": "Copertina poster", "usd": poster_usd})
+        total_usd += poster_usd
     lines.append({"shot": "-", "label": "Testi e regia AI", "usd": TEXT_USD_ESTIMATE})
     for line in lines:
         line["eur"] = round(line["usd"] * EUR_PER_USD, 2)
@@ -626,32 +643,57 @@ def update_storyboard(reel_id: str, storyboard: dict, video_model: str = "") -> 
 
 # ── FASE 2: PRODUZIONE ───────────────────────────────────────────────────────
 
-def _keyframe(state: dict, shot: dict, api_key: str, out_dir: Path) -> Path:
+def _keyframe(state: dict, shot: dict, api_key: str, out_dir: Path) -> tuple[Path, dict | None]:
+    """Fotogramma chiave 9:16 + controllo qualita contro la foto reale (1 nuovo tentativo se fallisce)."""
     reel_id = state["id"]
     photo = _abs(state["photos"][shot["photo_index"]])
     keyframe = out_dir / f"{shot['id']}_keyframe.jpg"
     if shot["keyframe_mode"] == "original_photo":
         make_cover(photo, keyframe)
-        return keyframe
+        return keyframe, None
 
+    images = [photo]
+    model_line = ""
+    if shot.get("use_model"):
+        persona = kit.load_persona()
+        reference = kit.persona_reference_path()
+        model_line = f"The woman is the brand's recurring model: {persona['description']}.\n"
+        if reference:
+            images.append(reference)
+            model_line += "She must be the SAME woman as in the second reference image (same face, hair, skin tone).\n"
     prompt = (
-        f"Create a photorealistic vertical 9:16 Instagram Reel first frame using the product in the reference photo.\n"
+        f"Create a photorealistic vertical 9:16 Instagram Reel first frame using the product in the first reference photo.\n"
         f"Scene: {shot['keyframe_prompt_en'] or shot['action']}\n"
         f"Camera angle: {shot['angle']}. Lighting: {shot['lighting']}.\n"
-        f"Brand look: warm neutrals, optical white, terracotta and gold accents, natural authentic light, real woman not over-retouched.\n"
+        f"{model_line}"
+        f"Brand look: warm natural light, cream and warm neutral backgrounds that make the product colors stand out, "
+        f"terracotta and gold accents, authentic and not over-retouched.\n"
         f"{PRODUCT_FIDELITY_RULES}\nNo text, no logos, no watermark."
     )
-    try:
-        data_urls = generate_image_with_openrouter(api_key, state["keyframe_model"], prompt, image_path=photo, aspect_ratio="9:16")
-        raw_path = out_dir / f"{shot['id']}_keyframe_raw.png"
-        if not data_urls or not save_data_url_image(data_urls[0], raw_path):
-            raise RuntimeError("immagine vuota")
-        make_cover(raw_path, keyframe)
-        raw_path.unlink(missing_ok=True)
-    except Exception as exc:
-        log(reel_id, "FOTOGRAMMI", f"{shot['id']}: fotogramma AI non riuscito ({exc}), uso la foto reale", "warn")
-        make_cover(photo, keyframe)
-    return keyframe
+    qa = None
+    for attempt in (1, 2):
+        try:
+            raw_path = out_dir / f"{shot['id']}_keyframe_raw.png"
+            kit.generate_image_multi(api_key, state["keyframe_model"], prompt, images, raw_path, aspect_ratio="9:16")
+            make_cover(raw_path, keyframe)
+            raw_path.unlink(missing_ok=True)
+        except Exception as exc:
+            log(reel_id, "FOTOGRAMMI", f"{shot['id']}: fotogramma AI non riuscito ({exc}), uso la foto reale", "warn")
+            make_cover(photo, keyframe)
+            return keyframe, None
+        qa = kit.check_keyframe(api_key, state["text_model"], photo, keyframe)
+        if qa["ok"]:
+            if qa.get("checked"):
+                log(reel_id, "QUALITA", f"{shot['id']}: prodotto fedele ({qa.get('score')}/10)", "success")
+            break
+        log(
+            reel_id,
+            "QUALITA",
+            f"{shot['id']}: controllo {qa.get('score')}/10 - {qa.get('issues') or 'prodotto diverso'}"
+            + (" - rigenero" if attempt == 1 else " - DA CONTROLLARE prima di pubblicare"),
+            "warn",
+        )
+    return keyframe, qa
 
 
 def _ai_shot_video(state: dict, shot: dict, keyframe: Path, out_dir: Path) -> tuple[Path, str]:
@@ -706,10 +748,17 @@ def _produce_shot(state: dict, shot: dict, api_key: str, out_dir: Path) -> dict:
         return {"id": shot["id"], "video": rel(final), "keyframe": None, "duration": duration, "engine": "clip"}
 
     log(reel_id, "FOTOGRAMMI", f"{shot['id']}: fotogramma chiave ({shot['purpose']})...")
-    keyframe = _keyframe(state, shot, api_key, out_dir)
+    keyframe, qa = _keyframe(state, shot, api_key, out_dir)
     video, engine = _ai_shot_video(state, shot, keyframe, out_dir)
     log(reel_id, "VIDEO", f"{shot['id']}: pronto ({engine})", "success")
-    return {"id": shot["id"], "video": rel(video), "keyframe": rel(keyframe), "duration": float(shot["duration"]), "engine": engine}
+    return {
+        "id": shot["id"],
+        "video": rel(video),
+        "keyframe": rel(keyframe),
+        "duration": float(shot["duration"]),
+        "engine": engine,
+        "qa": qa,
+    }
 
 
 def agent_copy(state: dict, api_key: str) -> dict:
@@ -731,7 +780,7 @@ ANALISI PRODOTTO (estratto):
 
 REGOLE: tono caldo e complice da amica, mai formale; max 2-3 emoji per caption; la prima riga e un hook che fa fermare;
 hashtag: sempre #imoniliravenna #ravenna #romagnastyle + 6-9 hashtag pertinenti (mix nicchia/locale);
-call to action verso il negozio in centro a Ravenna o DM.
+chiudi SEMPRE con invito concreto al DM ("scrivici, te lo mettiamo da parte") o a passare in negozio in centro a Ravenna.
 
 Rispondi SOLO con JSON valido:
 {{
@@ -803,7 +852,22 @@ def render_reel(reel_id: str, api_key: str) -> None:
             final_video,
         )
         cover_source = next((_abs(item["keyframe"]) for item in produced if item.get("keyframe")), _abs(state["photos"][0]))
-        cover = make_cover(cover_source, reel_dir(reel_id) / "cover.jpg")
+        cover_plain = make_cover(cover_source, reel_dir(reel_id) / "cover_foto.jpg")
+        cover, cover_qa = cover_plain, None
+        cover_text = storyboard.get("cover_text") or storyboard.get("title") or ""
+        if state.get("poster_cover", True) and cover_text:
+            log(reel_id, "COPERTINA", f"Copertina poster: \"{cover_text}\"...")
+            try:
+                product_photo = _abs(state["photos"][0])
+                cover = kit.make_poster_cover(api_key, state["keyframe_model"], product_photo, cover_text, reel_dir(reel_id) / "cover.jpg")
+                cover_qa = kit.check_keyframe(api_key, state["text_model"], product_photo, cover, expected_text=cover_text)
+                if cover_qa["ok"]:
+                    log(reel_id, "COPERTINA", "Copertina poster pronta", "success")
+                else:
+                    log(reel_id, "COPERTINA", f"Copertina da controllare: {cover_qa.get('issues')}", "warn")
+            except Exception as exc:
+                log(reel_id, "COPERTINA", f"Poster non riuscito ({exc}), uso la copertina foto", "warn")
+                cover, cover_qa = cover_plain, None
         log(reel_id, "MONTAGGIO", f"Video pronto ({probe_duration(final_video):.1f}s)", "success")
 
         log(reel_id, "COPY", "Caption, hashtag, copertina e sticker...")
@@ -819,6 +883,13 @@ def render_reel(reel_id: str, api_key: str) -> None:
             s["results"] = {
                 "final_video": rel(final_video),
                 "cover": rel(cover),
+                "cover_plain": rel(cover_plain),
+                "cover_qa": cover_qa,
+                "qa_warnings": [
+                    {"id": item["id"], "score": item["qa"].get("score"), "issues": item["qa"].get("issues")}
+                    for item in produced
+                    if item.get("qa") and not item["qa"].get("ok")
+                ],
                 "copy_markdown": rel(reel_dir(reel_id) / "testi.md"),
                 "shots": produced,
                 "copy": copy,

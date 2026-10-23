@@ -464,14 +464,20 @@ def current_season_label(now: datetime | None = None) -> str:
 SEASON = current_season_label()
 
 BRAND = f"""
-BRAND: I Monili Ravenna - negozio bijoux, accessori donna, abbigliamento
-Location: Ravenna, centro storico (Emilia-Romagna)
-Target: donna 25-45, urbana, fashion-forward, Ravenna e dintorni
+BRAND: I Monili Ravenna - boutique in centro storico a Ravenna (Emilia-Romagna)
+Prodotti: bijoux artigianali in argento con pietre colorate (ametista, quarzo rosa, citrino, turchese, opale),
+orecchini smaltati a fiore, giacche e gilet ricamati, borse in cuoio, abbigliamento dal gusto boho-etnico
+Identita: colorata, artigianale, eclettica, pezzi particolari che non si trovano nelle catene
+Target: donna 30-55, Ravenna e dintorni, ama i pezzi unici e il colore
 Tono: caldo, complice, femminile - come un'amica che consiglia, non un brand che vende
 Stagione: {SEASON}
 Hashtag fissi: #imoniliravenna #ravenna #romagnastyle
-Palette: neutri caldi, bianco ottico, terracotta, oro
-Posting top: Martedi/Giovedi/Sabato ore 18:30-20:00
+Stile visivo: luce naturale calda, sfondi crema/neutri che fanno risaltare i colori dei prodotti;
+testi in stile editoriale (serif elegante su fondo crema), mai scritte stile fumetto o neon
+Formati prioritari: Story video e Reel (i post statici fanno il 4% delle visualizzazioni)
+Chiusura di ogni contenuto: invito concreto al DM ("scrivici, te lo mettiamo da parte") o a passare in negozio
+Ravenna: citta dei mosaici - il legame colori/pietre/mosaico e un tema naturale
+Posting: Martedi/Giovedi/Sabato (orari in verifica sugli Insights)
 """
 
 
