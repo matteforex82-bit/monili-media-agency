@@ -614,6 +614,9 @@ export default function Home() {
 
           {/* Right: status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <a href="/reel" className="btn-mission" style={{ padding: '7px 12px', fontSize: 12, textDecoration: 'none', marginRight: 6 }}>
+              Reel Studio
+            </a>
             <span className={`status-dot ${missionState === 'idle' ? 'online' : missionState === 'running' ? 'active' : 'done'}`} />
             <span style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-mid)', fontWeight: 500 }}>
               {missionState === 'idle' && 'Pronta'}

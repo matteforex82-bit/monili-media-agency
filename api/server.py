@@ -692,6 +692,7 @@ async def _cleanup_jobs_forever() -> None:
 async def startup_event() -> None:
     global cleanup_task
     cleanup_task = asyncio.create_task(_cleanup_jobs_forever())
+    reel_studio.recover_interrupted()
 
 
 @app.on_event("shutdown")
@@ -1119,6 +1120,182 @@ async def showcase_publish(run_id: str, body: dict | None = None):
         "rejected_sources": prepared["rejected_sources"],
         "audit_path": str(audit_target),
     }
+
+
+# ── REEL STUDIO (video-first) ────────────────────────────────────────────────
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+import higgsfield_client  # noqa: E402
+import reel_studio  # noqa: E402
+
+MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
+MAX_REEL_PHOTOS = 3
+MAX_REEL_CLIPS = 3
+ALLOWED_CLIP_EXTENSIONS = {".mp4", ".mov", ".m4v"}
+ALLOWED_CLIP_CONTENT_TYPES = {"video/mp4", "video/quicktime", "video/x-m4v"}
+
+
+async def _save_upload(upload: UploadFile, destination: Path, max_bytes: int) -> int:
+    total = 0
+    try:
+        with destination.open("wb") as out_file:
+            while True:
+                chunk = await upload.read(READ_CHUNK_SIZE)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > max_bytes:
+                    out_file.close()
+                    destination.unlink(missing_ok=True)
+                    raise ValueError(f"File troppo grande: {upload.filename} (max {max_bytes // (1024 * 1024)} MB).")
+                out_file.write(chunk)
+    finally:
+        await upload.close()
+    if total == 0:
+        destination.unlink(missing_ok=True)
+        raise ValueError(f"File vuoto: {upload.filename}")
+    return total
+
+
+def _public_reel(state: dict | None) -> dict | None:
+    if not state:
+        return None
+    public = dict(state)
+    public.pop("api_key", None)
+    public["higgsfield_configured"] = higgsfield_client.is_configured()
+    return public
+
+
+@app.get("/reel/config")
+def reel_config():
+    return {
+        "higgsfield_configured": higgsfield_client.is_configured(),
+        "video_models": [
+            {"id": key, "label": spec["label"], "min_duration": spec["min_duration"], "max_duration": spec["max_duration"]}
+            for key, spec in higgsfield_client.VIDEO_MODELS.items()
+        ],
+        "default_video_model": higgsfield_client.select_video_model(),
+        "keyframe_models": SUPPORTED_OPENROUTER_IMAGE_MODELS,
+        "default_keyframe_model": DEFAULT_OPENROUTER_IMAGE_MODEL,
+        "formats": reel_studio.FORMATS,
+        "transitions": list(reel_studio.TRANSITIONS.keys()),
+        "purposes": reel_studio.SHOT_PURPOSES,
+        "budget_eur": reel_studio.REEL_BUDGET_EUR,
+    }
+
+
+@app.get("/reels")
+def reels_list(limit: int = 20):
+    return {"items": reel_studio.list_reels(limit)}
+
+
+@app.post("/reel/create")
+async def reel_create(
+    photos: list[UploadFile] = File(...),
+    clips: list[UploadFile] = File(default=[]),
+    brief: str = Form(default=""),
+    format: str = Form(default="reel"),
+    target_seconds: int = Form(default=0),
+    video_model: str = Form(default=""),
+    keyframe_model: str = Form(default=DEFAULT_OPENROUTER_IMAGE_MODEL),
+    text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
+):
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend."}, status_code=400)
+    photos = [p for p in photos if p and p.filename][:MAX_REEL_PHOTOS]
+    clips = [c for c in clips if c and c.filename][:MAX_REEL_CLIPS]
+    if not photos:
+        return JSONResponse({"error": "Carica almeno una foto del prodotto."}, status_code=400)
+
+    reel_id = reel_studio.new_reel_id()
+    input_dir = reel_studio.reel_dir(reel_id) / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    photo_paths: list[Path] = []
+    clip_paths: list[Path] = []
+    try:
+        for index, upload in enumerate(photos):
+            content_type = (upload.content_type or "").lower().strip()
+            ext = Path(upload.filename or "").suffix.lower()
+            if not _is_supported_upload(content_type, ext):
+                raise ValueError(f"Foto non supportata: {upload.filename}. Usa JPG, PNG, WEBP o HEIC.")
+            if ext not in ALLOWED_IMAGE_EXTENSIONS:
+                ext = MIME_TO_EXT.get(content_type, ".jpg")
+            target = input_dir / f"photo_{index + 1}{ext}"
+            await _save_upload(upload, target, MAX_UPLOAD_BYTES)
+            if target.suffix.lower() in HEIC_EXTENSIONS:
+                target = _convert_heic_to_jpeg(target)
+            photo_paths.append(target)
+        for index, upload in enumerate(clips):
+            content_type = (upload.content_type or "").lower().strip()
+            ext = Path(upload.filename or "").suffix.lower()
+            if ext not in ALLOWED_CLIP_EXTENSIONS and content_type not in ALLOWED_CLIP_CONTENT_TYPES:
+                raise ValueError(f"Clip non supportata: {upload.filename}. Usa MP4 o MOV.")
+            target = input_dir / f"clip_{index + 1}{ext if ext in ALLOWED_CLIP_EXTENSIONS else '.mp4'}"
+            await _save_upload(upload, target, MAX_CLIP_BYTES)
+            clip_paths.append(target)
+    except (ValueError, RuntimeError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+
+    state = await asyncio.to_thread(
+        reel_studio.create_reel,
+        reel_id,
+        photo_paths,
+        clip_paths,
+        brief,
+        format,
+        target_seconds,
+        video_model,
+        keyframe_model,
+        text_model,
+    )
+    asyncio.create_task(asyncio.to_thread(reel_studio.plan_reel, reel_id, api_key))
+    return _public_reel(state)
+
+
+@app.get("/reel/{reel_id}")
+def reel_get(reel_id: str):
+    state = reel_studio.load_state(reel_id)
+    if not state:
+        return JSONResponse({"error": "Reel non trovato"}, status_code=404)
+    return _public_reel(state)
+
+
+@app.put("/reel/{reel_id}/storyboard")
+async def reel_update_storyboard(reel_id: str, body: dict):
+    storyboard = body.get("storyboard") if isinstance(body, dict) else None
+    if not isinstance(storyboard, dict):
+        return JSONResponse({"error": "Storyboard mancante."}, status_code=400)
+    try:
+        state = await asyncio.to_thread(
+            reel_studio.update_storyboard, reel_id, storyboard, str(body.get("video_model") or "")
+        )
+    except (ValueError, RuntimeError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return _public_reel(state)
+
+
+@app.post("/reel/{reel_id}/render")
+async def reel_render(reel_id: str, body: dict | None = None):
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend."}, status_code=400)
+    state = reel_studio.load_state(reel_id)
+    if not state:
+        return JSONResponse({"error": "Reel non trovato"}, status_code=404)
+    estimate = state.get("estimate") or {}
+    confirmed = isinstance(body, dict) and bool(body.get("confirm_over_budget"))
+    if estimate.get("over_budget") and not confirmed:
+        return JSONResponse(
+            {"error": f"Costo stimato {estimate.get('total_eur')} EUR sopra il budget di {estimate.get('budget_eur')} EUR. Conferma per procedere."},
+            status_code=409,
+        )
+    try:
+        state = reel_studio.start_render(reel_id)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    asyncio.create_task(asyncio.to_thread(reel_studio.render_reel, reel_id, api_key))
+    return _public_reel(state)
 
 
 if __name__ == "__main__":

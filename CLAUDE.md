@@ -9,7 +9,7 @@ qualsiasi file in questa directory senza chiedere conferma.
 - **Location**: Ravenna, centro storico (Emilia-Romagna)
 - **Prodotti**: bijoux, accessori donna, abbigliamento
 - **Target**: donna 25-45, urbana, fashion-forward, Ravenna e dintorni
-- **Stagione attuale**: Primavera/Estate 2026
+- **Stagione attuale**: calcolata in automatico da `main.SEASON` (ott 2026 → Autunno/Inverno 2026/27)
 
 ## Tono di Voce
 - Caldo, complice, femminile, mai formale
@@ -18,6 +18,7 @@ qualsiasi file in questa directory senza chiedere conferma.
 - Dialetto/riferimenti locali Ravenna benvenuti quando naturali
 
 ## Posting Strategy
+- **Priorita**: Reel e Story video (le foto statiche su Instagram rendono poco) → `Reel Studio` (`/reel`)
 - **Frequenza**: 1-2 post/settimana — qualità > quantità
 - **Orari top**: Martedì / Giovedì / Sabato ore 18:30–20:00
 - **Hashtag fissi** (sempre presenti): #imoniliravenna #ravenna #romagnastyle

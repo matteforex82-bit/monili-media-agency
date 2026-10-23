@@ -40,7 +40,7 @@ Write-Host "Per iPhone: apri l'URL iPhone qui sopra sulla stessa rete Wi-Fi."
 Write-Host "Lascia aperte entrambe le finestre PowerShell che si aprono."
 Write-Host ""
 
-$backendCommand = "`$env:MONILI_STORAGE_DIR='$StorageDir'; cd '$Root'; python -m uvicorn api.server:app --host 0.0.0.0 --port $BackendPort"
+$backendCommand = "`$env:MONILI_STORAGE_DIR='$StorageDir'; cd '$Root'; python -m pip install -q -r requirements.txt; python -m uvicorn api.server:app --host 0.0.0.0 --port $BackendPort"
 $frontendCommand = "`$env:NEXT_PUBLIC_API_URL='$ApiUrl'; cd '$Frontend'; npm run dev:local"
 
 Start-Process powershell -WindowStyle Normal -ArgumentList "-NoExit", "-Command", $backendCommand
