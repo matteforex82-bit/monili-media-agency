@@ -1129,6 +1129,7 @@ import higgsfield_client  # noqa: E402
 import reel_kit  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
+import results_log  # noqa: E402
 
 MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
 MAX_REEL_PHOTOS = 3
@@ -1177,8 +1178,10 @@ def reel_config():
             for key, spec in higgsfield_client.VIDEO_MODELS.items()
         ],
         "default_video_model": higgsfield_client.select_video_model(),
-        "keyframe_models": SUPPORTED_OPENROUTER_IMAGE_MODELS,
-        "default_keyframe_model": DEFAULT_OPENROUTER_IMAGE_MODEL,
+        "keyframe_models": (list(reel_kit.OPENAI_DIRECT_MODELS) if reel_kit.openai_configured() else [])
+        + SUPPORTED_OPENROUTER_IMAGE_MODELS,
+        "default_keyframe_model": reel_studio.select_keyframe_model(),
+        "openai_direct_configured": reel_kit.openai_configured(),
         "formats": reel_studio.FORMATS,
         "transitions": list(reel_studio.TRANSITIONS.keys()),
         "purposes": reel_studio.SHOT_PURPOSES,
@@ -1198,6 +1201,47 @@ def reel_config():
         "default_recipe": reel_kit.DEFAULT_RECIPE,
         "persona": reel_kit.load_persona(),
     }
+
+
+@app.get("/results")
+def results_get():
+    logged = {entry["id"] for entry in results_log.items()}
+    pending = [
+        item for item in reel_studio.list_reels(40)
+        if item.get("status") == "done" and item.get("id") not in logged
+    ]
+    return {
+        "items": results_log.items(),
+        "summary": results_log.summary(),
+        "pending": pending,
+        "metric_labels": results_log.METRIC_LABELS,
+    }
+
+
+@app.put("/results/{entry_id}")
+def results_put(entry_id: str, body: dict):
+    payload = dict(body or {})
+    state = reel_studio.load_state(entry_id)
+    if state:
+        # i campi lasciati vuoti nel modulo si prendono dal video creato con l'app
+        defaults = {
+            "skill": state.get("recipe", ""),
+            "format": state.get("format", "reel"),
+            "title": (state.get("storyboard") or {}).get("title", ""),
+            "cover": (state.get("results") or {}).get("cover"),
+        }
+        for key, value in defaults.items():
+            if not payload.get(key):
+                payload[key] = value
+    try:
+        return results_log.upsert(entry_id, payload)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+
+
+@app.delete("/results/{entry_id}")
+def results_delete(entry_id: str):
+    return {"deleted": results_log.delete(entry_id)}
 
 
 @app.get("/skills")
@@ -1289,7 +1333,7 @@ async def reel_create(
     format: str = Form(default="reel"),
     target_seconds: int = Form(default=0),
     video_model: str = Form(default=""),
-    keyframe_model: str = Form(default=DEFAULT_OPENROUTER_IMAGE_MODEL),
+    keyframe_model: str = Form(default=""),
     text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
     recipe: str = Form(default=""),
     poster_cover: bool = Form(default=True),

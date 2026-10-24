@@ -22,6 +22,7 @@ from PIL import Image, ImageOps
 
 import higgsfield_client as hf
 import reel_kit as kit
+import results_log
 import skills_loader as skills
 from main import (
     BRAND,
@@ -70,6 +71,9 @@ FALLBACK_USD_PER_SECOND = {
 KEYFRAME_USD = {
     "openai/gpt-5.4-image-2": 0.12,
     "google/gemini-3-pro-image": 0.14,
+    "openai-direct/gpt-image-2.5-flare": 0.12,
+    "openai-direct/gpt-image-2.5-sunburst": 0.20,
+    "openai-direct/gpt-image-2": 0.12,
 }
 KEYFRAME_USD_DEFAULT = 0.07
 TEXT_USD_ESTIMATE = 0.10
@@ -90,6 +94,22 @@ _locks_guard = threading.Lock()
 
 
 # ── STATO ────────────────────────────────────────────────────────────────────
+
+def select_keyframe_model(requested: str = "") -> str:
+    """OpenRouter come prima; con OPENAI_API_KEY si possono usare (e diventano default) i modelli OpenAI diretti."""
+    requested = (requested or "").strip()
+    if requested in kit.OPENAI_DIRECT_MODELS:
+        return requested if kit.openai_configured() else select_openrouter_image_model("")
+    if not requested and kit.openai_configured() and os.environ.get("REEL_PREFER_OPENAI_DIRECT", "1") != "0":
+        return kit.OPENAI_DEFAULT_KEYFRAME_MODEL
+    return select_openrouter_image_model(requested)
+
+
+def poster_model(keyframe_model: str) -> str:
+    if keyframe_model.startswith(kit.OPENAI_DIRECT_PREFIX):
+        return kit.OPENAI_DEFAULT_POSTER_MODEL
+    return keyframe_model
+
 
 def _lock(reel_id: str) -> threading.Lock:
     with _locks_guard:
@@ -228,7 +248,7 @@ def create_reel(
         "poster_cover": bool(poster_cover),
         "target_seconds": target_seconds,
         "video_model": hf.select_video_model(video_model),
-        "keyframe_model": select_openrouter_image_model(keyframe_model),
+        "keyframe_model": select_keyframe_model(keyframe_model),
         "text_model": select_openrouter_text_model(text_model),
         "higgsfield_configured": hf.is_configured(),
         "photos": [rel(p) for p in photos],
@@ -375,6 +395,9 @@ def _performance_hints() -> str:
     insights = data.get("insight_brand") or []
     if insights:
         hints.append("Insight: " + "; ".join(map(str, insights[:5])))
+    measured = results_log.prompt_hints()
+    if measured:
+        hints.append(measured)
     return "\n".join(hints)
 
 
@@ -384,6 +407,7 @@ def agent_storyboard(state: dict, photo: Path) -> dict:
     clip_lines = "\n".join(f"- clip_index {i}: durata {c['duration']}s" for i, c in enumerate(clips)) or "- nessuna clip reale caricata"
     n_photos = len(state.get("photos") or [])
     persona = kit.load_persona()
+    hints = _performance_hints()
     prompt = f"""Sei il direttore creativo video di I Monili Ravenna: crei Reel e Story video Instagram che fermano lo scroll.
 {BRAND}
 
@@ -391,6 +415,7 @@ ANALISI PRODOTTO:
 {state.get('analysis', '')[:2500]}
 
 BRIEF: {state.get('brief') or 'nessuno - decidi tu'}
+{('COSA HA FUNZIONATO FINORA (usalo per decidere hook e struttura):' + chr(10) + hints) if hints else ''}
 FORMATO: {fmt['label']} - durata totale circa {state['target_seconds']} secondi, {fmt['shots']} inquadrature.
 FOTO PRODOTTO DISPONIBILI: {n_photos} (photo_index da 0 a {max(0, n_photos - 1)})
 CLIP REALI CARICATE DALL'UTENTE:
@@ -567,7 +592,7 @@ def estimate_reel(state: dict) -> dict:
         )
         total_usd += video_usd
     if state.get("poster_cover", True):
-        poster_usd = kit.POSTER_USD + kit.QA_USD
+        poster_usd = KEYFRAME_USD.get(poster_model(state.get("keyframe_model", "")), kit.POSTER_USD) + kit.QA_USD
         lines.append({"shot": "-", "label": "Copertina poster", "usd": poster_usd})
         total_usd += poster_usd
     lines.append({"shot": "-", "label": "Testi e regia AI", "usd": TEXT_USD_ESTIMATE})
@@ -946,7 +971,7 @@ def render_reel(reel_id: str, api_key: str) -> None:
             try:
                 product_photo = _abs(state["photos"][0])
                 cover = kit.make_poster_cover(
-                    api_key, state["keyframe_model"], product_photo, cover_text, reel_dir(reel_id) / "cover.jpg",
+                    api_key, poster_model(state["keyframe_model"]), product_photo, cover_text, reel_dir(reel_id) / "cover.jpg",
                     skill_id=state.get("recipe", ""),
                 )
                 cover_qa = kit.check_keyframe(api_key, state["text_model"], product_photo, cover, expected_text=cover_text)
