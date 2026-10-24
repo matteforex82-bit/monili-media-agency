@@ -1127,6 +1127,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 import higgsfield_client  # noqa: E402
 import reel_kit  # noqa: E402
+import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 
 MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
@@ -1183,12 +1184,55 @@ def reel_config():
         "purposes": reel_studio.SHOT_PURPOSES,
         "budget_eur": reel_studio.REEL_BUDGET_EUR,
         "recipes": [
-            {"id": key, "label": spec["label"], "description": spec["description"], "formats": spec["formats"], "uses_model": spec["uses_model"]}
-            for key, spec in reel_kit.RECIPES.items()
+            {
+                "id": skill["id"],
+                "label": skill["label"],
+                "description": skill["description"],
+                "formats": skill["formats"],
+                "uses_model": skill["uses_model"],
+                "default_seconds": skill["default_seconds"],
+                "source": skill["source"],
+            }
+            for skill in skills_loader.list_skills()
         ],
         "default_recipe": reel_kit.DEFAULT_RECIPE,
         "persona": reel_kit.load_persona(),
     }
+
+
+@app.get("/skills")
+def skills_list():
+    return {
+        "items": [
+            {k: v for k, v in skill.items() if k != "sections"} for skill in skills_loader.list_skills()
+        ],
+        "base": [skills_loader.raw_text(name, base=True) for name in skills_loader.BASE_NAMES],
+    }
+
+
+@app.get("/skills/{skill_id}")
+def skills_get(skill_id: str, base: bool = False):
+    item = skills_loader.raw_text(skill_id, base=base)
+    if not item:
+        return JSONResponse({"error": "Skill non trovata"}, status_code=404)
+    return item
+
+
+@app.put("/skills/{skill_id}")
+def skills_put(skill_id: str, body: dict, base: bool = False):
+    text = body.get("text") if isinstance(body, dict) else None
+    if not isinstance(text, str) or not text.strip():
+        return JSONResponse({"error": "Testo mancante."}, status_code=400)
+    try:
+        return skills_loader.save_text(skill_id, text, base=base)
+    except skills_loader.SkillError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+
+
+@app.delete("/skills/{skill_id}")
+def skills_reset(skill_id: str, base: bool = False):
+    item = skills_loader.reset(skill_id, base=base)
+    return item or {"id": skills_loader.normalize_id(skill_id), "deleted": True}
 
 
 @app.get("/reel/persona")

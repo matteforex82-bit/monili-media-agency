@@ -81,25 +81,39 @@ def clamp_duration(model_key: str, seconds: int) -> int:
     return max(spec["min_duration"], min(spec["max_duration"], int(seconds)))
 
 
-def build_video_body(model_key: str, image_url: str, prompt: str, duration: int, sound: bool = False) -> dict:
+def build_video_body(
+    model_key: str,
+    image_url: str,
+    prompt: str,
+    duration: int,
+    sound: bool = False,
+    last_image_url: str = "",
+) -> dict:
+    """last_image_url: fotogramma finale (es. la foto vera del prodotto) per chiudere la scena sul pezzo esatto."""
     model_key = select_video_model(model_key)
     duration = clamp_duration(model_key, duration)
     prompt = (prompt or "Slow elegant camera movement, natural light.").strip()[:2400]
     if model_key.startswith("kling"):
-        return {
+        body = {
             "image_url": image_url,
             "prompt": prompt,
             "duration": duration,
             "sound": "on" if sound else "off",
             "cfg_scale": 0.5,
         }
-    return {
+        if last_image_url:
+            body["last_image_url"] = last_image_url
+        return body
+    body = {
         "image_url": image_url,
         "prompt": prompt,
         "duration": duration,
         "resolution": os.environ.get("HIGGSFIELD_RESOLUTION", "720p"),
         "generate_audio": bool(sound),
     }
+    if last_image_url:
+        body["end_image_url"] = last_image_url
+    return body
 
 
 def _headers(extra: dict | None = None) -> dict:

@@ -1250,3 +1250,10 @@ h1, h2, h3, .display {
 .rs-cover { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: 110px; display: grid; gap: 4px; cursor: pointer; font-family: var(--bot-font-sans); font-size: 11px; color: var(--espresso-mid); text-align: center; }
 .rs-cover img { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; border-radius: 7px; }
 .rs-cover:hover { border-color: var(--terracotta); }
+.sk-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+.sk-tags { font-size: 11px; color: var(--espresso-dim); margin-top: 2px; }
+.sk-new { display: flex; gap: 8px; align-items: center; }
+.sk-new .rs-input { flex: 1; }
+.sk-editor { width: 100%; min-height: 420px; font-family: var(--bot-font-mono); font-size: 12.5px; line-height: 1.55; background: var(--bot-card-soft); border: 1.5px solid var(--border-mid); border-radius: 12px; padding: 12px; color: var(--espresso); outline: none; resize: vertical; }
+.sk-editor:focus { border-color: var(--terracotta); }
+.rs-header-links { display: flex; gap: 12px; }

@@ -21,11 +21,13 @@ Pagina: `/reel` (link "Reel Studio" in alto nella pagina principale).
 Il video è **senza audio**: l'audio lo scegli tra quelli di tendenza nell'editor di Instagram, che premia
 gli audio trending.
 
-## Ricette ("comandi" alla Monili)
+## Skill (ricette modificabili)
 
-Come i comandi `/poster` di ChatGPT, ma tarati sul negozio. Si scelgono nel modulo e il regista segue la struttura fissa:
+Le ricette sono file di testo in `skills/` (guida completa in `skills/README.md`). L'app le rilegge a ogni
+video: per aggiustare un risultato si cambia il testo, non il codice. Si modificano anche dall'app, nella
+pagina **Skill** (link in alto nel Reel Studio): le modifiche vanno nello storage e "Ripristina originale" le annulla.
 
-| Ricetta | Cosa fa |
+| Skill | Cosa fa |
 |---|---|
 | `/libera` | il regista sceglie la struttura migliore |
 | `/modella-monili` | la Modella Monili indossa il prodotto: hook, dettaglio, look, chiusura |
@@ -33,8 +35,23 @@ Come i comandi `/poster` di ChatGPT, ma tarati sul negozio. Si scelgono nel modu
 | `/pietra-settimana` | una pietra: significato e abbinamento |
 | `/tre-modi` | lo stesso pezzo in 3 look: giorno, ufficio, sera |
 | `/colori-ravenna` | il gioiello accostato ai colori dei mosaici di Ravenna |
+| `/prima-dopo` | look semplice → con un solo accessorio Monili |
+| `/nuovo-arrivo` | presentazione veloce di un pezzo appena arrivato (Storie) |
 
-Le ricette sono in `reel_kit.py` (`RECIPES`): per aggiungerne una basta un nuovo blocco.
+Basi comuni in `skills/_base/`: `fotogramma.md`, `movimento.md`, `copertina.md`, `testi.md`.
+
+## Coerenza prodotto e scena
+
+1. **Scena unica**: lo storyboard contiene una `scene_bible` (luogo, luce, palette, abiti della modella) che
+   entra in ogni fotogramma ed è modificabile nello storyboard.
+2. **Fotogramma guida**: i fotogrammi si creano in sequenza; il primo riuscito (di preferenza con la modella)
+   diventa il riferimento di scena per tutti gli altri.
+3. **Controllo severo** (soglia `REEL_QA_MIN_SCORE`, default 8/10): prodotto identico + scena coerente + nessun
+   difetto. Fino a `REEL_KEYFRAME_ATTEMPTS` tentativi (default 3), ognuno con il motivo dello scarto precedente.
+4. **Se nessun tentativo passa, l'app usa la foto reale** del prodotto: un gioiello sbagliato non entra mai
+   nel video. Il risultato lo segnala ("Prodotto protetto").
+5. **Chiusura sulla foto vera**: con "Finisci la scena sulla foto vera" la foto reale diventa il fotogramma
+   finale del video Higgsfield (`last_image_url` / `end_image_url`).
 
 ## Modella Monili
 
@@ -47,10 +64,8 @@ Su Instagram, per contenuti AI realistici, attiva l'etichetta **"Info sull'AI"**
 
 ## Controllo qualità
 
-Ogni fotogramma AI viene confrontato con la foto reale del prodotto (forma, pietre, colori, metallo, difetti
-come rettangoli neri o dita deformate). Se il voto è sotto 6/10 viene rigenerato una volta; se è ancora diverso
-il risultato mostra **"Controlla prima di pubblicare"**. Anche la copertina poster viene controllata (testo
-scritto giusto + prodotto).
+Vedi "Coerenza prodotto e scena" sopra. Anche la copertina poster viene controllata (testo scritto giusto +
+prodotto); se non passa resta disponibile la copertina foto.
 
 ## Copertina poster
 
@@ -122,5 +137,7 @@ I lavori falliti o bloccati dalla moderazione non vengono addebitati da Higgsfie
 | PUT | `/reel/{id}/storyboard` | salva le modifiche e ricalcola la stima |
 | POST | `/reel/{id}/render` | avvia la produzione (`confirm_over_budget` se sopra budget) |
 | GET | `/reels` | archivio |
+| GET | `/skills` | elenco skill e basi |
+| GET/PUT/DELETE | `/skills/{id}` (`?base=true` per le basi) | leggi / salva / ripristina originale |
 | GET/POST | `/reel/persona` | leggi / salva la Modella Monili (descrizione + foto) |
 | POST | `/reel/persona/from-keyframe` | usa un fotogramma (`reel_id`, `shot_id`) come Modella Monili |

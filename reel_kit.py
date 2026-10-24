@@ -1,18 +1,21 @@
 """
 reel_kit.py - ricette, Modella Monili, copertina poster e controllo qualita per Reel Studio.
 
-- RECIPES: formati editoriali fissi ("comandi" alla Monili) che guidano il regista AI.
+- Skill: ricette editoriali modificabili in skills/*.md (vedi skills_loader.py).
 - Modella Monili: un solo personaggio AI ricorrente (descrizione + foto di riferimento).
 - Copertina poster: stile editoriale serif su fondo crema, il piu riuscito del feed.
 - QA: confronto visivo fotogramma AI vs foto reale prima di animarlo.
 """
 
 import json
+import os
 import shutil
 from datetime import datetime
 from pathlib import Path
 
 import requests
+
+import skills_loader as skills
 
 from main import (
     MEMORY_ROOT,
@@ -27,7 +30,7 @@ from main import (
 BRAND_ASSETS_DIR = OUTPUT_ROOT / "brand"
 PERSONA_FILE = MEMORY_ROOT / "modella_monili.json"
 PERSONA_IMAGE = BRAND_ASSETS_DIR / "modella_monili.jpg"
-QA_MIN_SCORE = 6
+QA_MIN_SCORE = int(os.environ.get("REEL_QA_MIN_SCORE", "8"))
 POSTER_USD = 0.12
 QA_USD = 0.02
 
@@ -42,91 +45,20 @@ DEFAULT_PERSONA = {
     "updated_at": None,
 }
 
-# Ogni ricetta e un "comando" con struttura fissa. shot_plan guida il regista AI.
-RECIPES: dict[str, dict] = {
-    "libera": {
-        "label": "Regia libera",
-        "description": "Il regista sceglie la struttura migliore per il prodotto.",
-        "formats": ["reel", "story"],
-        "uses_model": False,
-        "shot_plan": "",
-    },
-    "modella_monili": {
-        "label": "Modella Monili",
-        "description": "La nostra modella ricorrente indossa il prodotto: hook, dettaglio, look, chiusura.",
-        "formats": ["reel", "story"],
-        "uses_model": True,
-        "shot_plan": (
-            "1) HOOK: primo piano della Modella Monili, gesto naturale che mette in luce il prodotto (use_model true).\n"
-            "2) DETTAGLIO: macro del prodotto dalla foto reale (keyframe_mode original_photo, use_model false).\n"
-            "3) LOOK: la Modella Monili cammina o si gira con il look completo, luce calda (use_model true).\n"
-            "4) CHIUSURA: sorriso verso camera + testo invito al DM (use_model true)."
-        ),
-    },
-    "mani_bancone": {
-        "label": "Mani al bancone",
-        "description": "Mani che prendono, provano e mostrano il gioiello sul bancone del negozio. Ideale per anelli e bracciali.",
-        "formats": ["story", "reel"],
-        "uses_model": False,
-        "shot_plan": (
-            "1) HOOK: mani che aprono una scatolina o sollevano il gioiello dal bancone in legno chiaro.\n"
-            "2) PROVA: il gioiello viene indossato (dita/polso), movimento lento che fa brillare le pietre.\n"
-            "3) DETTAGLIO: macro dalla foto reale (keyframe_mode original_photo).\n"
-            "4) CHIUSURA: mano che indica / testo 'Scrivici, te lo mettiamo da parte'.\n"
-            "Solo mani femminili curate e naturali, nessun volto. Se ci sono clip reali usale qui."
-        ),
-    },
-    "pietra_settimana": {
-        "label": "Pietra della settimana",
-        "description": "Una pietra (ametista, quarzo rosa, citrino...): cosa significa e come abbinarla.",
-        "formats": ["reel", "story"],
-        "uses_model": False,
-        "shot_plan": (
-            "1) HOOK: macro della pietra con un riflesso di luce, testo 'La pietra della settimana: <nome>'.\n"
-            "2) SIGNIFICATO: dettaglio lento, testo breve sul significato della pietra (max 6 parole).\n"
-            "3) ABBINAMENTO: il gioiello indossato con un colore d'outfit consigliato.\n"
-            "4) CHIUSURA: prodotto intero + invito al DM."
-        ),
-    },
-    "tre_modi": {
-        "label": "3 modi di indossarlo",
-        "description": "Lo stesso pezzo in tre look: giorno, ufficio, sera.",
-        "formats": ["reel"],
-        "uses_model": True,
-        "shot_plan": (
-            "1) HOOK: testo '3 modi di indossarlo' sul prodotto (keyframe_mode original_photo).\n"
-            "2) LOOK GIORNO: Modella Monili casual in centro a Ravenna (use_model true).\n"
-            "3) LOOK UFFICIO: Modella Monili elegante sobria (use_model true).\n"
-            "4) LOOK SERA: Modella Monili aperitivo, luce calda (use_model true).\n"
-            "5) CHIUSURA: 'Quale scegli? Scrivicelo' + prodotto. Transizioni di tipo slide tra i look."
-        ),
-    },
-    "colori_ravenna": {
-        "label": "I colori di Ravenna",
-        "description": "Il gioiello accostato ai colori dei mosaici di Ravenna.",
-        "formats": ["reel", "story"],
-        "uses_model": False,
-        "shot_plan": (
-            "1) HOOK: dettaglio di un mosaico bizantino con tessere dai colori simili alle pietre del gioiello "
-            "(mosaico generico, non riprodurre opere specifiche).\n"
-            "2) TRANSIZIONE: dal mosaico al gioiello con colori in rima (match di colore).\n"
-            "3) DETTAGLIO: macro del prodotto dalla foto reale (keyframe_mode original_photo).\n"
-            "4) CHIUSURA: testo 'Ravenna, a colori' + invito in negozio in centro."
-        ),
-    },
-}
-DEFAULT_RECIPE = "libera"
+# Le ricette ("skill") sono file Markdown modificabili in skills/: vedi skills_loader.py.
+DEFAULT_RECIPE = skills.DEFAULT_SKILL
 
 
 def select_recipe(requested: str = "") -> str:
-    return requested if requested in RECIPES else DEFAULT_RECIPE
+    return skills.select_skill(requested)
 
 
 def recipe_prompt_block(recipe_id: str) -> str:
-    recipe = RECIPES[select_recipe(recipe_id)]
-    if not recipe["shot_plan"]:
+    skill = skills.load_skill(select_recipe(recipe_id))
+    structure = (skill or {}).get("sections", {}).get("structure", "")
+    if not skill or not structure:
         return "RICETTA: regia libera - scegli tu la struttura migliore."
-    return f"RICETTA OBBLIGATORIA \"{recipe['label']}\" - segui questa struttura:\n{recipe['shot_plan']}"
+    return f"RICETTA OBBLIGATORIA \"{skill['label']}\" - segui questa struttura:\n{structure}"
 
 
 # ── MODELLA MONILI ───────────────────────────────────────────────────────────
@@ -213,52 +145,85 @@ def generate_image_multi(api_key: str, model: str, prompt: str, images: list[Pat
 
 # ── CONTROLLO QUALITA ────────────────────────────────────────────────────────
 
-def check_keyframe(api_key: str, text_model: str, product_photo: Path, keyframe: Path, expected_text: str = "") -> dict:
-    """Confronta il fotogramma generato con la foto reale del prodotto. Ritorna {ok, score, issues}."""
+def check_keyframe(
+    api_key: str,
+    text_model: str,
+    product_photo: Path,
+    keyframe: Path,
+    expected_text: str = "",
+    scene_anchor: Path | None = None,
+    scene_bible: str = "",
+) -> dict:
+    """Confronta il fotogramma con la foto reale (prodotto) e, se c'e, con il fotogramma guida (scena)."""
+    images = [product_photo, keyframe]
+    scene_rule = ""
+    if scene_anchor and scene_anchor.exists() and scene_anchor != keyframe:
+        images.append(scene_anchor)
+        scene_rule = (
+            "- Immagine 3 = fotogramma guida dello stesso video. L'immagine 2 deve avere lo STESSO luogo, la stessa luce, "
+            "la stessa palette colori e (se c'e una donna) la stessa persona con gli stessi abiti.\n"
+        )
+    elif scene_bible:
+        scene_rule = f"- La scena deve rispettare questa descrizione: {scene_bible[:600]}\n"
     text_rule = (
         f'- Il testo nell\'immagine deve essere esattamente "{expected_text}", senza errori di battitura.\n'
         if expected_text
         else ""
     )
-    prompt = f"""Sei il controllo qualita di una boutique di gioielli. Immagine 1 = foto REALE del prodotto. Immagine 2 = immagine generata dall'AI.
+    prompt = f"""Sei il controllo qualita severo di una boutique di gioielli. Immagine 1 = foto REALE del prodotto. Immagine 2 = immagine generata dall'AI.
 Verifica:
-- Il prodotto nell'immagine 2 e lo stesso dell'immagine 1? Forma, numero e taglio delle pietre, colori, metallo, proporzioni.
+- Il prodotto nell'immagine 2 e IDENTICO all'immagine 1? Forma, numero e taglio delle pietre, colori, metallo, proporzioni. Ogni differenza conta.
 - Difetti di generazione: rettangoli/macchie nere, parti mancanti, dita o orecchie deformate, oggetti fusi, scritte strane.
-{text_rule}Rispondi SOLO con JSON: {{"score": 1-10, "same_product": true/false, "artifacts": true/false, "issues": "elenco breve in italiano o stringa vuota"}}"""
+{scene_rule}{text_rule}Rispondi SOLO con JSON: {{"score": 1-10, "same_product": true/false, "scene_consistent": true/false, "artifacts": true/false, "issues": "elenco breve in italiano o stringa vuota"}}"""
     try:
-        payload = _chat(api_key, text_model, prompt, [product_photo, keyframe], max_tokens=400)
+        payload = _chat(api_key, text_model, prompt, images, max_tokens=400)
         result = extract_json_object(extract_text_from_response(payload))
     except Exception as exc:
-        return {"ok": True, "score": None, "issues": f"controllo non eseguito: {exc}", "checked": False}
+        return {"ok": False, "score": None, "issues": f"controllo non eseguito: {exc}", "checked": False}
     if not result:
-        return {"ok": True, "score": None, "issues": "controllo non leggibile", "checked": False}
+        return {"ok": False, "score": None, "issues": "controllo non leggibile", "checked": False}
     try:
         score = int(result.get("score"))
     except (TypeError, ValueError):
         score = None
-    same = result.get("same_product") is not False
+    same = result.get("same_product") is True
+    scene_ok = result.get("scene_consistent") is not False
     artifacts = result.get("artifacts") is True
-    ok = same and not artifacts and (score is None or score >= QA_MIN_SCORE)
-    return {"ok": ok, "score": score, "issues": str(result.get("issues") or "").strip(), "checked": True}
+    ok = same and scene_ok and not artifacts and score is not None and score >= QA_MIN_SCORE
+    return {
+        "ok": ok,
+        "score": score,
+        "same_product": same,
+        "scene_consistent": scene_ok,
+        "issues": str(result.get("issues") or "").strip(),
+        "checked": True,
+    }
 
 
 # ── COPERTINA POSTER ─────────────────────────────────────────────────────────
 
-def poster_prompt(cover_text: str, subtitle: str = "") -> str:
-    return f"""Create a vertical 9:16 editorial poster cover for the Instagram account of I Monili, a jewelry boutique in Ravenna.
-Use the exact product from the reference photo as the hero, styled on a warm cream silk or stone surface with soft natural light.
-Typography: elegant high-contrast serif (like Didot / Cormorant), dark espresso color, large headline at the top:
-"{cover_text}"
-{f'Small italic subtitle under it: "{subtitle}"' if subtitle else ''}
-Small spaced uppercase wordmark at the bottom: "I MONILI · RAVENNA".
-Leave the top 15% and bottom 20% clean for Instagram UI. Warm cream background, terracotta and gold accents.
-The product must stay IDENTICAL to the reference photo: same shape, stones, colors, metal. Spell the Italian text exactly as written.
-No other text, no logos, no watermark."""
+def poster_prompt(cover_text: str, subtitle: str = "", skill_id: str = "") -> str:
+    template = skills.base_template("copertina")
+    subtitle_line = f'Small italic subtitle under the headline, exactly once: "{subtitle}"' if subtitle else ""
+    return skills.fill(
+        template,
+        cover_text=cover_text,
+        subtitle_line=subtitle_line,
+        skill_notes=skills.section(skill_id, "cover") if skill_id else "",
+    )
 
 
-def make_poster_cover(api_key: str, image_model: str, product_photo: Path, cover_text: str, destination: Path, subtitle: str = "") -> Path:
+def make_poster_cover(
+    api_key: str,
+    image_model: str,
+    product_photo: Path,
+    cover_text: str,
+    destination: Path,
+    subtitle: str = "",
+    skill_id: str = "",
+) -> Path:
     raw = destination.with_name(destination.stem + "_raw.png")
-    generate_image_multi(api_key, image_model, poster_prompt(cover_text, subtitle), [product_photo], raw, aspect_ratio="9:16")
+    generate_image_multi(api_key, image_model, poster_prompt(cover_text, subtitle, skill_id), [product_photo], raw, aspect_ratio="9:16")
     from PIL import Image, ImageOps
 
     with Image.open(raw) as img:

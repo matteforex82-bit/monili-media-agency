@@ -20,6 +20,7 @@ interface Shot {
   photo_index: number;
   keyframe_mode: 'ai' | 'original_photo';
   use_model: boolean;
+  end_on_product: boolean;
   duration: number;
   camera: string;
   angle: string;
@@ -37,6 +38,7 @@ interface Storyboard {
   hook: string;
   music_mood: string;
   cover_text: string;
+  scene_bible: string;
   shots: Shot[];
 }
 
@@ -90,6 +92,7 @@ interface Recipe {
   description: string;
   formats: ReelFormat[];
   uses_model: boolean;
+  default_seconds?: number;
 }
 
 interface ReelState {
@@ -114,6 +117,7 @@ interface ReelState {
     cover_plain?: string;
     cover_qa?: QaResult | null;
     qa_warnings?: { id: string; score: number | null; issues: string }[];
+    qa_replaced?: { id: string; issues: string }[];
     copy_markdown?: string;
     shots?: { id: string; video: string; keyframe: string | null; duration: number; engine: string; qa?: QaResult | null }[];
     copy?: ReelCopy;
@@ -183,6 +187,7 @@ function emptyShot(index: number): Shot {
     photo_index: 0,
     keyframe_mode: 'ai',
     use_model: false,
+    end_on_product: false,
     duration: 4,
     camera: 'slow push-in',
     angle: '',
@@ -534,7 +539,10 @@ export default function ReelStudioPage() {
     <div className="rs-page">
       <header className="app-header sticky top-0 z-50">
         <div className="rs-header">
-          <a href="/" className="rs-back">← Studio foto</a>
+          <span className="rs-header-links">
+            <a href="/" className="rs-back">← Foto</a>
+            <a href="/skills" className="rs-back">Skill</a>
+          </span>
           <div className="rs-brand">
             <span className="rs-brand-title">Reel Studio</span>
             <span className="rs-brand-sub">I Monili · video-first</span>
@@ -612,10 +620,15 @@ export default function ReelStudioPage() {
                     className={`rs-recipe ${recipe === item.id ? 'rs-recipe-on' : ''}`}
                     onClick={() => {
                       setRecipe(item.id);
-                      if (!item.formats.includes(format)) setFormat(item.formats[0]);
+                      const nextFormat = item.formats.includes(format) ? format : item.formats[0];
+                      if (nextFormat !== format) setFormat(nextFormat);
+                      if (item.default_seconds && config) {
+                        const spec = config.formats[nextFormat];
+                        setTimeout(() => setSeconds(Math.min(spec.max_seconds, Math.max(spec.min_seconds, item.default_seconds!))), 0);
+                      }
                     }}
                   >
-                    <span className="rs-recipe-title">/{item.id.replace(/_/g, '-')}</span>
+                    <span className="rs-recipe-title">/{item.id}</span>
                     <span className="rs-recipe-label">{item.label}</span>
                     <span className="rs-recipe-desc">{item.description}</span>
                   </button>
@@ -679,7 +692,7 @@ export default function ReelStudioPage() {
               <div>
                 <div className="label-eyebrow">
                   {reel.format === 'story' ? 'Story video' : 'Reel'}
-                  {reel.recipe && reel.recipe !== 'libera' ? ` · /${reel.recipe.replace(/_/g, '-')}` : ''} · {STATUS_LABELS[reel.status]}
+                  {reel.recipe && reel.recipe !== 'libera' ? ` · /${reel.recipe}` : ''} · {STATUS_LABELS[reel.status]}
                 </div>
                 <h1 className="rs-h1">{reel.storyboard?.title || 'Nuovo reel'}</h1>
                 {reel.storyboard?.concept && <p className="rs-muted">{reel.storyboard.concept}</p>}
@@ -716,6 +729,14 @@ export default function ReelStudioPage() {
                     <input className="rs-input" value={draft.cover_text} onChange={(e) => { setDraft({ ...draft, cover_text: e.target.value }); setDirty(true); }} />
                   </Field>
                 </div>
+                <Field label="Scena unica del video (vale per tutte le inquadrature AI)">
+                  <textarea
+                    className="brief-area"
+                    rows={3}
+                    value={draft.scene_bible || ''}
+                    onChange={(e) => { setDraft({ ...draft, scene_bible: e.target.value }); setDirty(true); }}
+                  />
+                </Field>
                 <div className="rs-muted rs-small">Audio consigliato: {draft.music_mood || '—'} (sceglilo tra gli audio di tendenza su Instagram)</div>
 
                 <div className="rs-shots">
@@ -872,6 +893,12 @@ function ShotEditor({
               <span>Con la Modella Monili</span>
             </label>
           )}
+          {shot.source === 'ai' && (
+            <label className="rs-check">
+              <input type="checkbox" checked={!!shot.end_on_product} onChange={(e) => onChange({ end_on_product: e.target.checked })} />
+              <span>Finisci la scena sulla foto vera del prodotto</span>
+            </label>
+          )}
           {shot.source === 'clip' && (
             <Field label="Parti dal secondo">
               <input className="rs-input" type="number" min={0} max={Math.max(0, (reel.clips[shot.clip_index ?? 0]?.duration ?? 1) - 1)} step={0.5} value={shot.clip_start} onChange={(e) => onChange({ clip_start: Number(e.target.value) })} />
@@ -1010,6 +1037,11 @@ function ResultView({ reel, onPersona }: { reel: ReelState; onPersona: (p: Perso
               <li key={w.id}>{w.id.replace('shot_', 'Inquadratura ')}: {w.score != null ? `${w.score}/10 — ` : ''}{w.issues || 'prodotto diverso'}</li>
             ))}
           </ul>
+        </div>
+      )}
+      {results.qa_replaced && results.qa_replaced.length > 0 && (
+        <div className="rs-banner">
+          <strong>Prodotto protetto:</strong> in {results.qa_replaced.length === 1 ? 'una scena' : `${results.qa_replaced.length} scene`} l&apos;AI non era fedele al 100% e l&apos;app ha usato la tua foto reale.
         </div>
       )}
       {results.cover_qa && !results.cover_qa.ok && (

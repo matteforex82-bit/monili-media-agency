@@ -41,12 +41,22 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
   `/colori-ravenna`), Modella Monili persistente, copertina poster serif/crema, controllo qualità AI
   fotogramma vs foto reale con 1 rigenerazione. Testato con AI simulata.
 
+## Fatto il 2026-10-24
+- Ricerca su immagini OpenAI (GPT-Image-2.5 Flare/Sunburst), video Higgsfield e Instagram 2026:
+  `knowledge/ricerca_marketing_ai_2026.md`.
+- **Skill modificabili** in `skills/*.md` (8 ricette + 4 basi comuni), pagina **Skill** nell'app per modificarle,
+  modifiche salvate nello storage con "Ripristina originale".
+- **Coerenza 100% prodotto/scena** (richiesta di Matteo): scena unica per tutto il video, fotogramma guida in
+  sequenza, controllo severo 8/10 con 3 tentativi, sostituzione con la foto reale se l'AI non è fedele,
+  chiusura delle scene sulla foto vera via Higgsfield.
+
 ## Prossimi passi
 1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` locale / su Render.
 2. Primo Reel vero con un prodotto reale: verificare fedeltà del gioiello e costo effettivo vs stima.
 3. Tarare le stime (`HF_FALLBACK_USD_PER_SEC_*`) con i costi reali.
 4. Matteo: verificare il fuso orario del grafico "Periodi di maggiore attività" dall'app e aggiornare le storie in evidenza (ferme all'estate).
-5. Raccogliere da Matteo 2-3 comandi ChatGPT che usa (/poster, /carouselart) per affinare le ricette.
+5. Raccogliere da Matteo 2-3 comandi ChatGPT che usa (/poster, /carouselart) e trasformarli in skill.
+5b. Valutare il motore OpenAI diretto con GPT-Image-2.5 (serve `OPENAI_API_KEY`).
 6. Chiudere il ciclo performance: `memory/performance_log.json` ha solo gli insight generali → serve una schermata (o l API Meta) per i numeri di ogni singolo Reel.
 
 ## Aperti / da sapere
