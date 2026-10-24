@@ -50,14 +50,23 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
   sequenza, controllo severo 8/10 con 3 tentativi, sostituzione con la foto reale se l'AI non è fedele,
   chiusura delle scene sulla foto vera via Higgsfield.
 
+## Fatto il 2026-10-24 (lavoro in autonomia, 2 ore)
+- **Pagina Risultati** (`/risultati`): numeri di ogni contenuto pubblicato, riepilogo per skill/formato/giorno/ora,
+  dati affidabili (≥2 contenuti) passati a regista e copywriter.
+- **Skill di Natale**: `/idea-regalo`, `/countdown-natale` + `docs/piano-natale-2026.md` (calendario fino al 6 gennaio,
+  Black Friday ven 27/11, Immacolata mar 8/12, brief pronti).
+- **Motore OpenAI diretto** GPT-Image-2.5 Flare (fotogrammi) / Sunburst (copertine) via `/v1/images/edits`,
+  attivo solo con `OPENAI_API_KEY`; parametri verificati sulla reference ufficiale OpenAI.
+- **Test automatici** in `tests/` (27 test, senza rete né chiavi): `python -m pytest tests`.
+
 ## Prossimi passi
 1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` locale / su Render.
 2. Primo Reel vero con un prodotto reale: verificare fedeltà del gioiello e costo effettivo vs stima.
 3. Tarare le stime (`HF_FALLBACK_USD_PER_SEC_*`) con i costi reali.
 4. Matteo: verificare il fuso orario del grafico "Periodi di maggiore attività" dall'app e aggiornare le storie in evidenza (ferme all'estate).
 5. Raccogliere da Matteo 2-3 comandi ChatGPT che usa (/poster, /carouselart) e trasformarli in skill.
-5b. Valutare il motore OpenAI diretto con GPT-Image-2.5 (serve `OPENAI_API_KEY`).
-6. Chiudere il ciclo performance: `memory/performance_log.json` ha solo gli insight generali → serve una schermata (o l API Meta) per i numeri di ogni singolo Reel.
+5b. Matteo: se vuole GPT-Image-2.5, creare `OPENAI_API_KEY` su platform.openai.com (il codice è pronto).
+6. Usare la pagina Risultati dopo ogni pubblicazione; più avanti lettura automatica dei numeri con l'API Meta.
 
 ## Aperti / da sapere
 - **Sito vetrina non online**: l'URL nel codice (`web-five-theta-58.vercel.app`) ora ospita un'altra app ("Alfred");

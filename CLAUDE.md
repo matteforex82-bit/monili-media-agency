@@ -45,3 +45,9 @@ qualsiasi file in questa directory senza chiedere conferma.
    - Caption variant che ha performato meglio
    - Orari con engagement più alto
    - Prodotti che hanno generato più visite in negozio
+
+## Sviluppo
+- Skill dei contenuti: `skills/*.md` (guida in `skills/README.md`) — si aggiustano lì, non nel codice
+- Ricerca tecniche AI/Instagram: `knowledge/ricerca_marketing_ai_2026.md`; piano Natale: `docs/piano-natale-2026.md`
+- Stato e prossimi passi (condiviso con Hermes): `docs/STATO_PROGETTO.md`
+- Test: `python -m pytest tests` (senza chiavi né rete) — da far passare prima di ogni push

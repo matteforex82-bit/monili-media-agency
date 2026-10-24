@@ -37,6 +37,10 @@ pagina **Skill** (link in alto nel Reel Studio): le modifiche vanno nello storag
 | `/colori-ravenna` | il gioiello accostato ai colori dei mosaici di Ravenna |
 | `/prima-dopo` | look semplice → con un solo accessorio Monili |
 | `/nuovo-arrivo` | presentazione veloce di un pezzo appena arrivato (Storie) |
+| `/idea-regalo` | il gioiello come regalo per una persona precisa (Natale e ricorrenze) |
+| `/countdown-natale` | Story "mancano X giorni a Natale" con un pezzo al giorno (dal 1° dicembre) |
+
+Il calendario fino a Natale con skill, date verificate e brief pronti è in `docs/piano-natale-2026.md`.
 
 Basi comuni in `skills/_base/`: `fotogramma.md`, `movimento.md`, `copertina.md`, `testi.md`.
 
@@ -52,6 +56,25 @@ Basi comuni in `skills/_base/`: `fotogramma.md`, `movimento.md`, `copertina.md`,
    nel video. Il risultato lo segnala ("Prodotto protetto").
 5. **Chiusura sulla foto vera**: con "Finisci la scena sulla foto vera" la foto reale diventa il fotogramma
    finale del video Higgsfield (`last_image_url` / `end_image_url`).
+
+## Motore immagini
+
+| Motore | Quando |
+|---|---|
+| GPT-Image-2 via OpenRouter | default oggi (usa `OPENROUTER_API_KEY`) |
+| **GPT-Image-2.5 Flare** (OpenAI diretto) | default automatico se c'è `OPENAI_API_KEY`: qualità superiore, metà latenza |
+| **GPT-Image-2.5 Sunburst** (OpenAI diretto) | usato per le copertine poster quando c'è `OPENAI_API_KEY` |
+| Gemini Flash / Pro Image | alternativa più economica / veloce |
+
+La chiamata OpenAI usa `/v1/images/edits` con le immagini di riferimento numerate, formato 1152×2048 (9:16,
+multipli di 16) e qualità `OPENAI_IMAGE_QUALITY` (default `high`). Si sceglie nel modulo ("Motore immagini").
+
+## Risultati (pagina `/risultati`)
+
+2-3 giorni dopo la pubblicazione si inseriscono i numeri dagli Insights di Instagram (visualizzazioni, invii,
+DM, visite in negozio...). La pagina mostra cosa funziona per skill, formato, giorno e fascia oraria; con almeno
+2 contenuti per gruppo questi dati entrano nei prompt di regista e copywriter. File:
+`<storage>/memory/risultati_contenuti.json`.
 
 ## Modella Monili
 
@@ -137,7 +160,17 @@ I lavori falliti o bloccati dalla moderazione non vengono addebitati da Higgsfie
 | PUT | `/reel/{id}/storyboard` | salva le modifiche e ricalcola la stima |
 | POST | `/reel/{id}/render` | avvia la produzione (`confirm_over_budget` se sopra budget) |
 | GET | `/reels` | archivio |
+| GET | `/results` | numeri registrati, riepilogo e video da completare |
+| PUT/DELETE | `/results/{id}` | salva / elimina i numeri di un contenuto (`id` del reel o `manuale-...`) |
 | GET | `/skills` | elenco skill e basi |
 | GET/PUT/DELETE | `/skills/{id}` (`?base=true` per le basi) | leggi / salva / ripristina originale |
 | GET/POST | `/reel/persona` | leggi / salva la Modella Monili (descrizione + foto) |
 | POST | `/reel/persona/from-keyframe` | usa un fotogramma (`reel_id`, `shot_id`) come Modella Monili |
+
+## Test
+
+```
+pip install -r requirements.txt -r requirements-dev.txt
+python -m pytest tests
+```
+I test girano senza chiavi e senza internet (AI simulata, storage temporaneo).
