@@ -127,6 +127,8 @@ def _chat(api_key: str, model: str, prompt: str, images: list[Path], max_tokens:
 
 
 def generate_image_multi(api_key: str, model: str, prompt: str, images: list[Path], destination: Path, aspect_ratio: str = "9:16") -> Path:
+    if model.startswith(OPENAI_DIRECT_PREFIX):
+        return openai_edit(model, prompt, images, destination, aspect_ratio)
     text_image = model.startswith("google/gemini") or model.startswith("openai/gpt-5.4-image") or model.startswith("openai/gpt-image")
     payload = _chat(
         api_key,
@@ -140,6 +142,57 @@ def generate_image_multi(api_key: str, model: str, prompt: str, images: list[Pat
     data_urls = extract_data_urls_from_response(payload)
     if not data_urls or not save_data_url_image(data_urls[0], destination):
         raise RuntimeError("nessuna immagine nella risposta")
+    return destination
+
+
+# ── OPENAI DIRETTO (GPT-Image-2.5) ───────────────────────────────────────────
+# Su OpenRouter GPT-Image-2.5 non c'e: con OPENAI_API_KEY l'app chiama direttamente /v1/images/edits.
+OPENAI_DIRECT_PREFIX = "openai-direct/"
+OPENAI_DIRECT_MODELS = {
+    "openai-direct/gpt-image-2.5-flare": "gpt-image-2.5-flare",
+    "openai-direct/gpt-image-2.5-sunburst": "gpt-image-2.5-sunburst",
+    "openai-direct/gpt-image-2": "gpt-image-2",
+}
+OPENAI_DEFAULT_KEYFRAME_MODEL = "openai-direct/gpt-image-2.5-flare"
+OPENAI_DEFAULT_POSTER_MODEL = "openai-direct/gpt-image-2.5-sunburst"
+# multipli di 16 come richiesto dall'API; si ritaglia poi a 1080x1920
+OPENAI_SIZES = {"9:16": "1152x2048", "4:5": "1088x1360", "1:1": "1024x1024"}
+
+
+def openai_configured() -> bool:
+    return bool(os.environ.get("OPENAI_API_KEY", "").strip())
+
+
+def openai_edit(model: str, prompt: str, images: list[Path], destination: Path, aspect_ratio: str = "9:16") -> Path:
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY non configurata")
+    refs = []
+    for image in images:
+        if image and image.exists():
+            data, media_type = encode_image(image)
+            refs.append({"image_url": f"data:{media_type};base64,{data}"})
+    payload = {
+        "model": OPENAI_DIRECT_MODELS.get(model, model.removeprefix(OPENAI_DIRECT_PREFIX)),
+        "prompt": prompt[:32000],
+        "images": refs[:16],
+        "size": OPENAI_SIZES.get(aspect_ratio, "1024x1536"),
+        "quality": os.environ.get("OPENAI_IMAGE_QUALITY", "high"),
+        "output_format": "png",
+        "n": 1,
+    }
+    response = requests.post(
+        "https://api.openai.com/v1/images/edits",
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        json=payload,
+        timeout=300,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"OpenAI HTTP {response.status_code}: {response.text[:300]}")
+    data = (response.json().get("data") or [{}])[0]
+    b64 = data.get("b64_json")
+    if not b64 or not save_data_url_image(f"data:image/png;base64,{b64}", destination):
+        raise RuntimeError("OpenAI: nessuna immagine nella risposta")
     return destination
 
 

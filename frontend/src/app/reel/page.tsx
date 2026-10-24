@@ -136,6 +136,9 @@ interface ReelConfig {
   budget_eur: number;
   recipes: Recipe[];
   default_recipe: string;
+  keyframe_models: string[];
+  default_keyframe_model: string;
+  openai_direct_configured?: boolean;
   persona: Persona;
 }
 
@@ -173,6 +176,16 @@ const STATUS_LABELS: Record<ReelStatus, string> = {
   rendering: 'Video in produzione',
   done: 'Pronto',
   error: 'Errore',
+};
+
+const IMAGE_MODEL_LABELS: Record<string, string> = {
+  'openai-direct/gpt-image-2.5-flare': 'GPT-Image-2.5 Flare (OpenAI, consigliato)',
+  'openai-direct/gpt-image-2.5-sunburst': 'GPT-Image-2.5 Sunburst (OpenAI, massima precisione)',
+  'openai-direct/gpt-image-2': 'GPT-Image-2 (OpenAI diretto)',
+  'openai/gpt-5.4-image-2': 'GPT-Image-2 via OpenRouter',
+  'google/gemini-3.1-flash-image-preview': 'Gemini Flash Image (veloce)',
+  'google/gemini-3.1-flash-image': 'Gemini Flash Image',
+  'google/gemini-3-pro-image': 'Gemini 3 Pro Image',
 };
 
 const fileUrl = (path: string) => `${API_URL}/files/${path}`;
@@ -295,6 +308,7 @@ export default function ReelStudioPage() {
   const [seconds, setSeconds] = useState(12);
   const [videoModel, setVideoModel] = useState('');
   const [recipe, setRecipe] = useState('libera');
+  const [keyframeModel, setKeyframeModel] = useState('');
   const [posterCover, setPosterCover] = useState(true);
   const [persona, setPersona] = useState<Persona | null>(null);
 
@@ -337,6 +351,7 @@ export default function ReelStudioPage() {
           setConfig(cfg);
           setVideoModel(cfg.default_video_model);
           setRecipe(cfg.default_recipe || 'libera');
+          setKeyframeModel(cfg.default_keyframe_model || '');
           setPersona(cfg.persona || null);
         } else {
           setError('Backend raggiungibile ma Reel Studio non attivo: aggiorna il backend.');
@@ -414,6 +429,7 @@ export default function ReelStudioPage() {
       form.append('target_seconds', String(seconds));
       form.append('video_model', videoModel);
       form.append('recipe', recipe);
+      if (keyframeModel) form.append('keyframe_model', keyframeModel);
       form.append('poster_cover', posterCover ? 'true' : 'false');
       const res = await fetch(`${API_URL}/reel/create`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(await readError(res));
@@ -542,6 +558,7 @@ export default function ReelStudioPage() {
           <span className="rs-header-links">
             <a href="/" className="rs-back">← Foto</a>
             <a href="/skills" className="rs-back">Skill</a>
+            <a href="/risultati" className="rs-back">Risultati</a>
           </span>
           <div className="rs-brand">
             <span className="rs-brand-title">Reel Studio</span>
@@ -663,6 +680,13 @@ export default function ReelStudioPage() {
                   value={seconds}
                   onChange={(e) => setSeconds(Number(e.target.value))}
                 />
+              </Field>
+              <Field label="Motore immagini">
+                <select value={keyframeModel} onChange={(e) => setKeyframeModel(e.target.value)} className="rs-input">
+                  {(config?.keyframe_models || []).map((model) => (
+                    <option key={model} value={model}>{IMAGE_MODEL_LABELS[model] || model}</option>
+                  ))}
+                </select>
               </Field>
               <Field label="Motore video">
                 <select value={videoModel} onChange={(e) => setVideoModel(e.target.value)} className="rs-input">
