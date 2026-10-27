@@ -1,6 +1,7 @@
 # Piano — Sito Vetrina I Monili Ravenna
 
-> Stato: **bozza da approvare** · Creato il 27/10/2026 · Aggiornato il 27/10/2026 dopo il ritrovamento del progetto "Ecosistema Monili"
+> Stato: **approvato, in lavorazione** (siamo alla Fase 2, Design) · Creato il 27/10/2026 · Ultimo aggiornamento: 27/10/2026 sera, passaggio di consegne a una nuova chat
+> **Per ripartire leggi prima la sezione 10.**
 > Obiettivo: **riprendere** il sito vetrina già iniziato (frontend + backend), metterlo al sicuro, ridisegnare il frontend con Claude Design e portarlo online collegato allo Studio AI.
 
 ---
@@ -50,11 +51,11 @@ Il sito vetrina **esiste**, frontend e backend. Dal 27/10/2026 è al sicuro su G
 5. ~~**Modifiche non salvate**~~ ✅ Salvate nel commit `80ebde9`. Resta solo `.claude/settings.local.json` (locale, voluto).
 6. **File da togliere dal repo più avanti** (Fase 3, nessun segreto dentro): `.claude/settings.local.json` del primo commit, `apps/web/data/backups/*.json`, `apps/web/data/ops-events.ndjson`. Sono già in `.gitignore` ma ancora tracciati.
 
-### 1.5 Problemi nello Studio (questo repo)
-- Il link "review" in `frontend/src/components/ResultsPanel.tsx` ha come fallback `https://web-five-theta-58.vercel.app/admin/review` (oggi è Alfred, 404)
-- Bug visibile: `` `r`n `` letterale nell'hero di `frontend/src/app/page.tsx` (~riga 663)
-- Commenti con caratteri corrotti in `frontend/src/app/globals.css`
-- Il branch `claude/determined-knuth-zp63a6` ha **9 commit non uniti** (Reel Studio, skills, test) che toccano gli stessi file del frontend: va unito o archiviato prima di lavorarci
+### 1.5 Problemi nello Studio (questo repo) — ✅ tutti risolti il 27/10/2026
+- ~~Fallback `web-five-theta-58` nel link "review" di `ResultsPanel.tsx`~~ ✅ rimosso: il link compare solo se `NEXT_PUBLIC_SHOWCASE_REVIEW_URL` è impostata
+- ~~`` `r`n `` letterale nell'hero di `page.tsx`~~ ✅ commit `dc2e34a`
+- Commenti con caratteri corrotti in `frontend/src/app/globals.css`: cosmetico, non blocca niente
+- ~~Branch `claude/determined-knuth-zp63a6` non unito~~ ✅ Reel Studio unito in `master` (`99cdd3b`)
 
 ### 1.6 Altre cartelle "Monili" sul PC (da fare ordine, non urgenti)
 `Desktop\PROGETTI AI\`: `app monili post` (+ `- Copia`), `INSTAGRMA MONILI`, `NUOVA APP PER MONILI RAVENNA` · `Desktop\I MONILI BUROCRAZIA` · `OneDrive\Desktop\Monili Dash`, `OneDrive\Desktop\Sito Monili` · `C:\Users\matte\MoniliStorage` (storage locale dello Studio).
@@ -126,13 +127,14 @@ Oggi non c'è nessun design system salvato nell'account: lo creiamo e lo imposti
 - **Asset**: logo e favicon (servono i file originali)
 
 ### 4.2 Tavole delle pagine (tipo *Design* di Claude)
-In mobile (390 px) e desktop (1440 px), partendo dai wireframe esistenti:
-- `/` · `/collezioni` · `/pezzi-unici` · `/p/[slug]` (una tavola per ognuno dei 4 stati) · `/outfit-della-settimana` · `/instagram` · `/laboratorio` · `/chi-siamo` · `/contatti`
-- `/admin/review` (deve essere comodissima da iPhone: è lì che approvi ogni giorno)
-- Contenuti **veri**: 6–8 prodotti reali dalle foto `07_SHOWCASE` dello Studio
+**Deciso il 27/10/2026: 3 pagine al lancio** (dettaglio in "Scelte del 27/10/2026 (2)" nella sezione 6). Mobile (390 px) e desktop (1440 px), partendo dai wireframe esistenti:
+- `/` Home "Al bancone" (feed "Appena arrivati" + filtri + striscia Reel + "Vieni a trovarci")
+- `/p/[slug]` Scheda pezzo: una tavola per stato (disponibile · pezzo unico · su richiesta · venduto "Questo ha già trovato casa")
+- `/negozi` (o `/contatti`) Negozi e contatti
+- `/admin/review` solo come ritocco: deve essere comodissima da iPhone
+- Contenuti **veri**: 6–8 prodotti reali dalle foto `07_SHOWCASE` dello Studio, prezzi veri
 - **Massimo 2 giri di revisione per pagina.** Il rischio vero è restare settimane a limare i design invece di andare online
-
-Prima di disegnare, decidiamo se servono **tutte** queste pagine al lancio. Il mio consiglio: lancia con Home, Collezioni, Pezzi unici, Scheda prodotto e Contatti; le altre arrivano dopo.
+- Le pagine esistenti non incluse (`/collezioni`, `/pezzi-unici`, `/outfit-della-settimana`, `/instagram`, `/laboratorio`, `/chi-siamo`) si nascondono dal menu e dalla sitemap al lancio, il codice resta
 
 ### 4.3 Dal design al codice
 - I token del Design System diventano le CSS variables / il tema di `apps/web`: una sola fonte
@@ -152,7 +154,9 @@ Prima di disegnare, decidiamo se servono **tutte** queste pagine al lancio. Il m
 | `run` | Fase 4 | Avviare la vetrina e fare gli screenshot da confrontare |
 | `code-review` · `simplify` | Fine di ogni fase | Bug e pulizia |
 | `security-review` | Prima della messa online | Ingest con token, login admin, upload immagini |
-| `frontend-design` (plugin ufficiale Anthropic) | Fase 4 | **Non installato oggi**: verificare che sia nel marketplace e installarlo prima della Fase 4 |
+| `frontend-design` (plugin ufficiale Anthropic) | Fase 4 | Installato. Alternativa a Impeccable, non insieme |
+| **SEO-AEO-GEO Ultimate** (`seo-aeo-geo-ultimate:*`, installato 27/10) | Fasi 2 e 4 | Ingresso `seo-aeo-geo-ultimate:seo`; nello specifico `seo-local`, `seo-schema`, `seo-images`, `seo-geo`, `seo-aeo`, `seo-technical`, `seo-commerce` |
+| **AI SEO** (`ai-seo:*`, installato 27/10) | Fase 4 e dopo il lancio | `llms-txt-ai-crawler-access` (llms.txt + robots.txt), `ai-page-audit` sulla scheda pezzo, `ai-seo-audit` e `brand-monitoring-ai-visibility-report` dopo il lancio |
 
 ---
 
@@ -181,13 +185,13 @@ Il backend **esiste**: non si costruisce, si **verifica e si rende affidabile**.
 - [x] Remote cambiato e push di `master` senza force: GitHub = PC (`80ebde9`), verificato anche dal cloud
 - [x] `OneDrive\Desktop\Sito Monili` controllata: solo archivio foto/asset, nessun codice
 
-### Fase 1 — Pulizia e collegamento (½ giornata)
-- [ ] Studio: unire o archiviare il branch `claude/determined-knuth-zp63a6`
-- [ ] Studio: togliere `` `r`n `` da `page.tsx`, ripulire i commenti di `globals.css`
-- [ ] Studio: togliere il fallback `web-five-theta-58` da `ResultsPanel.tsx` (se manca la variabile, il link si nasconde)
-- [ ] Studio: aggiungere `SHOWCASE_INGEST_URL`, `SHOWCASE_ADMIN_TOKEN`, `NEXT_PUBLIC_SHOWCASE_REVIEW_URL` a `.env.example` e `render.yaml` (`sync: false`)
-- [ ] Studio: max 4 foto per invio (`api/server.py`)
-- [ ] Prova in locale: Studio (porta 3000/8000) → vetrina (porta 3100) → bozza visibile in `/admin/review`
+### Fase 1 — Pulizia e collegamento ✅ quasi completata
+- [x] Studio: branch `claude/determined-knuth-zp63a6` (Reel Studio) unito
+- [x] Studio: tolto `` `r`n `` da `page.tsx` (i commenti di `globals.css` restano, cosmetici)
+- [x] Studio: tolto il fallback `web-five-theta-58` da `ResultsPanel.tsx`
+- [x] Studio: variabili `SHOWCASE_*` documentate
+- [x] Studio: max 4 foto per invio
+- [ ] Prova in locale sul PC: Studio (porta 3000/8000) → vetrina (porta 3100) → bozza visibile in `/admin/review` (si fa insieme a Matteo, serve il PC)
 
 ### Fase 1b — Vetrina funzionante online (repo `monili-vetrina`)
 Problemi bloccanti 🔴, risolti il 27/10/2026 sul branch `claude/blissful-darwin-7tnrfd` (commit `71cd6cc`) e verificati con il sito avviato in produzione:
@@ -245,23 +249,36 @@ Struttura del lancio, **3 pagine** (approvata):
 - Sconsigliato: un bot che risponde da solo ai clienti. La risposta a chi scrive resta di Matteo: è il momento della vendita e il tono "da amica" non si automatizza
 - Il messaggio WhatsApp precompilato contiene nome e link del pezzo, così Matteo sa subito di cosa si parla
 
-### Fase 2 — Design con Claude Design (1–2 giornate)
-- [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito`
-- [ ] Decidere le pagine del lancio (4.2)
-- [x] Design System "I Monili Ravenna" creato il 27/10/2026: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (token del sito "Avorio caldo", stile editoriale del feed Instagram, sala Reel, pietre, 11 componenti)
-- [ ] Approvazione di Matteo sul Design System, poi impostarlo come predefinito
-- [ ] Tavole mobile + desktop (4.2), testi passati con `ig-human`
-- [ ] **Approvazione di Matteo**, max 2 giri per pagina
+### Fase 2 — Design con Claude Design (1–2 giornate) ← **SIAMO QUI**
+- [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito` (repo `monili-vetrina`)
+- [x] Pagine del lancio decise: 3 pagine (4.2)
+- [x] Design System v1 creato il 27/10/2026: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (token "Avorio caldo", stile editoriale del feed Instagram, sala Reel, pietre, 11 componenti)
+- [x] Proposta v2 approvata da Matteo ("ok", 27/10/2026 sera), vedi sezione 10
+- [ ] **Design System v2**: aggiornare lo stesso artifact (stesso URL), poi impostarlo come predefinito
+- [ ] Tavole mobile + desktop delle 3 pagine (4.2), testi passati con `ig-human`, struttura SEO/GEO già prevista (titoli, testi che rispondono a domande vere, blocchi negozio con NAP completo)
+- [ ] `design:design-critique` sulle tavole, poi **approvazione di Matteo**, max 2 giri per pagina
+- [ ] `design:accessibility-review` prima di passare al codice
 
 ### Fase 3 — Backend affidabile (1 giornata)
 - [ ] Tutti i punti della sezione 5
 - [ ] In produzione `PRODUCT_STORE_DRIVER=postgres` e `IMAGE_STORAGE_DRIVER=vercel-blob`, log su Postgres
+- [ ] Stato **venduto** e uscita automatica da "Appena arrivati" dopo 6–8 settimane (campo data di pubblicazione già presente → filtro, niente cron)
+- [ ] Prezzo nel modello scheda già presente (Studio lo invia): verificarlo fino al JSON-LD
 
-### Fase 4 — Restyling frontend (2–3 giornate)
-- [ ] Token e componenti dal Design System in `apps/web`
-- [ ] Pagine del lancio fedeli alle tavole, screenshot di confronto con `run`
+### Fase 3b — Bot Telegram "Venduto" (½ giornata)
+- [ ] Matteo crea il bot con @BotFather e passa il token (variabili `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_CHAT_ID` su Vercel, mai nel codice)
+- [ ] Ogni 2–3 giorni (Vercel Cron) il bot manda a Matteo le foto dei pezzi pubblicati e non venduti, ognuna con i bottoni *Disponibile* / *Venduto*
+- [ ] Webhook `POST /api/telegram/webhook` con controllo del secret token di Telegram e del chat ID: "Venduto" → `publicationStatus` resta `published`, `state = sold`; la pagina mostra "Questo ha già trovato casa. Guarda i simili"
+- [ ] Il bot non scrive mai ai clienti e non legge WhatsApp. Separato da Hermes
+
+### Fase 4 — Restyling frontend + SEO/GEO (2–3 giornate)
+- [ ] Token e componenti dal Design System v2 in `apps/web`
+- [ ] Le 3 pagine fedeli alle tavole, screenshot di confronto con `run`; pagine fuori lancio nascoste da menu e sitemap
+- [ ] Bottone WhatsApp con messaggio precompilato: *"Ciao! Mi piace questo [nome] ([link]), è ancora disponibile?"*; secondario "Scrivici in DM su Instagram"
 - [ ] `/admin/review` comoda da iPhone
-- [ ] SEO locale: metadata, Open Graph, JSON-LD `Product` + `LocalBusiness` (×2 negozi), `sitemap`, Lighthouse mobile ≥ 90
+- [ ] SEO locale (`seo-aeo-geo-ultimate:seo-local`): metadata, Open Graph, JSON-LD `LocalBusiness` ×2 (via Cavour 17 e 21, orari veri) e `Product` con prezzo, `availability` (venduto = `SoldOut`) e, dopo l'ok sulle cifre, `shippingDetails`; `sitemap`
+- [ ] GEO (`ai-seo:llms-txt-ai-crawler-access`, `seo-aeo-geo-ultimate:seo-geo`): `robots.txt` che lascia entrare i crawler di ricerca AI, `llms.txt`, testi che rispondono a domande vere, stesso nome/indirizzo/telefono ovunque
+- [ ] `ai-seo:ai-page-audit` su una scheda pezzo vera; Lighthouse mobile ≥ 90
 - [ ] `code-review` + `security-review`
 
 ### Fase 5 — Messa online (½ giornata)
@@ -270,8 +287,14 @@ Struttura del lancio, **3 pagine** (approvata):
 - [ ] Dominio personalizzato
 - [ ] Studio: `SHOWCASE_INGEST_URL=https://<dominio>/api/ingest/internal-webapp`, `NEXT_PUBLIC_SHOWCASE_REVIEW_URL=https://<dominio>/admin/review`, stesso token dei due lati
 - [ ] Link nel profilo Google Business e nella bio Instagram
+- [ ] Fuori dal sito (conta per Google e per le AI): profilo Google Business completo per entrambi i negozi, richiesta recensioni ai clienti, stessi dati ovunque
+- [ ] Dopo 2–4 settimane: `ai-seo:ai-seo-audit` (ChatGPT/Gemini/Perplexity ci nominano per "bijoux Ravenna"?)
 
-**Totale stimato: 6–8 giornate.** Meno di prima, perché il backend e buona parte del sito esistono già.
+### Fase 6 — Contenuti che spingono la ricerca (continuo, nello Studio)
+- [ ] Caption e Reel con le parole che la gente cerca (pietra, tipo di pezzo, "Ravenna"): regola da aggiungere in `skills/*.md`, non nel codice
+- [ ] Ogni contenuto con un pezzo pubblicato sul sito porta il link alla sua scheda
+
+**Totale stimato: 7–9 giornate.**
 
 ---
 
@@ -291,28 +314,49 @@ Struttura del lancio, **3 pagine** (approvata):
 
 1. ~~Nuovo repo `monili-vetrina`~~ ✅ fatto
 2. **Vercel**: nella dashboard il progetto `web` oggi è Alfred? Vuoi tenere Alfred lì e creare `monili-vetrina` da zero? (consiglio: sì)
-3. **Branch `determined-knuth`** dello Studio: unire o archiviare?
-4. **Pagine del lancio**: va bene partire con Home, Collezioni, Pezzi unici, Scheda prodotto e Contatti?
+3. ~~Branch `determined-knuth`~~ ✅ unito
+4. ~~Pagine del lancio~~ ✅ 3 pagine
 5. **Dominio**: ne hai già uno?
 6. ~~**Prezzi**~~ ✅ sì, visibili sul sito
 7. **Orari e numero WhatsApp** veri dei due negozi di via Cavour
-8. **Logo**: file originali (SVG o PNG ad alta risoluzione)
-9. **Plugin `frontend-design`**: lo installiamo prima della Fase 4?
+8. **Logo**: file originali (SVG o PNG ad alta risoluzione); esiste un monogramma "iM"?
+9. ~~Plugin `frontend-design`~~ ✅ installato
+10. **Spedizioni**: ok a Italia 7 € fissi, gratis sopra 69 €, Europa su preventivo? (dipende dal margine, solo Matteo lo sa)
+11. **Database Neon**: contiene prodotti veri o solo test? Per la produzione serve comunque un database pulito
+12. ~~Canale "Venduto"~~ ✅ bot Telegram dedicato, separato da Hermes
+13. ~~Design System v2~~ ✅ ok
 
 ---
 
-## 10. Punto della situazione e ripartenza (aggiornato 27/10/2026)
+## 10. Punto della situazione e ripartenza (aggiornato 27/10/2026 sera)
 
-**Per riprendere in una nuova chat:** "Leggi `PLAN_VETRINA.md` (sezione 10) in monili-media-agency e continua da dove eravamo".
+**Per riprendere in una nuova chat**, scrivi:
+> Leggi `CLAUDE.md` e `PLAN_VETRINA.md` (sezione 10) nel repo monili-media-agency, branch `claude/blissful-darwin-7tnrfd`, e continua dal primo punto di "Prossimi passi".
+
+### Istruzioni per chi riprende (vale per qualunque modello)
+1. **Leggi prima**: `CLAUDE.md` (tono, colori, regole del brand), questo file per intero, poi l'artifact del Design System (Artifact, `action: "read"` sull'URL qui sotto). Non rifare analisi già fatte: feed Instagram e louisemisha.com sono riassunti più sotto
+2. **Un passo per volta**, nell'ordine di "Prossimi passi". Alla fine di ogni passo: aggiorna le caselle in questo file, commit, push sul branch indicato
+3. **Matteo** preferisce risposte in italiano, dirette e sincere, senza giri di parole; se una scelta è sbagliata diglielo. Fagli domande solo sulle decisioni che spettano a lui (sezione 8), una alla volta, con una raccomandazione. Non tutto in un muro di testo
+4. **Il repo della vetrina** (`matteforex82-bit/monili-vetrina`) non è nella sessione di partenza: in una chat cloud va aggiunto con `add_repo` (accesso `push`) e clonato. Lì valgono le sue regole (`.claude/skills/impeccable`)
+5. **Non** fare push su `master` senza un ok esplicito di Matteo. **Non** cambiare API, store, validazione o ingest durante il restyling (4.3)
+6. **Test**: nello Studio `python -m pytest tests` deve passare prima di ogni push; nella vetrina gli script di `apps/web/package.json` (lint, build, test)
+7. Segreti (token Telegram, Neon, Blob, `ADMIN_*`): solo come variabili d'ambiente, mai nel codice né in questo file
 
 ### Dove sono le cose
-- **Studio + Reel Studio**: repo `matteforex82-bit/monili-media-agency`, `master` (sul PC: `Desktop\PROGETTI AI\monili-deploy-temp`, avvio con `Avvia Agenzia Monili.bat`)
-- **Vetrina (frontend + backend)**: repo privato `matteforex82-bit/monili-vetrina`, `master`, app in `apps/web` (sul PC: `Desktop\PROGETTI AI\Ecosistema Monili`)
-- **Design System**: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (tipo Design System, privato). I sorgenti si rileggono dall'artifact (`project/tokens.json`, `project/README.md`, `project/components/*`)
-- **Skill**: Impeccable in `monili-vetrina/.claude/skills/impeccable` (guida principale; il suo programma di controllo NON è autorizzato); plugin attivi: frontend-design, Design (Anthropic), audit-suite
+- **Studio + Reel Studio**: repo `matteforex82-bit/monili-media-agency`, `master` (sul PC: `Desktop\PROGETTI AI\monili-deploy-temp`, avvio con `Avvia Agenzia Monili.bat`). Questo piano sta sul branch `claude/blissful-darwin-7tnrfd` (avanti rispetto a `master` solo con commit di documenti: da unire in `master` quando Matteo dà l'ok)
+- **Vetrina (frontend + backend)**: repo privato `matteforex82-bit/monili-vetrina`, `master` (`7f438be`), app in `apps/web` (sul PC: `Desktop\PROGETTI AI\Ecosistema Monili`)
+- **Design System v1**: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (tipo Design System, privato). Sorgenti: `project/tokens.json`, `project/README.md`, `project/components/*`. La v2 va pubblicata **sullo stesso URL**, non su uno nuovo
+- **Skill e plugin**: Impeccable (guida principale per il codice; il suo programma di controllo NON è autorizzato), frontend-design (alternativa, non insieme), Design (Anthropic: `design-critique`, `accessibility-review`), audit-suite (`web-animation-design`, `make-interfaces-feel-better`), **SEO-AEO-GEO Ultimate** e **AI SEO** (installati il 27/10, vedi tabella 4.4), `instagram-agent:ig-human` per i testi
 
-### Fatto
-Fasi 0, 1b e correzioni arancio (vedi sopra), Reel Studio unito, prezzo nello Studio, Design System v1.
+### Fatto fino a qui
+- Fase 0: vetrina messa al sicuro su GitHub
+- Fasi 1 e 1b: bug bloccanti risolti, admin protetto, "Approva" pubblica subito senza rideploy, limite 4,5 MB gestito, prezzo nello Studio, link ad Alfred rimosso, branch uniti in `master` e `git pull` fatto sul PC
+- Reel Studio unito nello Studio
+- Design System v1
+- **27/10 sera, decise con Matteo**: cosa è il sito (vetrina di brand a novità, niente e-commerce, niente collezioni), 3 pagine, prezzi visibili, SEO + GEO come obiettivo principale, bot Telegram per "Venduto", spedizioni Italia + Europa, Design System v2 approvato. Dettagli in sezione 6, "Scelte del 27/10/2026 (2)"
+
+### Il sito in una frase
+Una vetrina che sembra il feed editoriale di Instagram ma fa quello che Instagram non fa: farsi trovare su Google e dalle AI, dare un link fisso a ogni pezzo da girare su WhatsApp, portare la gente nei due negozi di via Cavour. La vendita avviene su WhatsApp e DM, risponde sempre Matteo.
 
 ### Analisi del feed Instagram (base del Design System)
 - I post migliori sono **editoriali**: occhiello "I MONILI RAVENNA" maiuscolo spaziato, titolo serif leggero con punto finale ("Un capo che parla di stile.", "Non sono semplici orecchini.", "Colori che illuminano il viso."), filetto, sottotitolo corsivo, chiusa "Ti aspettiamo in boutique". Variante gioielli: titolo in basso al centro + materiali in maiuscolo
@@ -332,25 +376,25 @@ Si prendono i principi, non codice/logo/foto/layout identico:
 - Font loro: Forum + Outfit (Google Fonts, liberi) e Pitch Sans (a pagamento, escluso)
 - Niente carrello/account/newsletter a comparsa: al loro posto WhatsApp e "Vieni in negozio"
 
-### Proposta in attesa dell'ok di Matteo (aggiornamento Design System v2)
+### Design System v2: cosa cambia (approvato da Matteo il 27/10/2026)
 1. Inter → **Outfit** per menu e testi (il cambio più visibile)
-2. **Cormorant Garamond resta** per i titoli, anche in maiuscolo sulle foto (niente Forum: due serif troppi e sembrerebbe Louise Misha)
-3. Nuovi componenti: header trasparente, mega menu con foto, griglia a tessere da bordo a bordo, invito sottolineato
-4. Token di movimento (curva e tempi sopra)
-5. **Terracotta** come accento al posto del verde acqua (coerente con CLAUDE.md)
+2. **Cormorant Garamond resta** per i titoli, anche in maiuscolo sulle foto (niente Forum: due serif sono troppi e sembrerebbe Louise Misha)
+3. Nuovi componenti: header trasparente, mega menu con foto (al lancio con le 3 voci + filtri per tipo), griglia a tessere da bordo a bordo, invito sottolineato, card "Appena arrivati" con prezzo in stile cartellino, blocco "Vieni a trovarci" con "Aperto ora", stato "Questo ha già trovato casa"
+4. Token di movimento (curva e tempi del riferimento sopra), `prefers-reduced-motion` rispettato
+5. **Terracotta** `#c8593a` come accento al posto del verde acqua, oro `#c79849` (coerente con CLAUDE.md)
 
-### Domande ancora aperte
-- Ok alla proposta v2 qui sopra?
-- Cosa c'è nel database Neon (prodotti veri o solo test)? → serve comunque un database pulito per la produzione
-- Logo SVG e monogramma "iM": esistono?
-- Numero WhatsApp/telefono e orari veri dei due negozi; dominio
-
-- Spedizioni: **sì, in Italia e in Europa** (già spedito in Germania). Costo reale per Matteo: 6–10 € a spedizione. Proposta: **Italia 7 € fissi, gratis sopra 69 €** (a 69 € la spedizione pesa ~12%, e spinge ad aggiungere un secondo pezzo); **Europa: preventivo su WhatsApp**. Sul sito e nel JSON-LD `shippingDetails` solo dopo l'ok di Matteo sulle cifre
+### Dati che mancano (chiederli a Matteo quando servono, non prima)
+- Numero WhatsApp/telefono e orari veri dei due negozi → servono per le tavole (si può partire con segnaposto evidenti)
+- Logo SVG e monogramma "iM" → servono per il Design System v2 (segnaposto testuale finché mancano)
+- Ok sulle cifre di spedizione (7 € / gratis sopra 69 €) → servono solo in Fase 4
+- Dominio, contenuto del database Neon → servono in Fase 5
 
 ### Prossimi passi, in ordine
-1. Design System v2 (dopo l'ok)
-2. Tavole delle 3 pagine con Claude Design (Home "Al bancone", Scheda pezzo, Negozi e contatti), mobile + desktop, foto vere, con la parte SEO/GEO già prevista
-3. Ingest dei video Reel dallo Studio alla vetrina (parte dinamica scelta n.1)
-4. Codice del frontend (Impeccable), passaggi e filtri animati (parte dinamica n.2)
-5. Deploy su Vercel (progetto nuovo `monili-vetrina`, database pulito)
-
+1. **Design System v2** sull'artifact esistente, poi impostarlo come predefinito (Fase 2)
+2. **Tavole delle 3 pagine** con Claude Design (Artifact `quickstart`, `intent: "design"`): Home "Al bancone", Scheda pezzo nei 4 stati, Negozi e contatti, mobile + desktop, foto e prezzi veri, testi con `ig-human`, struttura SEO/GEO già prevista. `design-critique`, poi ok di Matteo (max 2 giri)
+3. **Backend**: stato venduto, archivio automatico dopo 6–8 settimane, punti della sezione 5 (Fase 3)
+4. **Codice del frontend** nel repo `monili-vetrina` con Impeccable, passaggi e filtri animati, SEO/GEO completo (Fase 4)
+5. **Bot Telegram "Venduto"** (Fase 3b)
+6. **Ingest dei video Reel** dallo Studio alla vetrina (parte dinamica n.1)
+7. **Deploy** su Vercel: progetto nuovo `monili-vetrina`, database pulito, dominio (Fase 5)
+8. Google Business, recensioni, controllo visibilità AI, contenuti dello Studio orientati alla ricerca (Fasi 5 e 6)
