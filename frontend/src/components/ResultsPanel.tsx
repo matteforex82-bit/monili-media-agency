@@ -39,9 +39,11 @@ type ShowcaseCandidate = {
   error?: string;
 };
 
-const SHOWCASE_REVIEW_URL =
-  process.env.NEXT_PUBLIC_SHOWCASE_REVIEW_URL ||
-  'https://web-five-theta-58.vercel.app/admin/review';
+// Empty until the showcase site is online: the link is hidden rather than
+// pointing to a domain that is not ours.
+const SHOWCASE_REVIEW_URL = process.env.NEXT_PUBLIC_SHOWCASE_REVIEW_URL || '';
+// Must match SHOWCASE_MAX_IMAGES in api/server.py (Vercel body size limit).
+const SHOWCASE_MAX_IMAGES = 4;
 
 function parseJsonObject<T>(raw: string | undefined, fallback: T): T {
   if (!raw) return fallback;
@@ -184,6 +186,8 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<any | null>(null);
+  const [price, setPrice] = useState('');
+  const [onRequest, setOnRequest] = useState(false);
 
   const loadCandidates = async () => {
     if (!runId) return;
@@ -212,7 +216,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
       setCandidates(items);
       const recommended = items.filter((item) => item.available && item.recommended).map((item) => item.src);
       const fallback = items.filter((item) => item.available).map((item) => item.src);
-      setSelected((recommended.length ? recommended : fallback).slice(0, 6));
+      setSelected((recommended.length ? recommended : fallback).slice(0, SHOWCASE_MAX_IMAGES));
     } catch (err) {
       setError(`Analisi immagini non disponibile: ${err}`);
     } finally {
@@ -236,7 +240,11 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
       const res = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId)}/showcase/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selected_images: selected }),
+        body: JSON.stringify({
+          selected_images: selected,
+          price: onRequest ? null : price.trim(),
+          on_request: onRequest,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || data?.details?.error || `HTTP ${res.status}`);
@@ -264,6 +272,29 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
         </div>
       </div>
       {error && <p className="result-error">{error}</p>}
+      <div className="showcase-price">
+        <label>
+          Prezzo (€)
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="es. 22,50"
+            value={price}
+            disabled={onRequest}
+            onChange={(e) => setPrice(e.target.value)}
+          />
+        </label>
+        <label className="showcase-price-check">
+          <input type="checkbox" checked={onRequest} onChange={(e) => setOnRequest(e.target.checked)} />
+          Su richiesta (senza prezzo)
+        </label>
+        {!onRequest && !price.trim() && (
+          <small>Senza prezzo la scheda arriva come bozza da completare nell&apos;admin del sito.</small>
+        )}
+      </div>
+      <p className="result-image-note">
+        Foto per il sito: {selected.length}/{SHOWCASE_MAX_IMAGES} selezionate.
+      </p>
       {candidates.length > 0 && (
         <div className="result-image-grid compact">
           {candidates.map((item, index) => (
@@ -271,7 +302,10 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
               <input
                 type="checkbox"
                 checked={selected.includes(item.src)}
-                disabled={!item.available}
+                disabled={
+                  !item.available ||
+                  (!selected.includes(item.src) && selected.length >= SHOWCASE_MAX_IMAGES)
+                }
                 onChange={() =>
                   setSelected((prev) => (prev.includes(item.src) ? prev.filter((src) => src !== item.src) : [...prev, item.src]))
                 }
@@ -288,9 +322,11 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
         </div>
       )}
       {result && <p className="result-ok">Draft creato: {result.ingest?.created_id || 'invio completato'}</p>}
-      <a href={SHOWCASE_REVIEW_URL} target="_blank" rel="noreferrer" className="result-link">
-        Apri review admin
-      </a>
+      {SHOWCASE_REVIEW_URL && (
+        <a href={SHOWCASE_REVIEW_URL} target="_blank" rel="noreferrer" className="result-link">
+          Apri review admin
+        </a>
+      )}
     </section>
   );
 }

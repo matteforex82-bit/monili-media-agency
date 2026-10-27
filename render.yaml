@@ -20,6 +20,10 @@ services:
         value: "1"
       - key: MAX_UPLOAD_BYTES
         value: "26214400"
+      - key: SHOWCASE_INGEST_URL
+        sync: false
+      - key: SHOWCASE_ADMIN_TOKEN
+        sync: false
 
   - type: web
     name: monili-frontend
@@ -33,3 +37,5 @@ services:
         value: 20.11.0
       - key: NEXT_PUBLIC_API_URL
         value: https://monili-backend.onrender.com
+      - key: NEXT_PUBLIC_SHOWCASE_REVIEW_URL
+        sync: false

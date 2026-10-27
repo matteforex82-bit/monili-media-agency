@@ -592,6 +592,39 @@ body > * { position: relative; z-index: 1; }
   border-radius: 8px;
 }
 
+.showcase-price {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-family: var(--bot-font-sans);
+  font-size: 13px;
+  color: var(--espresso);
+}
+
+.showcase-price label {
+  display: grid;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.showcase-price input[type='text'] {
+  max-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--cream-2);
+  font: inherit;
+  font-weight: 400;
+}
+
+.showcase-price .showcase-price-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+}
+
+.showcase-price small,
 .showcase-pick small {
   font-family: var(--bot-font-sans);
   font-size: 11px;

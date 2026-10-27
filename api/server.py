@@ -73,6 +73,11 @@ SHOWCASE_MAX_IMAGE_BYTES = int(os.environ.get("SHOWCASE_MAX_IMAGE_BYTES", "65000
 SHOWCASE_MIN_IMAGE_WIDTH = int(os.environ.get("SHOWCASE_MIN_IMAGE_WIDTH", "900"))
 SHOWCASE_MIN_IMAGE_HEIGHT = int(os.environ.get("SHOWCASE_MIN_IMAGE_HEIGHT", "900"))
 SHOWCASE_MIN_SHARPNESS_SCORE = float(os.environ.get("SHOWCASE_MIN_SHARPNESS_SCORE", "14.0"))
+# Vercel functions reject request bodies above ~4.5 MB: 4 site photos (base64)
+# stay well below it, and the payload is measured again before sending.
+SHOWCASE_MAX_IMAGES = int(os.environ.get("SHOWCASE_MAX_IMAGES", "4"))
+SHOWCASE_MAX_PAYLOAD_BYTES = int(os.environ.get("SHOWCASE_MAX_PAYLOAD_BYTES", str(4_200_000)))
+SHOWCASE_MAX_PRICE_EUR = 100_000
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 HEIC_EXTENSIONS = {".heic", ".heif"}
 ALLOWED_IMAGE_CONTENT_TYPES = {
@@ -489,7 +494,39 @@ def _send_payload_to_showcase(payload: dict) -> dict:
         return {"ok": False, "status_code": None, "error": str(exc)}
 
 
-def _build_showcase_payload(run_id: str, selected_images: list[str]) -> dict[str, Any]:
+def _parse_showcase_price(body: dict) -> tuple[float | None, bool]:
+    """Price typed by the owner in the Studio: (price, on_request).
+
+    Accepts numbers or strings like "22" / "22,50" / "€ 22.50"; empty means
+    "no price yet" (the draft is completed later in the showcase admin).
+    """
+    on_request = bool(body.get("on_request"))
+    if on_request:
+        return None, True
+    raw = body.get("price")
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return None, False
+    if isinstance(raw, bool):
+        raise ValueError("Prezzo non valido.")
+    if isinstance(raw, (int, float)):
+        value = float(raw)
+    else:
+        cleaned = re.sub(r"[€\s]", "", str(raw)).replace(",", ".")
+        try:
+            value = float(cleaned)
+        except ValueError as exc:
+            raise ValueError("Prezzo non valido: usa un numero, ad esempio 22 o 22,50.") from exc
+    if not (0 < value < SHOWCASE_MAX_PRICE_EUR):
+        raise ValueError("Prezzo non valido: deve essere maggiore di zero.")
+    return round(value, 2), False
+
+
+def _build_showcase_payload(
+    run_id: str,
+    selected_images: list[str],
+    price: float | None = None,
+    on_request: bool = False,
+) -> dict[str, Any]:
     found = _find_manifest_by_run_id(run_id)
     if not found:
         raise ValueError("Run non trovato.")
@@ -521,6 +558,12 @@ def _build_showcase_payload(run_id: str, selected_images: list[str]) -> dict[str
     )
     category = _pick_category(product_signal_text)
     state = _pick_state(product_signal_text)
+    # The owner's choice in the Studio wins over the state guessed from the text:
+    # "su richiesta" has no price, and a typed price means the piece is for sale.
+    if on_request:
+        state = "req"
+    elif price is not None and state == "req":
+        state = "disp"
     product_id = _slugify(f"{title}-{run_id}")
     output_dir_name = manifest_path.parent.name
 
@@ -529,7 +572,7 @@ def _build_showcase_payload(run_id: str, selected_images: list[str]) -> dict[str
     rejected_sources: list[dict[str, Any]] = []
     processed: set[str] = set()
 
-    for idx, raw_src in enumerate(selected_images[:8]):
+    for idx, raw_src in enumerate(selected_images[:SHOWCASE_MAX_IMAGES]):
         source_abs = _resolve_output_relative_path(raw_src)
         if not source_abs:
             rejected_sources.append({"src": raw_src, "reason": "file-not-found-or-outside-output"})
@@ -581,7 +624,7 @@ def _build_showcase_payload(run_id: str, selected_images: list[str]) -> dict[str
         "title": title,
         "category": category,
         "state": state,
-        "price": None,
+        "price": price,
         "currency": "EUR",
         "summary": summary or None,
         "story": story or None,
@@ -1074,7 +1117,8 @@ async def showcase_publish(run_id: str, body: dict | None = None):
         return JSONResponse({"error": "Seleziona almeno una foto disponibile."}, status_code=400)
 
     try:
-        prepared = _build_showcase_payload(run_id, selected)
+        price, on_request = _parse_showcase_price(body if isinstance(body, dict) else {})
+        prepared = _build_showcase_payload(run_id, selected, price=price, on_request=on_request)
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
@@ -1094,6 +1138,19 @@ async def showcase_publish(run_id: str, body: dict | None = None):
     }
     audit_target = SHOWCASE_DRAFTS_DIR / f"{audit_id}.json"
     audit_target.write_text(json.dumps(audit_payload, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    payload_bytes = len(json.dumps(prepared["payload"], ensure_ascii=False).encode("utf-8"))
+    if payload_bytes > SHOWCASE_MAX_PAYLOAD_BYTES:
+        return JSONResponse(
+            {
+                "error": (
+                    f"Scheda troppo pesante per il sito ({payload_bytes / 1_000_000:.1f} MB): "
+                    "togli una foto e riprova."
+                ),
+                "audit_path": str(audit_target),
+            },
+            status_code=413,
+        )
 
     ingest_result = _send_payload_to_showcase(prepared["payload"])
     if not ingest_result.get("ok"):
