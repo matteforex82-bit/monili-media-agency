@@ -1,71 +1,91 @@
 # Piano — Sito Vetrina I Monili Ravenna
 
-> Stato: **bozza da approvare** · Creato il 27/10/2026
-> Obiettivo: completare il frontend pubblico della vetrina, che finora è stato solo "predisposto" dal lato Studio AI.
+> Stato: **bozza da approvare** · Creato il 27/10/2026 · Aggiornato il 27/10/2026 dopo il ritrovamento del progetto "Ecosistema Monili"
+> Obiettivo: **riprendere** il sito vetrina già iniziato (frontend + backend), metterlo al sicuro, ridisegnare il frontend con Claude Design e portarlo online collegato allo Studio AI.
 
 ---
 
 ## 1. Cosa c'è davvero oggi (stato verificato)
 
-Partiamo dalla verità, perché cambia tutto il piano: **in questo repository il sito vetrina pubblico non esiste.**
-Quello che è stato costruito è solo il lato che *invia* i prodotti alla vetrina.
+Il sito vetrina **esiste**, frontend e backend, ma **solo sul PC di Matteo**: non è mai arrivato su GitHub.
 
-### ✅ Esiste ed è funzionante
+### 1.1 I due pezzi dell'ecosistema
 
 | Pezzo | Dove | Cosa fa |
 |---|---|---|
-| Agente "SITO VISUAL" | `main.py` (`agent_showcase_visual_prompts`, `generate_showcase_images`) | Genera 3 foto dedicate al sito in 4:5 dentro `output/<run>/07_SHOWCASE/` |
-| Pacchetto SEO pagina vetrina | `main.py` (sezione `## PAGINA VETRINA / SHOPIFY / SITO`) | Titolo SEO, meta description, H1, descrizione 120 parole, alt text, 5 FAQ |
-| Candidati foto | `GET /missions/{run_id}/showcase/candidates` in `api/server.py` | Elenca le foto del run utilizzabili per il sito, con quality report |
-| Preparazione scheda prodotto | `_build_showcase_payload` in `api/server.py` | Quality gate, resize a 1200×1500 JPEG, crea la `product_fiche` |
-| Invio alla vetrina | `POST /missions/{run_id}/showcase/publish` | Salva un audit in `showcase-drafts/` e fa POST a `SHOWCASE_INGEST_URL` |
-| Pannello "Pubblica sul sito vetrina" | `frontend/src/components/ResultsPanel.tsx` (`ShowcasePublishPanel`, tab `sito`) | Scelta foto e invio dallo Studio |
+| **Studio AI** (mittente) | Questo repo `monili-media-agency` su GitHub (copia locale: `Desktop\PROGETTI AI\monili-deploy-temp`) | Genera contenuti e foto, prepara la `product_fiche`, la invia con "Pubblica sul sito vetrina" |
+| **Sito vetrina** (ricevente) | `C:\Users\matte\Desktop\PROGETTI AI\Ecosistema Monili\apps\web` — **solo in locale** | Riceve le schede, admin review, pagine pubbliche |
 
-### ❌ Manca / è rotto
+### 1.2 Il sito vetrina: `Ecosistema Monili\apps\web`
 
-1. **Il sito vetrina vero e proprio** (catalogo pubblico, schede prodotto, negozi). Nessun codice nel repo.
-2. **L'endpoint di ingest** che riceve la `product_fiche`. `SHOWCASE_INGEST_URL` non è configurata da nessuna parte (né `.env.example`, né `render.yaml`): oggi ogni "Pubblica" finisce in errore 502.
-3. **Il link "review"** in `ResultsPanel.tsx` punta a `https://web-five-theta-58.vercel.app/admin/review`.
-   Verificato oggi: quel dominio Vercel ora serve un altro progetto ("Alfred — Il tuo coach personale") e `/admin/review` risponde **404**. Va sostituito.
-4. **Bug visibile nello Studio**: in `frontend/src/app/page.tsx` (hero, ~riga 663) c'è il testo letterale `` `r`n `` (residuo di uno script PowerShell) tra "Cosa lanciamo" e "oggi in vetrina?". Si vede a schermo.
-5. Commenti di `globals.css` con caratteri corrotti (`â•â•…`): problema di encoding, innocuo ma da ripulire.
+- **Stack**: Next.js 16.2.4 (App Router), React 19.2.4, `pg`, `@vercel/blob`
+- **Dati** (`src/lib/persistence-driver.ts`):
+  - schede: `PRODUCT_STORE_DRIVER` = `json-file` (`data/products.json`) oppure `postgres` → in `.env.local` è **postgres (Neon)**
+  - immagini: `IMAGE_STORAGE_DRIVER` = `local-public` (`public/media`) oppure `vercel-blob` → in `.env.local` è **vercel-blob**
+  - log eventi: `data/ops-events.ndjson`, backup in `data/backups/`
+- **API**
+  - `POST /api/ingest/internal-webapp`: riceve le schede (header `x-admin-token`, controllo in `src/lib/admin-auth.ts`). Accetta `product_fiche` (modalità `product-fiche-v1`) e un adattatore legacy `buildProductFicheFromMissionPayload`
+  - `GET/POST /api/products`, `GET/PATCH /api/products/[id]` (cambio `publicationStatus`, incluso `published`)
+  - `POST /api/admin/login`, `/api/admin/logout`, `/api/admin/ops/events`
+  - `/api/media/reference/[...path]`
+- **Pagine admin**: `/admin/login`, `/admin/review` (`src/components/admin-review-client.tsx`), `/admin/ops`
+- **Pagine pubbliche**: `/`, `/collezioni`, `/pezzi-unici`, `/instagram`, `/outfit-della-settimana`, `/laboratorio`, `/chi-siamo`, `/contatti`, `/p/[slug]`, `sitemap.ts`. Mostrano solo i prodotti `published`
+- **Logica scheda** (`src/lib/`): `product-fiche.ts`, `product-fiche-store.ts`, `product-fiche-validation.ts`, `internal-mission-adapter.ts`, `ingest-image-archive.ts`, `auto-copy-humanizer.ts`, `publish-readiness.ts`
+- **Script**: `scripts/ops-report.mjs`, `ops-archive-by-run.mjs`, `ops-clean-nightly.mjs`
+- **Vercel**: `apps/web/.vercel/project.json` → progetto **`web`** (nessun `vercel.json`)
+- **Variabili d'ambiente** (solo nomi): `ADMIN_API_TOKEN`, `ADMIN_DASH_USER`, `ADMIN_DASH_PASSWORD`, `ADMIN_SESSION_SECRET`, `BLOB_READ_WRITE_TOKEN`, `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `IMAGE_STORAGE_DRIVER`, `NEON_PROJECT_ID`, `NEXT_PUBLIC_SITE_URL`, `PG*`, `POSTGRES_*`, `PRODUCT_STORE_DRIVER`, `VERCEL_OIDC_TOKEN`
 
-### ⚠️ Attenzione: lavoro non unito
+### 1.3 Materiale di design già esistente (in `Ecosistema Monili\reference\`)
+- `showcase-wireframe-claude-design/`: **wireframe già fatti con Claude Design**
+- `hi fi sito/`: versione hi-fi del sito
+- `humanizer-skill/`, `internal-web-app-original/` (copia dello Studio), `tmp-outfit-import/`
+- In `docs/`: `agents`, `project-memory` (changelog, current-state, integrations), `superpowers`
 
-Esiste il branch `claude/determined-knuth-zp63a6` con **9 commit non uniti a `master`** (Reel Studio, skills, risultati, test) che tocca anche `frontend/src/app/page.tsx` e `globals.css`.
-Va deciso **prima** di iniziare: unirlo o archiviarlo. Se lo lasciamo lì e lavoriamo sul frontend, poi i conflitti li paghiamo con gli interessi.
+### 1.4 ⚠️ Problemi seri da sapere subito
+
+1. **Il sito non ha nessun backup.** Esiste solo su quel PC. Se il disco si rompe, si perde tutto. È la prima cosa da sistemare.
+2. **Git è collegato al repository sbagliato.** Il remote `origin` di `Ecosistema Monili` è `monili-media-agency.git`, cioè **questo** repo dello Studio, ma con una storia completamente diversa (`5957bd5 Initial commit: Ecosistema Monili…`). Un `git push` da lì andrebbe in conflitto con il `master` dello Studio, e un push forzato lo **cancellerebbe**. Non fare push da quella cartella finché non sistemiamo il remote.
+3. **Il dominio Vercel è stato preso da un altro progetto.** Il progetto Vercel del sito si chiama `web`, come quello di Alfred/Jarvis. Molto probabilmente un deploy di Alfred è finito nello stesso progetto e ha sostituito la vetrina: per questo `web-five-theta-58.vercel.app` oggi mostra Alfred e `/admin/review` dà 404. Va verificato nella dashboard Vercel.
+4. **Lo Studio punta all'indirizzo sbagliato.** La vetrina riceve su `/api/ingest/internal-webapp`, ma `SHOWCASE_INGEST_URL` nello Studio non è configurata da nessuna parte. I due token devono coincidere: `SHOWCASE_ADMIN_TOKEN` (Studio) = `ADMIN_API_TOKEN` (vetrina).
+5. **Modifiche non salvate** in `Ecosistema Monili`: `AGENTS.md`, `docs/project-memory/*.md`, `.claude/settings.local.json` modificati, `Avvia Agenzia Monili.bat` mai aggiunto a git.
+
+### 1.5 Problemi nello Studio (questo repo)
+- Il link "review" in `frontend/src/components/ResultsPanel.tsx` ha come fallback `https://web-five-theta-58.vercel.app/admin/review` (oggi è Alfred, 404)
+- Bug visibile: `` `r`n `` letterale nell'hero di `frontend/src/app/page.tsx` (~riga 663)
+- Commenti con caratteri corrotti in `frontend/src/app/globals.css`
+- Il branch `claude/determined-knuth-zp63a6` ha **9 commit non uniti** (Reel Studio, skills, test) che toccano gli stessi file del frontend: va unito o archiviato prima di lavorarci
+
+### 1.6 Altre cartelle "Monili" sul PC (da fare ordine, non urgenti)
+`Desktop\PROGETTI AI\`: `app monili post` (+ `- Copia`), `INSTAGRMA MONILI`, `NUOVA APP PER MONILI RAVENNA` · `Desktop\I MONILI BUROCRAZIA` · `OneDrive\Desktop\Monili Dash`, `OneDrive\Desktop\Sito Monili` · `C:\Users\matte\MoniliStorage` (storage locale dello Studio).
+**`OneDrive\Desktop\Sito Monili` va aperta**: potrebbe essere un'altra versione del sito.
 
 ---
 
-## 2. Il contratto già deciso (da rispettare)
-
-Lo Studio manda già questo JSON. La vetrina deve accettarlo così com'è, senza costringerci a riscrivere il backend.
+## 2. Il contratto tra Studio e vetrina (già implementato da entrambi i lati)
 
 ```http
-POST {SHOWCASE_INGEST_URL}
+POST https://<dominio-vetrina>/api/ingest/internal-webapp
 Content-Type: application/json
-x-admin-token: {SHOWCASE_ADMIN_TOKEN}
+x-admin-token: <SHOWCASE_ADMIN_TOKEN = ADMIN_API_TOKEN>
 ```
 
 ```jsonc
 {
   "run_id": "20261027_1830",
   "product_fiche": {
-    "id": "orecchini-cerchio-dorati-20261027-1830",   // slug
+    "id": "orecchini-cerchio-dorati-20261027-1830",
     "title": "Orecchini a cerchio dorati",
     "category": "gioielli | bijoux | accessori | abbigliamento",
     "state": "disp | unique | req | sold",
-    "price": null,                                      // sempre presente, anche null
+    "price": null,
     "currency": "EUR",
-    "summary": "…",                                     // opzionale
-    "story": "…",                                       // opzionale (caption scelta)
-    "materials": ["argento 925"],                       // opzionale
-    "images": [{ "src": "data:image/jpeg;base64,…", "alt": "…" }],  // max 8, 1200×1500
+    "summary": "…", "story": "…", "materials": ["argento 925"],
+    "images": [{ "src": "data:image/jpeg;base64,…", "alt": "…" }],   // max 8, 1200×1500
     "availability": { "inStore": true, "reservable": true, "shipsFrom": "Ravenna" },
-    "availableAt": ["via-cavour-17"],                   // via-cavour-17 (bijoux/gioielli) | via-cavour-21 (abbigliamento/accessori)
+    "availableAt": ["via-cavour-17"],          // via-cavour-17 | via-cavour-21
     "whatsappPreset": "prodotto | negozio | richiesta | simili",
-    "relatedTags": ["imoniliravenna", "…"],             // opzionale
-    "seo": { "title": "…", "description": "…" },        // opzionale
+    "relatedTags": ["imoniliravenna"],
+    "seo": { "title": "…", "description": "…" },
     "updatedAt": "ISO-8601",
     "publicationStatus": "draft",
     "sourceSystem": "internal-web-app",
@@ -74,235 +94,149 @@ x-admin-token: {SHOWCASE_ADMIN_TOKEN}
 }
 ```
 
-Risposta attesa dallo Studio: `2xx` con `{ "item": { "id": "…" } }`.
+Tutto arriva come `draft`: niente va online senza un "Approva" in `/admin/review`. Va bene così.
 
-**Regola chiave**: tutto arriva come `draft`. Niente va online senza un tuo "Approva" nella pagina admin. È giusto così: l'AI sbaglia categoria/prezzo abbastanza spesso da non meritare la pubblicazione automatica.
+**Rischio tecnico da verificare**: le funzioni Vercel accettano body di **max ~4,5 MB**. Lo Studio può inviare fino a 8 foto in base64 da ~650 KB (~7 MB) → l'ingest fallirebbe proprio sui prodotti con più foto. Rimedio semplice: max 4 foto per invio in `api/server.py` (`selected_images[:4]`).
 
 ---
 
-## 3. Decisioni di architettura (la mia raccomandazione)
+## 3. Decisioni di architettura
 
-| Tema | Scelta consigliata | Perché |
+| Tema | Scelta | Note |
 |---|---|---|
-| Dove vive il codice | Nuova app Next.js in **`vetrina/`** in questo repo (accanto a `frontend/`) | Contratto e brand stanno nello stesso posto; ma app separata dallo Studio, che è uno strumento interno **senza login** e non deve finire sul dominio pubblico |
-| Hosting | **Vercel** (progetto nuovo, dominio tipo `imoniliravenna.it`) | Next.js nativo, gratis per questo volume, Render free va in sleep e farebbe aprire il sito in 30–50 s |
-| Database | **Vercel Postgres / Neon** (tabella `products`) | Su Vercel il disco non è persistente: un file JSON non sopravvive |
-| Immagini | **Vercel Blob** (decodifico i `data:` URL all'ingest e salvo URL pubblico) | Le immagini non devono stare in base64 nel DB |
-| Rendering | Pagine statiche con **ISR** (`revalidate` + `revalidatePath` all'approvazione) | Veloce, ottimo per SEO locale |
-| Pagamenti | **Nessun checkout**: prenotazione via WhatsApp | Coerente con "un'amica che consiglia", e zero complessità di e-commerce |
-
-### ⚠️ Problema tecnico da risolvere subito
-Le funzioni serverless di Vercel accettano body di **max ~4,5 MB**. Lo Studio manda fino a 8 foto in base64 da ~650 KB → fino a **~7 MB**: l'ingest fallirebbe proprio con i prodotti con più foto.
-Soluzione (piccola modifica in `api/server.py`): limitare a **4 immagini per invio** (`selected_images[:4]`) oppure inviare la scheda senza immagini e poi caricarle una per una su `/api/ingest/{id}/images`. Consiglio la prima: 4 foto bastano per una scheda.
+| Stack vetrina | **Si tiene quello esistente**: Next.js 16 + Neon Postgres + Vercel Blob | È già la scelta giusta: non si riscrive niente |
+| Repository | **Nuovo repo privato `monili-vetrina`** per `Ecosistema Monili` | La sua storia git non c'entra con lo Studio: mescolarle crea solo guai. Lo Studio resta in `monili-media-agency` |
+| Hosting | **Nuovo progetto Vercel `monili-vetrina`** (non più `web`) + dominio personalizzato | Nome univoco: non deve più succedere che Alfred lo sovrascriva |
+| Pagamenti | Nessun checkout, prenotazione via WhatsApp | Coerente con il tono del brand |
 
 ---
 
-## 4. Pagine del sito vetrina
+## 4. Frontend: prima Claude Design, poi le skill
 
-Tono e visual da `CLAUDE.md`: caldo, complice, mai formale; neutri caldi, bianco ottico, terracotta e oro; foto luminose e naturali.
+Scelta di Matteo: il frontend va rifatto con **Claude Design** e con le **migliori skill disponibili**.
+Regola: **prima si disegna e si approva, poi si scrive codice.**
+Buona notizia: c'è già una base, cioè `reference/showcase-wireframe-claude-design` e `reference/hi fi sito`. **Si parte da lì, non da un foglio bianco.**
 
-1. **Home `/`**
-   - Hero con 1 foto forte + claim breve ("Il tuo prossimo dettaglio preferito è in via Cavour")
-   - "Nuovi arrivi" (ultimi 8 approvati)
-   - 4 tessere categoria: Bijoux · Gioielli · Accessori · Abbigliamento
-   - I due negozi (via Cavour 17 e 21) con orari e "Come arrivare"
-   - CTA WhatsApp fissa + link Instagram
+### 4.1 Design System "I Monili Ravenna" (tipo *Design System* di Claude)
+Oggi non c'è nessun design system salvato nell'account: lo creiamo e lo impostiamo come **predefinito**.
+- **README del brand**: tono e regole visive da `CLAUDE.md` (caldo, complice, mai formale; foto luminose, niente filtri esagerati)
+- **Token**: neutri caldi, bianco ottico, terracotta `#c8593a`, oro `#c79849`; Instrument Serif + Manrope; spaziature, raggi, ombre. Si confrontano con quelli già usati in `apps/web` e nell'hi-fi
+- **Componenti**: `ProductCard` 4:5, `BadgeStato` (disponibile · pezzo unico · su richiesta · già adottato), `BottoneWhatsApp`, filtri collezione, `CardNegozio` (via Cavour 17 e 21), header, footer, empty state
+- **Asset**: logo e favicon (servono i file originali)
 
-2. **Catalogo `/prodotti`**
-   - Griglia 4:5 (2 colonne mobile, 3–4 desktop)
-   - Filtri: categoria, disponibilità (`disp` / `unique` / `sold` come "Già adottato 💛")
-   - Ordinamento: più recenti
+### 4.2 Tavole delle pagine (tipo *Design* di Claude)
+In mobile (390 px) e desktop (1440 px), partendo dai wireframe esistenti:
+- `/` · `/collezioni` · `/pezzi-unici` · `/p/[slug]` (una tavola per ognuno dei 4 stati) · `/outfit-della-settimana` · `/instagram` · `/laboratorio` · `/chi-siamo` · `/contatti`
+- `/admin/review` (deve essere comodissima da iPhone: è lì che approvi ogni giorno)
+- Contenuti **veri**: 6–8 prodotti reali dalle foto `07_SHOWCASE` dello Studio
+- **Massimo 2 giri di revisione per pagina.** Il rischio vero è restare settimane a limare i design invece di andare online
 
-3. **Scheda prodotto `/prodotti/[id]`**
-   - Galleria swipe 4:5, alt text dal payload
-   - Titolo, prezzo (o "Chiedi il prezzo" se `null`), badge stato ("Pezzo unico", "Su richiesta", ecc.)
-   - `story` come testo "da amica", materiali in chip
-   - "Dove lo trovi": negozio da `availableAt`
-   - Bottone WhatsApp con messaggio precompilato secondo `whatsappPreset`
-   - Prodotto venduto → resta online con "Ti trovo qualcosa di simile?" (preset `simili`): non perdi l'indicizzazione
-   - SEO: `seo.title`/`seo.description`, Open Graph con prima foto, **JSON-LD `Product` + `LocalBusiness`**
+Prima di disegnare, decidiamo se servono **tutte** queste pagine al lancio. Il mio consiglio: lancia con Home, Collezioni, Pezzi unici, Scheda prodotto e Contatti; le altre arrivano dopo.
 
-4. **Negozi `/negozi`**
-   - Via Cavour 17 (bijoux/gioielli) e via Cavour 21 (abbigliamento/accessori), orari, mappa statica, telefono/WhatsApp
-
-5. **Admin `/admin/review`** (protetta)
-   - Lista bozze arrivate dallo Studio con anteprima
-   - Azioni: **Approva**, **Modifica** (titolo, prezzo, categoria, stato, testo), **Segna venduto**, **Nascondi**, **Elimina**
-   - Accesso: password unica via env (`ADMIN_PASSWORD`) con cookie firmato; non serve di più per un negozio
-
-Le API della vetrina sono descritte nella sezione 6 (Backend).
-
----
-
-## 5. Come costruiamo il frontend: prima Claude Design, poi le skill
-
-Scelta tua: il frontend deve essere fatto con **Claude Design** e con le **migliori skill disponibili**.
-La regola che ne deriva: **prima si disegna e si approva, poi si scrive codice.** Nessuna pagina va in Next.js finché il suo design non è approvato.
-
-### 5.1 Design System "I Monili Ravenna" (tipo *Design System* di Claude)
-Oggi non hai nessun design system salvato: lo creiamo per primo e lo impostiamo come **predefinito**, così ogni design e ogni pagina successiva partono dalla stessa base.
-- **README del brand**: tono di voce e regole visive prese da `CLAUDE.md` (caldo, complice, mai formale; foto luminose, niente filtri esagerati)
-- **Token**: palette neutri caldi + bianco ottico + terracotta `#c8593a` + oro `#c79849` (partendo da `frontend/src/app/globals.css`), scala tipografica Instrument Serif + Manrope, spaziature, raggi, ombre
-- **Componenti con anteprima**: `ProductCard` 4:5, `BadgeStato` (disponibile · pezzo unico · su richiesta · già adottato), `BottoneWhatsApp`, `FiltroCategoria`, `CardNegozio`, header, footer, empty state
-- **Asset**: logo e favicon (servono i file originali del logo)
-
-### 5.2 Design delle pagine (tipo *Design* di Claude)
-Un canvas con le tavole di ogni pagina della sezione 4, in **mobile (390 px)** e **desktop (1440 px)**:
-Home · Catalogo · Scheda prodotto (una per ognuno dei 4 stati) · Negozi · Admin review · catalogo vuoto.
-- Contenuti **veri**, non segnaposto: 6–8 prodotti reali presi dalle foto `07_SHOWCASE` dello Studio
-- Revisione con i commenti direttamente sul canvas
-- **Massimo 2 giri di revisione per pagina.** Te lo dico chiaro: il rischio vero qui è restare settimane a limare i design invece di andare online
-
-### 5.3 Dal design al codice
-- I token del Design System diventano CSS variables + `tailwind.config.ts` di `vetrina/`: una sola fonte, niente colori scritti a mano nelle pagine
-- Ogni componente del Design System diventa un componente React con lo stesso nome
+### 4.3 Dal design al codice
+- I token del Design System diventano le CSS variables / il tema di `apps/web`: una sola fonte
+- I componenti del Design System diventano componenti React con lo stesso nome
+- **Si cambia solo la parte visiva.** API, store, validazione e ingest non si toccano durante il restyling
 - Dopo ogni pagina: screenshot mobile e desktop dell'app vera, confrontati con la tavola approvata
 
-### 5.4 Skill da usare e quando
+### 4.4 Skill da usare e quando
 
 | Skill | Quando | A cosa serve |
 |---|---|---|
-| **Design System** (tipo artifact) | Fase 1 | Il design system del brand (5.1) |
-| **Design** (tipo artifact, "Claude Design") | Fase 1 | Le tavole delle pagine (5.2) |
-| `artifact-design` | Fase 1 | Le regole base per design curati, non generici |
-| `anthropic-skills:artifact-emulator` | Fase 1 | Vedere i design come li vedrai tu prima di approvarli |
-| `instagram-agent:ig-human` | Fasi 1 e 5 | Claim, microcopy e messaggi WhatsApp che non sanno di AI |
-| `run` | Fasi 5–6 | Avviare la vetrina e fare gli screenshot da confrontare col design |
-| `code-review` · `simplify` | Fine di ogni fase | Bug e pulizia del codice |
-| `security-review` | Prima della messa online | Controllo di ingest con token e login admin |
-| `frontend-design` (plugin ufficiale Anthropic) | Fasi 5–6 | **Oggi non è installato**: verificare che sia nel marketplace dei plugin e installarlo prima della Fase 5. Serve a evitare l'effetto "sito fatto con l'AI" nel codice |
+| **Design System** (tipo artifact) | Fase 2 | Design system del brand (4.1) |
+| **Design** (tipo artifact, "Claude Design") | Fase 2 | Tavole delle pagine (4.2) |
+| `artifact-design` | Fase 2 | Regole base per design curati, non generici |
+| `anthropic-skills:artifact-emulator` | Fase 2 | Vedere i design come li vedrai tu prima di approvarli |
+| `instagram-agent:ig-human` | Fasi 2 e 4 | Testi del sito e messaggi WhatsApp che non sanno di AI |
+| `run` | Fase 4 | Avviare la vetrina e fare gli screenshot da confrontare |
+| `code-review` · `simplify` | Fine di ogni fase | Bug e pulizia |
+| `security-review` | Prima della messa online | Ingest con token, login admin, upload immagini |
+| `frontend-design` (plugin ufficiale Anthropic) | Fase 4 | **Non installato oggi**: verificare che sia nel marketplace e installarlo prima della Fase 4 |
 
 ---
 
-## 6. Backend della vetrina
+## 5. Backend: cosa c'è e cosa va controllato
 
-### 6.1 Ricerca del backend originale: esito
-Volevi recuperare il backend che riceve le schede. Ho cercato ovunque fosse possibile il 27/10/2026:
+Il backend **esiste**: non si costruisce, si **verifica e si rende affidabile**.
 
-| Dove | Esito |
+| Da controllare | Perché |
 |---|---|
-| Tutte le chat Claude Code (35 sessioni, nov 2025 → oggi) | Nessuna traccia di vetrina, ingest o `admin/review` |
-| Repo `App-Post-per-Instagram-` | No: è l'app AI Studio per i post |
-| Repo `foto2post-easy` | No |
-| Repo `azzurra-romagna` | No: è l'app dell'allenatore |
-| `web-five-theta-58.vercel.app` | Oggi serve "Alfred"; `/admin/review` → 404 |
-| Repo `jarvis-ai-coach`, `hermes-memory`, `automation-city-control-room` | **Non controllati**: l'accesso dalla sessione non è andato a buon fine. Da ricontrollare |
-| "Ecosistema Monili" | Non esiste su GitHub, Google Drive o tra gli artifact: è una **cartella sul tuo PC**, da aprire con una sessione locale |
-
-**Conclusione onesta:** il backend molto probabilmente **non è mai stato scritto**. Nel progetto è stato preparato solo il lato che invia (maggio 2026, commit `showcase`), con un indirizzo di destinazione "in attesa".
-Ultimo controllo che puoi fare solo tu: nella **dashboard Vercel**, lo storico dei deploy del progetto dietro `web-five-theta-58`. Se prima di Alfred c'era la vetrina, lì si vede in un minuto.
-Se non salta fuori niente, **lo costruiamo noi**: il contratto c'è già (sezione 2), quindi è lavoro definito, non un salto nel buio.
-
-### 6.2 Dove vive
-Dentro `vetrina/` come **Route Handlers di Next.js**, nello stesso progetto Vercel del sito.
-Alternativa scartata: allargare il backend FastAPI dello Studio (`api/server.py`) su Render. Il piano free va in sleep e ha il disco temporaneo (è il motivo per cui esiste `docs/local-mode.md`), e il sito pubblico dipenderebbe dallo Studio acceso.
-
-### 6.3 Cosa fa
-1. **Riceve** le schede dallo Studio (`POST /api/ingest`)
-2. **Conserva** prodotti e foto (Postgres + Blob)
-3. **Serve** le pagine pubbliche (solo prodotti `published`)
-4. **Ti fa decidere** cosa pubblicare (admin)
-
-### 6.4 Dati
-- **`products`**: tutti i campi della `product_fiche` + `status` (`draft` · `published` · `hidden`) + `published_at`, `created_at`, `updated_at`
-- **`product_images`**: `product_id`, `url` Blob, `alt`, `position`
-- **`ingest_log`**: ogni invio ricevuto (`run_id`, esito, errore, data), per capire subito perché un "Pubblica" non è arrivato
-
-### 6.5 API
-
-| Metodo | Percorso | Accesso | Cosa fa |
-|---|---|---|---|
-| `POST` | `/api/ingest` | `x-admin-token` | Valida la scheda, salva le foto su Blob, crea la bozza. Risponde `{ item: { id } }` |
-| `GET` | `/api/admin/products?status=draft` | admin | Elenco per la pagina review |
-| `PATCH` | `/api/admin/products/[id]` | admin | Modifica campi, approva, segna venduto, nasconde |
-| `DELETE` | `/api/admin/products/[id]` | admin | Elimina prodotto e foto |
-| `POST` | `/api/admin/login` · `/api/admin/logout` | pubblico | Password → cookie `httpOnly` firmato |
-| `GET` | `/sitemap.xml` · `/robots.txt` | pubblico | Generati da Next |
-
-### 6.6 Regole che non si toccano
-- **Reinvio dello stesso prodotto**: se è ancora bozza si aggiorna; se è già pubblicato **non** si sovrascrive, si crea un "aggiornamento da approvare"
-- **Token**: confronto a tempo costante, mai nei log; limite di dimensione del body e limite di richieste
-- **Validazione** con `zod` sullo stesso schema del contratto; i testi scritti dall'AI (`story`, `summary`) si mostrano come testo semplice, mai come HTML
-- **Test di contratto**: una scheda vera generata dallo Studio salvata come fixture, che deve passare la validazione della vetrina. Se uno dei due lati cambia il formato, il test si rompe subito
+| Ingest end-to-end Studio → `/api/ingest/internal-webapp` → bozza in `/admin/review` | Non sappiamo se ha mai funzionato online |
+| Limite 4,5 MB del body su Vercel (sezione 2) | Prodotti con più foto falliscono |
+| Reinvio dello stesso prodotto già pubblicato | Non deve sovrascrivere automaticamente una scheda online |
+| `data/products.json` e `data/ops-events.ndjson` su Vercel | Il disco Vercel non è persistente: in produzione **tutto** deve stare su Postgres/Blob, log compresi |
+| Confronto del token a tempo costante, limite di dimensione, limite di richieste | Sicurezza minima dell'ingest |
+| Testi AI (`story`, `summary`) mostrati come testo semplice, mai come HTML | Evitare HTML/script iniettati |
+| Test di contratto: una scheda vera generata dallo Studio, salvata come fixture, che deve passare `product-fiche-validation.ts` | Se uno dei due lati cambia il formato, ce ne accorgiamo subito |
 
 ---
 
-## 7. Fasi di lavoro
+## 6. Fasi di lavoro
 
-### Fase 0 — Pulizia (½ giornata)
-- [ ] Decidere cosa fare del branch `claude/determined-knuth-zp63a6` (unire o archiviare)
-- [ ] Togliere `` `r`n `` dall'hero di `frontend/src/app/page.tsx`
-- [ ] Ripulire i commenti corrotti in `frontend/src/app/globals.css`
-- [ ] Rimuovere il fallback `web-five-theta-58.vercel.app` da `ResultsPanel.tsx`: se `NEXT_PUBLIC_SHOWCASE_REVIEW_URL` manca, nascondere il link invece di puntare a un sito sbagliato
-- [ ] Aggiungere `SHOWCASE_INGEST_URL`, `SHOWCASE_ADMIN_TOKEN`, `NEXT_PUBLIC_SHOWCASE_REVIEW_URL` a `.env.example` e `render.yaml` (`sync: false`)
+### Fase 0 — Mettere al sicuro (½ giornata) · **la più urgente**
+- [ ] In `Ecosistema Monili`: salvare le modifiche aperte e aggiungere `Avvia Agenzia Monili.bat` (commit locale)
+- [ ] Controllare che `.env.local` e `data/` con dati sensibili siano in `.gitignore` **prima** di qualsiasi push
+- [ ] Creare il repo privato `matteforex82-bit/monili-vetrina`
+- [ ] Cambiare il remote: `git remote set-url origin https://github.com/matteforex82-bit/monili-vetrina.git`, poi push. **Mai** fare push verso `monili-media-agency` da quella cartella
+- [ ] Aprire `OneDrive\Desktop\Sito Monili` e verificare che non contenga una versione più recente
 
-### Fase 1 — Design con Claude Design (1–2 giornate)
-- [ ] Design System "I Monili Ravenna" impostato come predefinito (5.1)
-- [ ] Canvas Design con tutte le tavole mobile + desktop (5.2)
-- [ ] Testi del sito passati con `ig-human`
-- [ ] **Approvazione tua**, max 2 giri per pagina → solo dopo si passa al codice
+### Fase 1 — Pulizia e collegamento (½ giornata)
+- [ ] Studio: unire o archiviare il branch `claude/determined-knuth-zp63a6`
+- [ ] Studio: togliere `` `r`n `` da `page.tsx`, ripulire i commenti di `globals.css`
+- [ ] Studio: togliere il fallback `web-five-theta-58` da `ResultsPanel.tsx` (se manca la variabile, il link si nasconde)
+- [ ] Studio: aggiungere `SHOWCASE_INGEST_URL`, `SHOWCASE_ADMIN_TOKEN`, `NEXT_PUBLIC_SHOWCASE_REVIEW_URL` a `.env.example` e `render.yaml` (`sync: false`)
+- [ ] Studio: max 4 foto per invio (`api/server.py`)
+- [ ] Prova in locale: Studio (porta 3000/8000) → vetrina (porta 3100) → bozza visibile in `/admin/review`
 
-### Fase 2 — Scheletro vetrina (1 giornata)
-- [ ] `vetrina/` con Next.js 15 + TypeScript + Tailwind (stesse versioni di `frontend/`)
-- [ ] Token presi dal Design System approvato → CSS variables + `tailwind.config.ts`
-- [ ] Componenti base del Design System in React
-- [ ] Tipo `ProductFiche` condiviso + validazione con `zod`
-- [ ] Layout base: header, footer con negozi/Instagram, bottone WhatsApp fisso
+### Fase 2 — Design con Claude Design (1–2 giornate)
+- [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito`
+- [ ] Decidere le pagine del lancio (4.2)
+- [ ] Design System "I Monili Ravenna" impostato come predefinito (4.1)
+- [ ] Tavole mobile + desktop (4.2), testi passati con `ig-human`
+- [ ] **Approvazione di Matteo**, max 2 giri per pagina
 
-### Fase 3 — Backend: ingest e dati (1 giornata)
-- [ ] Schema DB `products` (campi del contratto + `status: draft|published|hidden`, `images` come URL Blob)
-- [ ] `POST /api/ingest` con controllo `x-admin-token`
-- [ ] Modifica `api/server.py`: max 4 immagini per invio (vedi §3)
-- [ ] Test end-to-end: Studio locale → "Pubblica sul sito vetrina" → bozza visibile nel DB
+### Fase 3 — Backend affidabile (1 giornata)
+- [ ] Tutti i punti della sezione 5
+- [ ] In produzione `PRODUCT_STORE_DRIVER=postgres` e `IMAGE_STORAGE_DRIVER=vercel-blob`, log su Postgres
 
-### Fase 4 — Admin review (1 giornata)
-- [ ] Login con password + cookie
-- [ ] `/admin/review` con approva / modifica / venduto / nascondi
-- [ ] `revalidatePath` su home, catalogo e scheda dopo ogni azione
+### Fase 4 — Restyling frontend (2–3 giornate)
+- [ ] Token e componenti dal Design System in `apps/web`
+- [ ] Pagine del lancio fedeli alle tavole, screenshot di confronto con `run`
+- [ ] `/admin/review` comoda da iPhone
+- [ ] SEO locale: metadata, Open Graph, JSON-LD `Product` + `LocalBusiness` (×2 negozi), `sitemap`, Lighthouse mobile ≥ 90
+- [ ] `code-review` + `security-review`
 
-### Fase 5 — Pagine pubbliche (2 giornate)
-- [ ] Home, Catalogo, Scheda prodotto, Negozi (vedi §4), fedeli alle tavole approvate in Fase 1
-- [ ] Screenshot mobile + desktop con `run`, confronto con il design
-- [ ] Messaggi WhatsApp per i 4 preset
-- [ ] Empty state gentile quando il catalogo è vuoto ("Stiamo allestendo la vetrina ✨")
-
-### Fase 6 — SEO locale e rifinitura (1 giornata)
-- [ ] Metadata per pagina, Open Graph, JSON-LD `Product` e `LocalBusiness` (×2 negozi)
-- [ ] `sitemap.xml`, `robots.txt`
-- [ ] `next/image` con dimensioni 4:5, Lighthouse mobile ≥ 90
-- [ ] Controllo da iPhone reale (il target guarda da telefono)
-- [ ] `code-review` + `security-review` sul codice della vetrina
-
-### Fase 7 — Messa online (½ giornata)
-- [ ] Progetto Vercel con root `vetrina/`, env `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `SHOWCASE_ADMIN_TOKEN`, `ADMIN_PASSWORD`
+### Fase 5 — Messa online (½ giornata)
+- [ ] Nuovo progetto Vercel `monili-vetrina` collegato al nuovo repo, root `apps/web`
+- [ ] Variabili d'ambiente su Vercel (Neon, Blob, `ADMIN_*`), `NEXT_PUBLIC_SITE_URL` = dominio vero (oggi punta a `http://127.0.0.1:3100`)
 - [ ] Dominio personalizzato
-- [ ] Impostare su Render/locale `SHOWCASE_INGEST_URL=https://<dominio>/api/ingest` e `NEXT_PUBLIC_SHOWCASE_REVIEW_URL=https://<dominio>/admin/review`
-- [ ] Collegare il link al sito nel profilo Google Business e nella bio Instagram
+- [ ] Studio: `SHOWCASE_INGEST_URL=https://<dominio>/api/ingest/internal-webapp`, `NEXT_PUBLIC_SHOWCASE_REVIEW_URL=https://<dominio>/admin/review`, stesso token dei due lati
+- [ ] Link nel profilo Google Business e nella bio Instagram
 
-**Totale stimato: 7–9 giornate di lavoro** (la fase design aggiunge 1–2 giornate, ma riduce i rifacimenti dopo).
+**Totale stimato: 6–8 giornate.** Meno di prima, perché il backend e buona parte del sito esistono già.
 
 ---
 
-## 8. Criteri di "fatto"
+## 7. Criteri di "fatto"
 
-- Dallo Studio premo "Pubblica sul sito vetrina" e in < 1 minuto la bozza compare in `/admin/review`
-- Con "Approva" il prodotto è online su home, catalogo e scheda, senza rideploy
-- Una scheda si apre su iPhone in < 2 s e il bottone WhatsApp apre il messaggio giusto
+- Il codice della vetrina è su GitHub, in un repo suo
+- Dallo Studio premo "Pubblica sul sito vetrina" e in meno di 1 minuto la bozza compare in `/admin/review`
+- Con "Approva" il prodotto è online, senza rideploy
+- Una scheda si apre su iPhone in meno di 2 secondi e il bottone WhatsApp apre il messaggio giusto
 - Un prodotto venduto resta indicizzato e propone "simili"
-- Nessun link nello Studio punta più a domini che non sono nostri
 - Le pagine online corrispondono alle tavole approvate in Claude Design
+- Nessun link nello Studio punta più a domini che non sono nostri
 
 ---
 
-## 9. Domande aperte (da decidere tu)
+## 8. Domande aperte (da decidere Matteo)
 
-1. **Branch `determined-knuth`**: lo uniamo a `master` prima di partire? (consiglio: sì, se il Reel Studio lo usi davvero)
-2. **Dominio**: ne hai già uno (es. `imoniliravenna.it`) o lo compriamo?
-3. **Prezzi**: vuoi mostrarli sul sito o sempre "Chiedi in negozio"? Oggi lo Studio manda sempre `price: null`, quindi andrebbero inseriti a mano in admin.
-4. **Orari e numero WhatsApp** dei due negozi di via Cavour: servono i dati veri.
-5. **Backend originale**: due controlli che puoi fare solo tu (vedi 6.1):
-   - la cartella **"Ecosistema Monili"** sul tuo PC (non è su GitHub né su Google Drive, quindi dal cloud non la vedo)
-   - lo storico deploy su Vercel di `web-five-theta-58`
-   Se non salta fuori niente, lo costruiamo noi.
-6. **Logo**: hai i file originali (SVG o PNG ad alta risoluzione) per il Design System?
-7. **Plugin `frontend-design`**: lo installiamo prima della Fase 5?
+1. **Nuovo repo `monili-vetrina`**: lo creiamo? (consiglio: sì, privato)
+2. **Vercel**: nella dashboard il progetto `web` oggi è Alfred? Vuoi tenere Alfred lì e creare `monili-vetrina` da zero? (consiglio: sì)
+3. **Branch `determined-knuth`** dello Studio: unire o archiviare?
+4. **Pagine del lancio**: va bene partire con Home, Collezioni, Pezzi unici, Scheda prodotto e Contatti?
+5. **Dominio**: ne hai già uno?
+6. **Prezzi**: li mostriamo? Oggi lo Studio manda sempre `price: null`
+7. **Orari e numero WhatsApp** veri dei due negozi di via Cavour
+8. **Logo**: file originali (SVG o PNG ad alta risoluzione)
+9. **Plugin `frontend-design`**: lo installiamo prima della Fase 4?
