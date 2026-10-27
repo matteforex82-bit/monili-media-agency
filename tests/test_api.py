@@ -37,6 +37,36 @@ def test_skills_endpoints_roundtrip():
     assert "{scene}" in base["text"]
 
 
+ANALISI_ANELLO = """# Scheda Prodotto
+
+```markdown
+## IDENTIFICAZIONE
+- Categoria esatta: Anello da donna fashion, pietra centrale cabochon.
+- Materiali identificati con certezza: metallo argentato (probabilmente argento o lega simil-argento), pietra cabochon viola.
+
+## DESCRIZIONE AI
+Anello in metallo argentato con pietra cabochon viola
+circondata da zirconi bianchi e neri.
+```
+"""
+
+
+def test_showcase_summary_uses_site_description():
+    assert server._markdown_section(ANALISI_ANELLO, "DESCRIZIONE AI") == (
+        "Anello in metallo argentato con pietra cabochon viola circondata da zirconi bianchi e neri."
+    )
+    assert server._markdown_section(ANALISI_ANELLO, "ASSENTE") == ""
+
+
+def test_showcase_materials_skip_guesses():
+    assert server._extract_materials(ANALISI_ANELLO) == ["metallo argentato"]
+    assert server._extract_materials("- Materiali identificati: argento 925, pietra dura\n- Altro") == [
+        "argento 925",
+        "argento",
+        "pietra dura",
+    ]
+
+
 def test_results_take_skill_from_reel(product_photo):
     import reel_studio as rs
 

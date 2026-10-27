@@ -313,6 +313,19 @@ def _first_meaningful_line(text: str) -> str:
     return ""
 
 
+def _markdown_section(text: str, heading: str) -> str:
+    """Body of the `## <heading>` section of the analyst's card, as plain text."""
+    clean = _strip_markdown(text)
+    match = re.search(
+        rf"^#+\s*{re.escape(heading)}\s*$(.*?)(?=^#+\s|^```|\Z)",
+        clean,
+        flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    )
+    if not match:
+        return ""
+    return re.sub(r"\s+", " ", match.group(1)).strip()
+
+
 def _slugify(value: str) -> str:
     cleaned = re.sub(r"[^a-z0-9]+", "-", value.lower())
     return re.sub(r"(^-+|-+$)", "", cleaned)[:80] or "prodotto"
@@ -364,6 +377,8 @@ def _extract_materials(text: str) -> list[str] | None:
     keywords = [
         "argento 925",
         "argento",
+        "metallo argentato",
+        "metallo dorato",
         "pietra dura",
         "ottone",
         "acciaio",
@@ -380,9 +395,13 @@ def _extract_materials(text: str) -> list[str] | None:
         flags=re.IGNORECASE | re.DOTALL,
     )
     source = (source_match.group(1) if source_match else text[:900]).lower()
+    # The analyst hedges guesses in brackets ("probabilmente argento o simil-argento"):
+    # the site must only show materials stated as certain.
+    source = re.sub(r"\([^)]*\)", " ", source)
+    source = re.sub(r"\b(probabilmente|possibile|forse|simil)\b[^,;.\n]*", " ", source)
     found = []
     for item in keywords:
-        if item in source and item not in found:
+        if re.search(rf"(?<![\w-]){re.escape(item)}(?![\w-])", source) and item not in found:
             found.append(item)
     return found or None
 
@@ -617,7 +636,12 @@ def _build_showcase_payload(
     if not prepared_images:
         raise ValueError("Nessuna immagine supera il quality gate per il sito.")
 
-    summary = _first_meaningful_line(analisi) or str(publish_pack.get("selected_gmb_text", "")).strip()[:220]
+    # The analyst writes "DESCRIZIONE AI" exactly for the site card (see main.py).
+    summary = (
+        _markdown_section(analisi, "DESCRIZIONE AI")
+        or str(publish_pack.get("selected_gmb_text", "")).strip()
+        or _first_meaningful_line(analisi)
+    )[:600]
     story = str(publish_pack.get("selected_caption", "")).strip()
     product_fiche = {
         "id": product_id,
