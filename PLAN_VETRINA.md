@@ -239,9 +239,9 @@ Struttura del lancio, **3 pagine** (approvata):
 - Contenuti dello Studio: caption e Reel con le parole che la gente cerca (Instagram è indicizzato da Google)
 - Plugin proposti: **SEO-AEO-GEO Ultimate** (lavoro sul sito) e **AI Search Visibility & Brand Mentions** (controllo dopo il lancio: ChatGPT/Gemini/Perplexity ci nominano?). Entrambi community, da installare
 
-**"Venduto" senza lavoro manuale** (da decidere il canale):
+**"Venduto" senza lavoro manuale** (canale deciso: **Telegram, bot dedicato**):
 - Matteo non vuole segnarlo a mano. Proposta: ogni 2–3 giorni un messaggio a Matteo con le foto dei pezzi online e due bottoni, *Disponibile* / *Venduto*; un tocco e il sito si aggiorna
-- Canale: Telegram (gratis, bottoni pronti, si fa in poche ore) oppure WhatsApp (serve l'API ufficiale Meta WhatsApp Business: verifica azienda, costi a conversazione)
+- Canale: **bot Telegram dedicato** (es. "Monili Vetrina"), separato da Hermes per non mescolare i messaggi del sito con quelli dell'agente. Gratis, bottoni pronti. Il bot parla solo con Matteo (chat ID fisso), mai con i clienti
 - Sconsigliato: un bot che risponde da solo ai clienti. La risposta a chi scrive resta di Matteo: è il momento della vendita e il tono "da amica" non si automatizza
 - Il messaggio WhatsApp precompilato contiene nome e link del pezzo, così Matteo sa subito di cosa si parla
 
@@ -345,8 +345,7 @@ Si prendono i principi, non codice/logo/foto/layout identico:
 - Logo SVG e monogramma "iM": esistono?
 - Numero WhatsApp/telefono e orari veri dei due negozi; dominio
 
-- Canale per il controllo "Venduto": Telegram o WhatsApp? (vedi "Scelte del 27/10/2026 (2)")
-- Spedizioni fuori Ravenna: sì o no?
+- Spedizioni: **sì, in Italia e in Europa** (già spedito in Germania). Da decidere la soglia: sotto quale prezzo non conviene spedire, e se dare la spedizione gratuita sopra una cifra. Servono i costi veri (Italia ed Europa) del corriere che usate
 
 ### Prossimi passi, in ordine
 1. Design System v2 (dopo l'ok)
