@@ -276,3 +276,57 @@ Skill (una sola guida principale per volta, per non avere istruzioni in conflitt
 7. **Orari e numero WhatsApp** veri dei due negozi di via Cavour
 8. **Logo**: file originali (SVG o PNG ad alta risoluzione)
 9. **Plugin `frontend-design`**: lo installiamo prima della Fase 4?
+
+---
+
+## 10. Punto della situazione e ripartenza (aggiornato 27/10/2026)
+
+**Per riprendere in una nuova chat:** "Leggi `PLAN_VETRINA.md` (sezione 10) in monili-media-agency e continua da dove eravamo".
+
+### Dove sono le cose
+- **Studio + Reel Studio**: repo `matteforex82-bit/monili-media-agency`, `master` (sul PC: `Desktop\PROGETTI AI\monili-deploy-temp`, avvio con `Avvia Agenzia Monili.bat`)
+- **Vetrina (frontend + backend)**: repo privato `matteforex82-bit/monili-vetrina`, `master`, app in `apps/web` (sul PC: `Desktop\PROGETTI AI\Ecosistema Monili`)
+- **Design System**: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (tipo Design System, privato). I sorgenti si rileggono dall'artifact (`project/tokens.json`, `project/README.md`, `project/components/*`)
+- **Skill**: Impeccable in `monili-vetrina/.claude/skills/impeccable` (guida principale; il suo programma di controllo NON è autorizzato); plugin attivi: frontend-design, Design (Anthropic), audit-suite
+
+### Fatto
+Fasi 0, 1b e correzioni arancio (vedi sopra), Reel Studio unito, prezzo nello Studio, Design System v1.
+
+### Analisi del feed Instagram (base del Design System)
+- I post migliori sono **editoriali**: occhiello "I MONILI RAVENNA" maiuscolo spaziato, titolo serif leggero con punto finale ("Un capo che parla di stile.", "Non sono semplici orecchini.", "Colori che illuminano il viso."), filetto, sottotitolo corsivo, chiusa "Ti aspettiamo in boutique". Variante gioielli: titolo in basso al centro + materiali in maiuscolo
+- Cartellino prezzo nero con "115€" in corsivo bianco
+- Foto: luce dorata da boutique, archi, marmo, modella ricorrente; gioielli in macro su ardesia/seta/pietra
+- Colori dai prodotti: pietre (ametista, turchese, citrino, granato, quarzo rosa, opale, lapislazzuli), capi (cammello, oliva, ruggine)
+- Da evitare: scritte fumetto rosa dei Reel in negozio ("TEMPO DI SHOPPING")
+
+### Riferimento di stile scelto da Matteo: louisemisha.com (analizzato, NON da copiare)
+Si prendono i principi, non codice/logo/foto/layout identico:
+- Foto a tutta larghezza con filo bianco di 1-2px, griglie di 3-4 tessere alte
+- Header trasparente sopra la foto, bianco pieno al passaggio del mouse; menu maiuscolo 12px peso 500, spaziatura 1px
+- Mega menu: pannello bianco, 3 colonne di link grigi (14px leggero, spaziatura 1px), 2 foto con nome categoria maiuscolo, pagina dietro sfocata
+- Nomi categoria in serif maiuscolo bianco sulle foto ("ANELLI", "GILET RICAMATI")
+- Inviti come testo maiuscolo sottolineato ("SCOPRI", "VEDI TUTTO") invece dei bottoni (bottone solo per WhatsApp)
+- Movimento: `cubic-bezier(0.645, 0.045, 0.355, 1)` 0,3–0,5s per gli spostamenti, dissolvenze 0,2–0,3s `ease`; puntino sotto la voce di menu attiva
+- Font loro: Forum + Outfit (Google Fonts, liberi) e Pitch Sans (a pagamento, escluso)
+- Niente carrello/account/newsletter a comparsa: al loro posto WhatsApp e "Vieni in negozio"
+
+### Proposta in attesa dell'ok di Matteo (aggiornamento Design System v2)
+1. Inter → **Outfit** per menu e testi (il cambio più visibile)
+2. **Cormorant Garamond resta** per i titoli, anche in maiuscolo sulle foto (niente Forum: due serif troppi e sembrerebbe Louise Misha)
+3. Nuovi componenti: header trasparente, mega menu con foto, griglia a tessere da bordo a bordo, invito sottolineato
+4. Token di movimento (curva e tempi sopra)
+5. **Terracotta** come accento al posto del verde acqua (coerente con CLAUDE.md)
+
+### Domande ancora aperte
+- Ok alla proposta v2 qui sopra?
+- Cosa c'è nel database Neon (prodotti veri o solo test)? → serve comunque un database pulito per la produzione
+- Logo SVG e monogramma "iM": esistono?
+- Numero WhatsApp/telefono e orari veri dei due negozi; dominio
+
+### Prossimi passi, in ordine
+1. Design System v2 (dopo l'ok)
+2. Tavole delle pagine con Claude Design (Home, Collezioni, Scheda prodotto, sala Reel, Contatti), mobile + desktop, foto vere
+3. Ingest dei video Reel dallo Studio alla vetrina (parte dinamica scelta n.1)
+4. Codice del frontend (Impeccable), passaggi e filtri animati (parte dinamica n.2)
+5. Deploy su Vercel (progetto nuovo `monili-vetrina`, database pulito)
+
