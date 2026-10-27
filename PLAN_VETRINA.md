@@ -213,7 +213,8 @@ Restano da fare al momento del deploy:
 ### Fase 2 — Design con Claude Design (1–2 giornate)
 - [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito`
 - [ ] Decidere le pagine del lancio (4.2)
-- [ ] Design System "I Monili Ravenna" impostato come predefinito (4.1)
+- [x] Design System "I Monili Ravenna" creato il 27/10/2026: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (token del sito "Avorio caldo", stile editoriale del feed Instagram, sala Reel, pietre, 11 componenti)
+- [ ] Approvazione di Matteo sul Design System, poi impostarlo come predefinito
 - [ ] Tavole mobile + desktop (4.2), testi passati con `ig-human`
 - [ ] **Approvazione di Matteo**, max 2 giri per pagina
 
