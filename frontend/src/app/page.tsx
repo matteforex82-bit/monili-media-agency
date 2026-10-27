@@ -156,13 +156,13 @@ const OPENROUTER_TEXT_MODELS = [
   'openai/gpt-4.1-mini',
   'google/gemini-2.5-flash',
   'google/gemini-2.5-pro',
-  'anthropic/claude-3.7-sonnet',
+  'anthropic/claude-sonnet-5.5',
 ] as const;
 const OPENROUTER_IMAGE_MODELS = [
   'openai/gpt-5.4-image-2',
   'google/gemini-3.1-flash-image-preview',
-  'black-forest-labs/flux.2-klein-4b',
-  'bytedance-seed/seedream-4.5',
+  'google/gemini-3.1-flash-image',
+  'google/gemini-3-pro-image',
 ] as const;
 const ACTIVE_JOB_STORAGE_KEY = 'monili_active_job_id';
 
@@ -614,6 +614,9 @@ export default function Home() {
 
           {/* Right: status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <a href="/reel" className="btn-mission" style={{ padding: '7px 12px', fontSize: 12, textDecoration: 'none', marginRight: 6 }}>
+              Reel Studio
+            </a>
             <span className={`status-dot ${missionState === 'idle' ? 'online' : missionState === 'running' ? 'active' : 'done'}`} />
             <span style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-mid)', fontWeight: 500 }}>
               {missionState === 'idle' && 'Pronta'}

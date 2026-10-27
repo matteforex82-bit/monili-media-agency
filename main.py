@@ -28,8 +28,8 @@ if hasattr(sys.stderr, "reconfigure"):
 SUPPORTED_OPENROUTER_IMAGE_MODELS = [
     "openai/gpt-5.4-image-2",
     "google/gemini-3.1-flash-image-preview",
-    "black-forest-labs/flux.2-klein-4b",
-    "bytedance-seed/seedream-4.5",
+    "google/gemini-3.1-flash-image",
+    "google/gemini-3-pro-image",
 ]
 DEFAULT_OPENROUTER_IMAGE_MODEL = SUPPORTED_OPENROUTER_IMAGE_MODELS[0]
 
@@ -38,7 +38,7 @@ SUPPORTED_OPENROUTER_TEXT_MODELS = [
     "openai/gpt-4.1-mini",
     "google/gemini-2.5-flash",
     "google/gemini-2.5-pro",
-    "anthropic/claude-3.7-sonnet",
+    "anthropic/claude-sonnet-5.5",
 ]
 DEFAULT_OPENROUTER_TEXT_MODEL = SUPPORTED_OPENROUTER_TEXT_MODELS[0]
 PROJECT_ROOT = Path(__file__).parent
@@ -453,28 +453,44 @@ def format_publish_pack_markdown(pack: dict) -> str:
     )
 
 
-BRAND = """
-BRAND: I Monili Ravenna - negozio bijoux, accessori donna, abbigliamento
-Location: Ravenna, centro storico (Emilia-Romagna)
-Target: donna 25-45, urbana, fashion-forward, Ravenna e dintorni
+def current_season_label(now: datetime | None = None) -> str:
+    now = now or datetime.now()
+    if 3 <= now.month <= 8:
+        return f"Primavera/Estate {now.year}"
+    start_year = now.year if now.month >= 9 else now.year - 1
+    return f"Autunno/Inverno {start_year}/{str(start_year + 1)[-2:]}"
+
+
+SEASON = current_season_label()
+
+BRAND = f"""
+BRAND: I Monili Ravenna - boutique in centro storico a Ravenna (Emilia-Romagna)
+Prodotti: bijoux artigianali in argento con pietre colorate (ametista, quarzo rosa, citrino, turchese, opale),
+orecchini smaltati a fiore, giacche e gilet ricamati, borse in cuoio, abbigliamento dal gusto boho-etnico
+Identita: colorata, artigianale, eclettica, pezzi particolari che non si trovano nelle catene
+Target: donna 30-55, Ravenna e dintorni, ama i pezzi unici e il colore
 Tono: caldo, complice, femminile - come un'amica che consiglia, non un brand che vende
-Stagione: Primavera/Estate 2026
+Stagione: {SEASON}
 Hashtag fissi: #imoniliravenna #ravenna #romagnastyle
-Palette: neutri caldi, bianco ottico, terracotta, oro
-Posting top: Martedi/Giovedi/Sabato ore 18:30-20:00
+Stile visivo: luce naturale calda, sfondi crema/neutri che fanno risaltare i colori dei prodotti;
+testi in stile editoriale (serif elegante su fondo crema), mai scritte stile fumetto o neon
+Formati prioritari: Story video e Reel (i post statici fanno il 4% delle visualizzazioni)
+Chiusura di ogni contenuto: invito concreto al DM ("scrivici, te lo mettiamo da parte") o a passare in negozio
+Ravenna: citta dei mosaici - il legame colori/pietre/mosaico e un tema naturale
+Posting: Martedi/Giovedi/Sabato (orari in verifica sugli Insights)
 """
 
 
 def agent_trend(text_model: str, api_key: str) -> str:
-    log("TREND INTEL", "Ricerca trend hashtag bijoux Italia P/E 2026...")
+    log("TREND INTEL", f"Ricerca trend hashtag bijoux Italia {SEASON}...")
     prompt = f"""Sei un esperto di social media marketing moda/bijoux in Italia.
 {BRAND}
 
-Genera un report completo sui trend P/E 2026:
+Genera un report completo sui trend {SEASON}:
 1. Top 15 hashtag trending bijoux/gioielli/moda su Instagram Italia (con stima reach)
 2. Top keyword e hook per post statici/carousel moda in Italia
 3. Formato contenuto con piu engagement ora: carousel vs post statico vs stories vs Google Business Profile
-4. Trend estetici P/E 2026: colori, stili, mood dominanti
+4. Trend estetici {SEASON}: colori, stili, mood dominanti
 5. Orari migliori Instagram per target donna 25-45 Emilia-Romagna
 6. 3 competitor locali da monitorare (generici, non nominare brand reali)
 7. Content ideas salvabili/condivisibili per bijoux
@@ -482,7 +498,7 @@ Genera un report completo sui trend P/E 2026:
 
 Formato markdown strutturato, tutto in italiano."""
     result = generate_text_with_openrouter(api_key, text_model, prompt, max_tokens=1500)
-    log("TREND INTEL", "Intelligence P/E 2026 completata", "success")
+    log("TREND INTEL", f"Intelligence {SEASON} completata", "success")
     return result
 
 
@@ -505,7 +521,7 @@ Analizza questa foto prodotto e crea una scheda completa:
 ## MOOD & POSIZIONAMENTO
 - Stile/mood (minimal, boho, elegante, casual, statement...)
 - Occasione d'uso consigliata
-- Stagione P/E 2026: si/no e perche
+- Adatto alla stagione {SEASON}: si/no e perche
 - Fascia di prezzo stimata (se non nel brief)
 
 ## STRATEGIA CONTENUTO

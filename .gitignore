@@ -31,3 +31,7 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+frontend/tsconfig.tsbuildinfo
+
+# Skill modificate dall'app quando lo storage coincide con il progetto
+skills_custom/
