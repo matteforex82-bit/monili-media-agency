@@ -223,6 +223,28 @@ Skill (una sola guida principale per volta, per non avere istruzioni in conflitt
 - **frontend-design** (Anthropic): alternativa a Impeccable, non insieme
 - Verifica sempre nel browser, su telefono e desktop
 
+### Scelte del 27/10/2026 (2): cosa è il sito
+Niente e-commerce e niente "collezioni": il negozio lavora a **novità** (Matteo fotografa quello che arriva e lo pubblica). Il sito è una vetrina di brand che fa tre cose che Instagram fa male: farsi trovare (Google **e** risposte AI), dare un link fisso a ogni pezzo da girare su WhatsApp, portare in negozio. La vendita resta su WhatsApp e DM Instagram.
+
+Struttura del lancio, **3 pagine** (approvata):
+- **Home "Al bancone"**: titolo editoriale come i post migliori, griglia "Appena arrivati" per data (stile feed), filtri leggeri *Tutto · Bijoux · Accessori · Abbigliamento · Pezzi unici*, striscia Reel, blocco "Vieni a trovarci" (via Cavour 17 e 21, orari, "Aperto ora", mappa, WhatsApp)
+- **Scheda pezzo** `/p/[slug]`: foto, storia breve, materiali, **prezzo visibile**, bottone WhatsApp con messaggio già scritto e link al pezzo, "Scrivici in DM su Instagram", "Te lo mettiamo da parte". Venduto: la pagina resta con *"Questo ha già trovato casa. Guarda i simili"*
+- **Negozi e contatti**: i due negozi, orari, mappa, telefono, due righe su chi siete
+- Rimandate a dopo il lancio: Collezioni, Outfit della settimana, Laboratorio, Chi siamo (pagina a sé), Instagram
+- Dopo 6–8 settimane un pezzo esce da "Appena arrivati" e va in archivio (la pagina resta per Google)
+
+**Trovati su Google e dalle AI (SEO + GEO)**, obiettivo dichiarato di Matteo: essere in cima a ogni ricerca pertinente.
+- Sul sito: JSON-LD `LocalBusiness` ×2 e `Product` con prezzo e disponibilità, testi che rispondono a domande vere ("dove comprare bijoux in argento a Ravenna"), `robots.txt` che lascia entrare i crawler AI, `llms.txt`, foto con testo alternativo
+- Fuori dal sito, che per le AI conta quanto il sito: profilo Google Business completo e recensioni, menzioni su siti locali, stesso nome/indirizzo/telefono ovunque
+- Contenuti dello Studio: caption e Reel con le parole che la gente cerca (Instagram è indicizzato da Google)
+- Plugin proposti: **SEO-AEO-GEO Ultimate** (lavoro sul sito) e **AI Search Visibility & Brand Mentions** (controllo dopo il lancio: ChatGPT/Gemini/Perplexity ci nominano?). Entrambi community, da installare
+
+**"Venduto" senza lavoro manuale** (da decidere il canale):
+- Matteo non vuole segnarlo a mano. Proposta: ogni 2–3 giorni un messaggio a Matteo con le foto dei pezzi online e due bottoni, *Disponibile* / *Venduto*; un tocco e il sito si aggiorna
+- Canale: Telegram (gratis, bottoni pronti, si fa in poche ore) oppure WhatsApp (serve l'API ufficiale Meta WhatsApp Business: verifica azienda, costi a conversazione)
+- Sconsigliato: un bot che risponde da solo ai clienti. La risposta a chi scrive resta di Matteo: è il momento della vendita e il tono "da amica" non si automatizza
+- Il messaggio WhatsApp precompilato contiene nome e link del pezzo, così Matteo sa subito di cosa si parla
+
 ### Fase 2 — Design con Claude Design (1–2 giornate)
 - [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito`
 - [ ] Decidere le pagine del lancio (4.2)
@@ -272,7 +294,7 @@ Skill (una sola guida principale per volta, per non avere istruzioni in conflitt
 3. **Branch `determined-knuth`** dello Studio: unire o archiviare?
 4. **Pagine del lancio**: va bene partire con Home, Collezioni, Pezzi unici, Scheda prodotto e Contatti?
 5. **Dominio**: ne hai già uno?
-6. **Prezzi**: li mostriamo? Oggi lo Studio manda sempre `price: null`
+6. ~~**Prezzi**~~ ✅ sì, visibili sul sito
 7. **Orari e numero WhatsApp** veri dei due negozi di via Cavour
 8. **Logo**: file originali (SVG o PNG ad alta risoluzione)
 9. **Plugin `frontend-design`**: lo installiamo prima della Fase 4?
@@ -323,9 +345,12 @@ Si prendono i principi, non codice/logo/foto/layout identico:
 - Logo SVG e monogramma "iM": esistono?
 - Numero WhatsApp/telefono e orari veri dei due negozi; dominio
 
+- Canale per il controllo "Venduto": Telegram o WhatsApp? (vedi "Scelte del 27/10/2026 (2)")
+- Spedizioni fuori Ravenna: sì o no?
+
 ### Prossimi passi, in ordine
 1. Design System v2 (dopo l'ok)
-2. Tavole delle pagine con Claude Design (Home, Collezioni, Scheda prodotto, sala Reel, Contatti), mobile + desktop, foto vere
+2. Tavole delle 3 pagine con Claude Design (Home "Al bancone", Scheda pezzo, Negozi e contatti), mobile + desktop, foto vere, con la parte SEO/GEO già prevista
 3. Ingest dei video Reel dallo Studio alla vetrina (parte dinamica scelta n.1)
 4. Codice del frontend (Impeccable), passaggi e filtri animati (parte dinamica n.2)
 5. Deploy su Vercel (progetto nuovo `monili-vetrina`, database pulito)
