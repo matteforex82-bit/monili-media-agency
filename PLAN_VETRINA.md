@@ -202,3 +202,6 @@ Tono e visual da `CLAUDE.md`: caldo, complice, mai formale; neutri caldi, bianco
 3. **Prezzi**: vuoi mostrarli sul sito o sempre "Chiedi in negozio"? Oggi lo Studio manda sempre `price: null`, quindi andrebbero inseriti a mano in admin.
 4. **Orari e numero WhatsApp** dei due negozi di via Cavour: servono i dati veri.
 5. **Esisteva un vecchio progetto vetrina** (quello deployato su `web-five-theta-58.vercel.app`) in un altro repository? Se sì, valutiamo se recuperarlo invece di ripartire da zero.
+   - Verificato il 27/10/2026: **nessuna chat Claude Code** contiene la creazione del sito che riceve le schede (le sessioni di maggio, quando sono nati i commit `showcase`, non ci sono: probabilmente fatto con un altro strumento in locale su Windows).
+   - Nemmeno `App-Post-per-Instagram-` lo contiene (è l'app AI Studio per i post).
+   - Ultima strada: guardare nella dashboard Vercel lo storico deploy del progetto dietro `web-five-theta-58` (oggi serve "Alfred") e i repository `foto2post-easy` e `azzurra-romagna`.
