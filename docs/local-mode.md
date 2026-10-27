@@ -41,7 +41,9 @@ Il frontend chiama il backend sullo stesso indirizzo con cui apri la pagina (por
 
 Tailscale crea una rete privata tra il PC e il telefono: l'app resta sul PC, non è visibile su internet, e il telefono la raggiunge anche in 4G. Gratis per uso personale.
 
-Una volta sola:
+**Modo rapido**: sul PC fai doppio clic su `Configura Telefono.bat` (nella cartella del progetto) e conferma i permessi di amministratore. Fa da solo i passi 1, 3 e il firewall qui sotto; tu devi solo accedere a Tailscale quando si apre il browser, e poi installare l'app Tailscale sull'iPhone con lo stesso account.
+
+A mano, una volta sola:
 
 1. Sul PC: installa Tailscale da https://tailscale.com/download/windows e accedi (es. con Google)
 2. Sull'iPhone: installa l'app Tailscale dall'App Store e accedi **con lo stesso account**
