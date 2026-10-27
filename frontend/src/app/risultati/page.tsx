@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { API_URL } from '@/lib/apiUrl';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-backend.onrender.com';
 const fileUrl = (path: string) => `${API_URL}/files/${path}`;
 
 type Metrics = Partial<Record<'views' | 'reach' | 'likes' | 'comments' | 'saves' | 'sends' | 'dms' | 'store_visits' | 'sales_eur', number | null>>;

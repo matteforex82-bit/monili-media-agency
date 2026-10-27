@@ -32,7 +32,30 @@ Per scegliere una cartella diversa:
 ## URL
 
 - Dal portatile: `http://localhost:3000`
-- Da iPhone sulla stessa rete Wi-Fi: usa l'URL `iPhone:` stampato dallo script
+- Da iPhone sulla stessa rete Wi-Fi: usa l'URL `iPhone (stesso Wi-Fi)` stampato dallo script
+- Da iPhone ovunque (4G, negozio, fuori casa): usa l'URL `iPhone (ovunque, Tailscale)`, vedi sotto
+
+Il frontend chiama il backend sullo stesso indirizzo con cui apri la pagina (porta 8000), quindi lo stesso avvio funziona per tutti e tre i casi.
+
+## Usarla dal telefono ovunque (Tailscale)
+
+Tailscale crea una rete privata tra il PC e il telefono: l'app resta sul PC, non è visibile su internet, e il telefono la raggiunge anche in 4G. Gratis per uso personale.
+
+Una volta sola:
+
+1. Sul PC: installa Tailscale da https://tailscale.com/download/windows e accedi (es. con Google)
+2. Sull'iPhone: installa l'app Tailscale dall'App Store e accedi **con lo stesso account**
+3. Sul PC: Impostazioni → Sistema → Alimentazione → "Sospensione" su **Mai** quando è collegato alla corrente (lo schermo può spegnersi)
+4. Avvia con `.\scripts\start-local.ps1`: ora stampa anche l'indirizzo Tailscale (`http://100.x.y.z:3000`)
+5. Sull'iPhone, con Tailscale attivo, apri quell'indirizzo in Safari → Condividi → **Aggiungi alla schermata Home**: diventa un'icona come un'app
+
+Se dal telefono la pagina non si apre, Windows sta bloccando le porte sulla rete Tailscale. Da PowerShell **come amministratore**, una volta sola (apre le porte solo ai dispositivi del tuo Tailscale, non a internet):
+
+```powershell
+New-NetFirewallRule -DisplayName "Monili via Tailscale" -Direction Inbound -Protocol TCP -LocalPort 3000,8000 -RemoteAddress 100.64.0.0/10 -Action Allow
+```
+
+Le foto si caricano direttamente dal rullino o dalla fotocamera dell'iPhone (anche HEIC) e finiscono in `MoniliStorage` sul PC.
 
 Per trovare l'IP del portatile:
 
@@ -53,7 +76,7 @@ MoniliStorage/
 
 ## Note importanti
 
-- Render resta usabile come backup online.
+- Render oggi **non ha password**: chi conosce l'indirizzo può lanciare generazioni con le tue chiavi. Se usi la modalità locale, sospendi i servizi `monili-backend` e `monili-frontend` dal dashboard Render (Settings → Suspend) finché non c'è una password.
 - Se usi l'app locale da iPhone, i file master restano sul portatile.
 - Il backend locale deve restare aperto durante la generazione.
 - Images 2 via OpenRouter puo richiedere diversi minuti per completare le immagini.

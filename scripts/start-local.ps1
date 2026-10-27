@@ -18,7 +18,15 @@ $LocalIp = (
 if (-not $LocalIp) {
     $LocalIp = "localhost"
 }
-$ApiUrl = "http://${LocalIp}:$BackendPort"
+# Indirizzo Tailscale (100.x.y.z): per usare l'app dal telefono anche fuori dal Wi-Fi
+$TailscaleIp = $null
+$TailscaleCli = Get-Command tailscale -ErrorAction SilentlyContinue
+if (-not $TailscaleCli -and (Test-Path "$env:ProgramFiles\Tailscale\tailscale.exe")) {
+    $TailscaleCli = Get-Command "$env:ProgramFiles\Tailscale\tailscale.exe"
+}
+if ($TailscaleCli) {
+    $TailscaleIp = (& $TailscaleCli.Source ip -4 2>$null | Select-Object -First 1)
+}
 
 New-Item -ItemType Directory -Force -Path $StorageDir | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $StorageDir "input") | Out-Null
@@ -26,22 +34,27 @@ New-Item -ItemType Directory -Force -Path (Join-Path $StorageDir "output") | Out
 New-Item -ItemType Directory -Force -Path (Join-Path $StorageDir "memory") | Out-Null
 
 $env:MONILI_STORAGE_DIR = $StorageDir
-$env:NEXT_PUBLIC_API_URL = $ApiUrl
+# Il frontend chiama il backend sullo stesso indirizzo con cui apri la pagina (vedi frontend/src/lib/apiUrl.ts)
+$env:NEXT_PUBLIC_API_PORT = "$BackendPort"
 
 Write-Host ""
 Write-Host "Monili locale"
 Write-Host "Storage:  $StorageDir"
 Write-Host "Backend:  http://localhost:$BackendPort"
 Write-Host "Frontend: http://localhost:$FrontendPort"
-Write-Host "iPhone:   http://${LocalIp}:$FrontendPort"
-Write-Host "API URL:  $ApiUrl"
+Write-Host "iPhone (stesso Wi-Fi):   http://${LocalIp}:$FrontendPort"
+if ($TailscaleIp) {
+    Write-Host "iPhone (ovunque, Tailscale): http://${TailscaleIp}:$FrontendPort"
+} else {
+    Write-Host "Tailscale non trovato: fuori dal Wi-Fi l'app non si raggiunge (guida in docs/local-mode.md)"
+}
 Write-Host ""
-Write-Host "Per iPhone: apri l'URL iPhone qui sopra sulla stessa rete Wi-Fi."
+Write-Host "Il PC deve restare acceso e non andare in sospensione."
 Write-Host "Lascia aperte entrambe le finestre PowerShell che si aprono."
 Write-Host ""
 
 $backendCommand = "`$env:MONILI_STORAGE_DIR='$StorageDir'; cd '$Root'; python -m pip install -q -r requirements.txt; python -m uvicorn api.server:app --host 0.0.0.0 --port $BackendPort"
-$frontendCommand = "`$env:NEXT_PUBLIC_API_URL='$ApiUrl'; cd '$Frontend'; npm run dev:local"
+$frontendCommand = "`$env:NEXT_PUBLIC_API_PORT='$BackendPort'; cd '$Frontend'; npm run dev:local"
 
 Start-Process powershell -WindowStyle Normal -ArgumentList "-NoExit", "-Command", $backendCommand
 Start-Sleep -Seconds 2

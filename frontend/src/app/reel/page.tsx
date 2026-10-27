@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { API_URL } from '@/lib/apiUrl';
 
 // ── CONFIG ──────────────────────────────────────────────────────────────────
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-backend.onrender.com';
 const ACTIVE_REEL_KEY = 'monili_active_reel_id';
 const POLL_MS = 3000;
 

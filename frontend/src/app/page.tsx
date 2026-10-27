@@ -5,6 +5,7 @@ import AgentCard from '@/components/AgentCard';
 import TerminalLog from '@/components/TerminalLog';
 import PhotoDropzone from '@/components/PhotoDropzone';
 import ResultsPanel from '@/components/ResultsPanel';
+import { API_URL } from '@/lib/apiUrl';
 
 // â”€â”€ TIPI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export type AgentStatus = 'offline' | 'standby' | 'active' | 'done' | 'error';
@@ -150,7 +151,6 @@ const SIMULATION: Array<{
 ];
 
 // â”€â”€ CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-backend.onrender.com';
 const OPENROUTER_TEXT_MODELS = [
   'openai/gpt-5.5',
   'openai/gpt-4.1-mini',

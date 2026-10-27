@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://monili-backend.onrender.com';
+import { API_URL } from '@/lib/apiUrl';
 
 interface SkillItem {
   id: string;
