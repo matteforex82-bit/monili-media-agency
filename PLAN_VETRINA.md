@@ -205,7 +205,8 @@ Punti 🟠, risolti il 27/10/2026 e provati (anche contro un Postgres 16 reale):
 - [x] Prezzo inserito nello Studio (o "Su richiesta"); il sito mostra i centesimi (`22,50 €`)
 
 Restano da fare al momento del deploy:
-- [ ] Unire i branch `claude/blissful-darwin-7tnrfd` in `master` (vetrina e Studio), poi `git pull` sul PC
+- [x] Branch uniti in `master` il 27/10/2026: Studio `99cdd3b` (con Reel Studio e la protezione del 13/10 recuperata dal PC), vetrina `7f438be`
+- [ ] `git pull` sul PC in `monili-deploy-temp` e `Ecosistema Monili`
 - [ ] Database di produzione pulito (Neon nuovo o branch Neon)
 - [ ] Compilare le variabili su Vercel e nello Studio con gli stessi token
 
