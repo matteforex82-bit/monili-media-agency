@@ -663,7 +663,8 @@ export default function Home() {
                 margin: '0 auto 14px',
                 maxWidth: 560,
               }}>
-                Cosa lanciamo<br />`r`n                <span className="text-terracotta-gradient">oggi in vetrina?</span>
+                Cosa lanciamo<br />
+                <span className="text-terracotta-gradient">oggi in vetrina?</span>
               </h1>
               <p style={{
                 fontFamily: 'var(--bot-font-sans)',
