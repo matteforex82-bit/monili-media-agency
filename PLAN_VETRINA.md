@@ -189,6 +189,21 @@ Il backend **esiste**: non si costruisce, si **verifica e si rende affidabile**.
 - [ ] Studio: max 4 foto per invio (`api/server.py`)
 - [ ] Prova in locale: Studio (porta 3000/8000) → vetrina (porta 3100) → bozza visibile in `/admin/review`
 
+### Fase 1b — Vetrina funzionante online (repo `monili-vetrina`)
+Problemi bloccanti 🔴, risolti il 27/10/2026 sul branch `claude/blissful-darwin-7tnrfd` (commit `71cd6cc`) e verificati con il sito avviato in produzione:
+- [x] "Approva" ora fa comparire subito il prodotto su home, collezioni, scheda e sitemap (prima serviva un nuovo deploy). Verificato: prima 0, dopo 1
+- [x] Admin chiuso in produzione se mancano credenziali o se sono deboli (`1234` rifiutato). Verificato: 401 / 503 / rinvio al login
+- [x] Niente prodotti di test online: il database vuoto non si riempie più da solo; telefono da `NEXT_PUBLIC_SHOP_PHONE`; il deploy di produzione si ferma se mancano URL, telefono o storage di produzione
+- [ ] Unire il branch in `master` di `monili-vetrina` (poi `git pull` sul PC)
+- [ ] Database di produzione **pulito** (nuovo database o branch Neon): quello attuale potrebbe contenere le schede di test
+
+Punti 🟠 da decidere insieme:
+- [ ] Limite 4,5 MB per richiesta su Vercel (schede con molte foto)
+- [ ] `/api/products` pubblica mostra anche bozze e archiviati
+- [ ] Registro eventi `/admin/ops` non persistente su Vercel
+- [ ] Studio: `SHOWCASE_INGEST_URL` = `https://<dominio>/api/ingest/internal-webapp`, `SHOWCASE_ADMIN_TOKEN` = `ADMIN_API_TOKEN` della vetrina, link review corretto
+- [ ] Prezzo obbligatorio per pubblicare (tranne "su richiesta"), ma lo Studio manda sempre `price: null`: ogni scheda va completata a mano in admin
+
 ### Fase 2 — Design con Claude Design (1–2 giornate)
 - [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito`
 - [ ] Decidere le pagine del lancio (4.2)
