@@ -7,14 +7,14 @@
 
 ## 1. Cosa c'è davvero oggi (stato verificato)
 
-Il sito vetrina **esiste**, frontend e backend, ma **solo sul PC di Matteo**: non è mai arrivato su GitHub.
+Il sito vetrina **esiste**, frontend e backend. Dal 27/10/2026 è al sicuro su GitHub nel repo privato **[`monili-vetrina`](https://github.com/matteforex82-bit/monili-vetrina)** (Fase 0 completata).
 
 ### 1.1 I due pezzi dell'ecosistema
 
 | Pezzo | Dove | Cosa fa |
 |---|---|---|
 | **Studio AI** (mittente) | Questo repo `monili-media-agency` su GitHub (copia locale: `Desktop\PROGETTI AI\monili-deploy-temp`) | Genera contenuti e foto, prepara la `product_fiche`, la invia con "Pubblica sul sito vetrina" |
-| **Sito vetrina** (ricevente) | `C:\Users\matte\Desktop\PROGETTI AI\Ecosistema Monili\apps\web` — **solo in locale** | Riceve le schede, admin review, pagine pubbliche |
+| **Sito vetrina** (ricevente) | Repo `monili-vetrina` → `apps/web` (copia locale: `C:\Users\matte\Desktop\PROGETTI AI\Ecosistema Monili`) | Riceve le schede, admin review, pagine pubbliche |
 
 ### 1.2 Il sito vetrina: `Ecosistema Monili\apps\web`
 
@@ -43,11 +43,12 @@ Il sito vetrina **esiste**, frontend e backend, ma **solo sul PC di Matteo**: no
 
 ### 1.4 ⚠️ Problemi seri da sapere subito
 
-1. **Il sito non ha nessun backup.** Esiste solo su quel PC. Se il disco si rompe, si perde tutto. È la prima cosa da sistemare.
-2. **Git è collegato al repository sbagliato.** Il remote `origin` di `Ecosistema Monili` è `monili-media-agency.git`, cioè **questo** repo dello Studio, ma con una storia completamente diversa (`5957bd5 Initial commit: Ecosistema Monili…`). Un `git push` da lì andrebbe in conflitto con il `master` dello Studio, e un push forzato lo **cancellerebbe**. Non fare push da quella cartella finché non sistemiamo il remote.
+1. ~~**Il sito non ha nessun backup.**~~ ✅ Risolto il 27/10/2026: push su `monili-vetrina`, `master` = `80ebde9`, identico al PC.
+2. ~~**Git è collegato al repository sbagliato.**~~ ✅ Risolto: il remote `origin` di `Ecosistema Monili` ora è `monili-vetrina`; `monili-media-agency` non è stato toccato.
 3. **Il dominio Vercel è stato preso da un altro progetto.** Il progetto Vercel del sito si chiama `web`, come quello di Alfred/Jarvis. Molto probabilmente un deploy di Alfred è finito nello stesso progetto e ha sostituito la vetrina: per questo `web-five-theta-58.vercel.app` oggi mostra Alfred e `/admin/review` dà 404. Va verificato nella dashboard Vercel.
 4. **Lo Studio punta all'indirizzo sbagliato.** La vetrina riceve su `/api/ingest/internal-webapp`, ma `SHOWCASE_INGEST_URL` nello Studio non è configurata da nessuna parte. I due token devono coincidere: `SHOWCASE_ADMIN_TOKEN` (Studio) = `ADMIN_API_TOKEN` (vetrina).
-5. **Modifiche non salvate** in `Ecosistema Monili`: `AGENTS.md`, `docs/project-memory/*.md`, `.claude/settings.local.json` modificati, `Avvia Agenzia Monili.bat` mai aggiunto a git.
+5. ~~**Modifiche non salvate**~~ ✅ Salvate nel commit `80ebde9`. Resta solo `.claude/settings.local.json` (locale, voluto).
+6. **File da togliere dal repo più avanti** (Fase 3, nessun segreto dentro): `.claude/settings.local.json` del primo commit, `apps/web/data/backups/*.json`, `apps/web/data/ops-events.ndjson`. Sono già in `.gitignore` ma ancora tracciati.
 
 ### 1.5 Problemi nello Studio (questo repo)
 - Il link "review" in `frontend/src/components/ResultsPanel.tsx` ha come fallback `https://web-five-theta-58.vercel.app/admin/review` (oggi è Alfred, 404)
@@ -57,7 +58,7 @@ Il sito vetrina **esiste**, frontend e backend, ma **solo sul PC di Matteo**: no
 
 ### 1.6 Altre cartelle "Monili" sul PC (da fare ordine, non urgenti)
 `Desktop\PROGETTI AI\`: `app monili post` (+ `- Copia`), `INSTAGRMA MONILI`, `NUOVA APP PER MONILI RAVENNA` · `Desktop\I MONILI BUROCRAZIA` · `OneDrive\Desktop\Monili Dash`, `OneDrive\Desktop\Sito Monili` · `C:\Users\matte\MoniliStorage` (storage locale dello Studio).
-**`OneDrive\Desktop\Sito Monili` va aperta**: potrebbe essere un'altra versione del sito.
+`OneDrive\Desktop\Sito Monili` verificata: **non** è un'altra versione del sito, è un archivio foto/logo/vecchio tema Shopify (nov 2025). Utile solo per il **logo** del Design System.
 
 ---
 
@@ -173,12 +174,12 @@ Il backend **esiste**: non si costruisce, si **verifica e si rende affidabile**.
 
 ## 6. Fasi di lavoro
 
-### Fase 0 — Mettere al sicuro (½ giornata) · **la più urgente**
-- [ ] In `Ecosistema Monili`: salvare le modifiche aperte e aggiungere `Avvia Agenzia Monili.bat` (commit locale)
-- [ ] Controllare che `.env.local` e `data/` con dati sensibili siano in `.gitignore` **prima** di qualsiasi push
-- [ ] Creare il repo privato `matteforex82-bit/monili-vetrina`
-- [ ] Cambiare il remote: `git remote set-url origin https://github.com/matteforex82-bit/monili-vetrina.git`, poi push. **Mai** fare push verso `monili-media-agency` da quella cartella
-- [ ] Aprire `OneDrive\Desktop\Sito Monili` e verificare che non contenga una versione più recente
+### Fase 0 — Mettere al sicuro ✅ completata il 27/10/2026
+- [x] Audit sicurezza: nessun segreto nella storia, nessun file > 50 MB (~15 MB in tutto)
+- [x] Modifiche aperte salvate + `Avvia Agenzia Monili.bat` aggiunto (commit `80ebde9`), `.gitignore` aggiornato
+- [x] Repo privato [`matteforex82-bit/monili-vetrina`](https://github.com/matteforex82-bit/monili-vetrina) creato
+- [x] Remote cambiato e push di `master` senza force: GitHub = PC (`80ebde9`), verificato anche dal cloud
+- [x] `OneDrive\Desktop\Sito Monili` controllata: solo archivio foto/asset, nessun codice
 
 ### Fase 1 — Pulizia e collegamento (½ giornata)
 - [ ] Studio: unire o archiviare il branch `claude/determined-knuth-zp63a6`
@@ -231,7 +232,7 @@ Il backend **esiste**: non si costruisce, si **verifica e si rende affidabile**.
 
 ## 8. Domande aperte (da decidere Matteo)
 
-1. **Nuovo repo `monili-vetrina`**: lo creiamo? (consiglio: sì, privato)
+1. ~~Nuovo repo `monili-vetrina`~~ ✅ fatto
 2. **Vercel**: nella dashboard il progetto `web` oggi è Alfred? Vuoi tenere Alfred lì e creare `monili-vetrina` da zero? (consiglio: sì)
 3. **Branch `determined-knuth`** dello Studio: unire o archiviare?
 4. **Pagine del lancio**: va bene partire con Home, Collezioni, Pezzi unici, Scheda prodotto e Contatti?
