@@ -197,12 +197,17 @@ Problemi bloccanti 🔴, risolti il 27/10/2026 sul branch `claude/blissful-darwi
 - [ ] Unire il branch in `master` di `monili-vetrina` (poi `git pull` sul PC)
 - [ ] Database di produzione **pulito** (nuovo database o branch Neon): quello attuale potrebbe contenere le schede di test
 
-Punti 🟠 da decidere insieme:
-- [ ] Limite 4,5 MB per richiesta su Vercel (schede con molte foto)
-- [ ] `/api/products` pubblica mostra anche bozze e archiviati
-- [ ] Registro eventi `/admin/ops` non persistente su Vercel
-- [ ] Studio: `SHOWCASE_INGEST_URL` = `https://<dominio>/api/ingest/internal-webapp`, `SHOWCASE_ADMIN_TOKEN` = `ADMIN_API_TOKEN` della vetrina, link review corretto
-- [ ] Prezzo obbligatorio per pubblicare (tranne "su richiesta"), ma lo Studio manda sempre `price: null`: ogni scheda va completata a mano in admin
+Punti 🟠, risolti il 27/10/2026 e provati (anche contro un Postgres 16 reale):
+- [x] Limite 4,5 MB: lo Studio invia max 4 foto e blocca prima dell'invio le schede oltre 4,2 MB (`monili-media-agency` commit `8c414d9`)
+- [x] `/api/products` pubblica: solo prodotti pubblicati, senza storico modifiche; l'admin vede tutto (`monili-vetrina` commit `7f438be`)
+- [x] Registro eventi `/admin/ops` salvato su Postgres (tabella `ops_events`) quando il sito usa Neon
+- [x] Studio: variabili `SHOWCASE_INGEST_URL`, `SHOWCASE_ADMIN_TOKEN`, `SHOWCASE_MAX_IMAGES`, `NEXT_PUBLIC_SHOWCASE_REVIEW_URL` documentate; link ad Alfred rimosso (il link review compare solo se configurato)
+- [x] Prezzo inserito nello Studio (o "Su richiesta"); il sito mostra i centesimi (`22,50 €`)
+
+Restano da fare al momento del deploy:
+- [ ] Unire i branch `claude/blissful-darwin-7tnrfd` in `master` (vetrina e Studio), poi `git pull` sul PC
+- [ ] Database di produzione pulito (Neon nuovo o branch Neon)
+- [ ] Compilare le variabili su Vercel e nello Studio con gli stessi token
 
 ### Fase 2 — Design con Claude Design (1–2 giornate)
 - [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito`
