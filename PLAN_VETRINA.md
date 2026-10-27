@@ -345,7 +345,7 @@ Si prendono i principi, non codice/logo/foto/layout identico:
 - Logo SVG e monogramma "iM": esistono?
 - Numero WhatsApp/telefono e orari veri dei due negozi; dominio
 
-- Spedizioni: **sì, in Italia e in Europa** (già spedito in Germania). Da decidere la soglia: sotto quale prezzo non conviene spedire, e se dare la spedizione gratuita sopra una cifra. Servono i costi veri (Italia ed Europa) del corriere che usate
+- Spedizioni: **sì, in Italia e in Europa** (già spedito in Germania). Costo reale per Matteo: 6–10 € a spedizione. Proposta: **Italia 7 € fissi, gratis sopra 69 €** (a 69 € la spedizione pesa ~12%, e spinge ad aggiungere un secondo pezzo); **Europa: preventivo su WhatsApp**. Sul sito e nel JSON-LD `shippingDetails` solo dopo l'ok di Matteo sulle cifre
 
 ### Prossimi passi, in ordine
 1. Design System v2 (dopo l'ok)
