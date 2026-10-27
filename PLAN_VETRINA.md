@@ -210,6 +210,19 @@ Restano da fare al momento del deploy:
 - [ ] Database di produzione pulito (Neon nuovo o branch Neon)
 - [ ] Compilare le variabili su Vercel e nello Studio con gli stessi token
 
+### Scelte del 27/10/2026: parti dinamiche e skill
+Parti dinamiche scelte da Matteo:
+- [ ] **Reel dallo Studio al sito**: il Reel Studio invia video MP4 9:16 + copertina + prodotto collegato alla vetrina (nuovo endpoint di ingest video, file su Vercel Blob). Compaiono nella sala Reel e nella scheda prodotto, senza lavoro manuale
+- [ ] **Passaggi e filtri animati**: card → scheda con View Transitions, filtri per pietra con riordino animato, "Aperto ora" dagli orari, "Novità della settimana" automatiche dalla data di pubblicazione
+- Regola: un solo momento forte per pagina, tutto il resto discreto; video con copertina e caricamento leggero su telefono; `prefers-reduced-motion` rispettato
+
+Skill (una sola guida principale per volta, per non avere istruzioni in conflitto):
+- **Impeccable** (`monili-vetrina/.claude/skills/impeccable`, v4.8.0): guida principale per design, rifinitura e animazioni. Il suo programma di controllo (scaricato al primo uso) non è ancora autorizzato
+- **Design** (Anthropic): `design-critique` sulle tavole, `accessibility-review` prima del codice
+- **audit-suite**: `web-animation-design` e `make-interfaces-feel-better` come riferimento per i movimenti
+- **frontend-design** (Anthropic): alternativa a Impeccable, non insieme
+- Verifica sempre nel browser, su telefono e desktop
+
 ### Fase 2 — Design con Claude Design (1–2 giornate)
 - [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito`
 - [ ] Decidere le pagine del lancio (4.2)
