@@ -555,23 +555,14 @@ def _build_showcase_payload(
         raise ValueError("Risultati missione non disponibili.")
 
     publish_pack = _parse_json_loose(results.get("publish_pack_json"))
-    strategy_plan = _parse_json_loose(results.get("strategy_plan"))
     analisi = str(results.get("analisi", ""))
     gmb_title = str(publish_pack.get("selected_gmb_title", "")).strip()
     gmb_title = re.sub(r"\s+[–-]\s+I Monili Ravenna$", "", gmb_title, flags=re.IGNORECASE).strip()
     product_signal_text = "\n".join([gmb_title, analisi])
-    raw_text = "\n".join(
-        [
-            analisi,
-            str(results.get("strategy", "")),
-            str(results.get("copy", "")),
-            json.dumps(publish_pack, ensure_ascii=False),
-            json.dumps(strategy_plan, ensure_ascii=False),
-        ]
-    )
 
     title = (
-        gmb_title
+        str(publish_pack.get("product_name", "")).strip()
+        or gmb_title
         or _first_meaningful_line(analisi)
         or f"Prodotto {run_id}"
     )
@@ -667,11 +658,11 @@ def _build_showcase_payload(
         "sourceSystem": "internal-web-app",
         "sourceRunId": run_id,
     }
-    if publish_pack.get("selected_gmb_title") and publish_pack.get("selected_gmb_text"):
-        product_fiche["seo"] = {
-            "title": str(publish_pack["selected_gmb_title"]),
-            "description": str(publish_pack["selected_gmb_text"]),
-        }
+    # New missions write dedicated SEO texts; old ones only had the Google Business post.
+    seo_title = str(publish_pack.get("seo_title") or publish_pack.get("selected_gmb_title") or "").strip()
+    seo_description = str(publish_pack.get("seo_description") or publish_pack.get("selected_gmb_text") or "").strip()
+    if seo_title and seo_description:
+        product_fiche["seo"] = {"title": seo_title, "description": seo_description}
 
     # Drop optional null fields, but keep required nullable contract fields such as price.
     optional_nullable_fields = {"summary", "story", "materials", "relatedTags"}
@@ -1008,7 +999,7 @@ async def _run_mission(job_id: str, foto_path: Path, brief: str, image_model: st
         if job:
             logs = job["logs"]
             logs.append(
-                f"ERRORE: missione oltre {MISSION_TIMEOUT_SECONDS // 60} minuti. Riprova con kit rapido o modello immagini Gemini."
+                f"ERRORE: missione oltre {MISSION_TIMEOUT_SECONDS // 60} minuti. Riprova con il modello immagini Gemini."
             )
             if len(logs) > MAX_JOB_LOG_LINES:
                 del logs[:-MAX_JOB_LOG_LINES]

@@ -9,28 +9,25 @@ interface Props {
 }
 
 type PublishPack = {
-  selected_format?: string;
+  product_name?: string;
+  seo_title?: string;
+  seo_description?: string;
+  whatsapp_share?: string;
+  gmb_title?: string;
+  gmb_text?: string;
+  caption?: string;
+  hashtags?: string[];
+  cta?: string;
+  // Older missions
   selected_caption?: string;
-  caption_alternatives?: string[];
   selected_hashtags?: string[];
-  hashtags_alternative_set?: string[];
   selected_whatsapp?: string;
   selected_gmb_title?: string;
   selected_gmb_text?: string;
-  selected_story_frames?: string[];
   selected_cta?: string;
-  selected_posting_time?: string;
-  notes_for_owner?: string;
-  selected_tripadvisor_title?: string;
-  selected_tripadvisor_text?: string;
 };
 
-type CarouselCopy = {
-  carousel_caption?: string;
-  slide_texts?: string[];
-};
-
-type Tab = 'today' | 'stories' | 'carousel' | 'photos' | 'google' | 'sito';
+type Tab = 'sito' | 'whatsapp' | 'google' | 'instagram';
 type ShowcaseCandidate = {
   src: string;
   available: boolean;
@@ -316,7 +313,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
               ) : (
                 <span>{item.error || 'File non disponibile'}</span>
               )}
-              <small>{item.kind?.startsWith('image_site_') ? 'Foto dedicata sito 4:5' : 'Adattabile al sito'}</small>
+              <small>{item.src.includes('real_photo') ? 'Foto reale 4:5' : item.kind?.startsWith('image_site_') ? 'Foto dedicata sito 4:5' : 'Adattabile al sito'}</small>
             </label>
           ))}
         </div>
@@ -332,26 +329,35 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
 }
 
 export default function ResultsPanel({ results, apiUrl, runId }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('today');
+  const [activeTab, setActiveTab] = useState<Tab>('sito');
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const publishPack = parseJsonObject<PublishPack>(results.publish_pack_json, {});
-  const carouselCopy = parseJsonObject<CarouselCopy>(results.carousel_slide_texts_json, {});
 
-  const hashtags = Array.isArray(publishPack.selected_hashtags) ? publishPack.selected_hashtags.join(' ') : '';
-  const gmbFinal = `${(publishPack.selected_gmb_title || '').trim()}\n\n${(publishPack.selected_gmb_text || '').trim()}`.trim();
-  const storyFrames = Array.isArray(publishPack.selected_story_frames) ? publishPack.selected_story_frames : [];
-  const storyImageKeys = useMemo(() => getResultImages(results, 'image_story_'), [results]);
-  const carouselImageKeys = useMemo(() => getResultImages(results, 'image_carousel_'), [results]);
-  const aiImageKeys = useMemo(() => getResultImages(results, 'image_ai_'), [results]);
+  const hashtags = Array.isArray(publishPack.hashtags || publishPack.selected_hashtags)
+    ? (publishPack.hashtags || publishPack.selected_hashtags || []).join(' ')
+    : '';
+  const whatsapp = publishPack.whatsapp_share || publishPack.selected_whatsapp || '';
+  const cta = publishPack.cta || publishPack.selected_cta || '';
+  const caption = publishPack.caption || publishPack.selected_caption || '';
+  const gmbFinal = `${(publishPack.gmb_title || publishPack.selected_gmb_title || '').trim()}\n\n${(publishPack.gmb_text || publishPack.selected_gmb_text || '').trim()}`.trim();
+  const seoFinal = `${(publishPack.seo_title || '').trim()}\n\n${(publishPack.seo_description || '').trim()}`.trim();
   const siteImageKeys = useMemo(() => getResultImages(results, 'image_site_'), [results]);
+  // Missions made before the "scheda pezzo" still carry Instagram images: show them, never empty tabs.
+  const legacyImageKeys = useMemo(
+    () => [
+      ...['image_feed', 'image_stories'].filter((key) => results[key]),
+      ...getResultImages(results, 'image_story_'),
+      ...getResultImages(results, 'image_carousel_'),
+      ...getResultImages(results, 'image_ai_'),
+    ],
+    [results],
+  );
 
   const tabs: Array<{ id: Tab; label: string }> = [
-    { id: 'today', label: 'Oggi' },
-    { id: 'stories', label: 'Stories' },
-    { id: 'carousel', label: 'Carousel' },
-    { id: 'photos', label: 'Foto' },
-    { id: 'google', label: 'Google' },
     { id: 'sito', label: 'Sito' },
+    { id: 'whatsapp', label: 'WhatsApp e negozio' },
+    { id: 'google', label: 'Google' },
+    ...(legacyImageKeys.length ? [{ id: 'instagram' as Tab, label: 'Instagram (vecchio kit)' }] : []),
   ];
 
   return (
@@ -359,18 +365,17 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
       <div className="bot-kit-banner">
         <div className="bot-avatar-stack" aria-hidden="true">
           <span className="bot-avatar">A</span>
-          <span className="bot-avatar dario">D</span>
           <span className="bot-avatar vera">V</span>
           <span className="bot-avatar carla">C</span>
-          <span className="bot-avatar paolo">P</span>
         </div>
         <div>
-          <div className="label-eyebrow">Kit pronto</div>
-          <h2>Il tuo kit di oggi è pronto.</h2>
-          <p>Vera ha scelto i visual · Carla ha scritto i testi · Paolo ha preparato il pacchetto.</p>
+          <div className="label-eyebrow">Scheda pezzo pronta</div>
+          <h2>{publishPack.product_name || 'La scheda del pezzo è pronta.'}</h2>
+          <p>Foto per il sito, messaggio WhatsApp e post Google. Per Instagram fai il Reel di questo pezzo.</p>
+          <a href="/reel" className="result-link">Fai il Reel di questo pezzo →</a>
         </div>
       </div>
-      <nav className="results-tabs" aria-label="Risultati contenuti">
+      <nav className="results-tabs" aria-label="Risultati scheda pezzo">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -384,123 +389,63 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
       </nav>
 
       <div className="results-body">
-        {activeTab === 'today' && (
-          <div className="result-stack">
-            <TextBlock title="Scelta consigliata" value={results.decision_summary || 'Usa il post 4:5, poi stories e invio draft al sito vetrina.'} filename="scelta-consigliata.txt" />
-            {results.image_feed && (
-              <ImageCard title="Post Instagram 4:5" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="post-instagram-4x5.jpg" />
-            )}
-            <TextBlock title="Caption Instagram" value={publishPack.selected_caption || ''} filename="caption-instagram.txt" />
-            <TextBlock title="Hashtag" value={hashtags} filename="hashtag.txt" />
-            <TextBlock title="WhatsApp" value={publishPack.selected_whatsapp || ''} filename="whatsapp.txt" />
-          </div>
-        )}
-
-        {activeTab === 'stories' && (
-          <div className="result-stack">
-            <div className="result-image-grid stories">
-              {storyImageKeys.map((key, index) => (
-                <ImageCard
-                  key={key}
-                  title={`Story ${index + 1}`}
-                  imageUrl={`${apiUrl}/files/${results[key]}`}
-                  filename={`story-${index + 1}.jpg`}
-                  note={storyFrames[index]}
-                />
-              ))}
-              {storyImageKeys.length === 0 && results.image_stories && (
-                <ImageCard title="Story 9:16" imageUrl={`${apiUrl}/files/${results.image_stories}`} filename="story-verticale.jpg" />
-              )}
-            </div>
-            {storyImageKeys.length === 0 && !results.image_stories && (
-              <div className="result-empty">
-                <strong>STORIES non generate.</strong>
-                <p>Il sistema non ha ricevuto immagini story valide. Puoi rilanciare o usare il post 4:5 come contenuto principale.</p>
-              </div>
-            )}
-            <TextBlock title="Testi stories" value={storyFrames.map((frame, idx) => `Story ${idx + 1}: ${frame}`).join('\n')} filename="testi-stories.txt" />
-          </div>
-        )}
-
-        {activeTab === 'carousel' && (
-          <div className="result-stack">
-            <div className="result-image-grid">
-              {carouselImageKeys.map((key, index) => (
-                <ImageCard
-                  key={key}
-                  title={`Slide ${index + 1}`}
-                  imageUrl={`${apiUrl}/files/${results[key]}`}
-                  filename={`carousel-slide-${index + 1}.jpg`}
-                  note={carouselCopy.slide_texts?.[index]}
-                />
-              ))}
-            </div>
-            {carouselImageKeys.length === 0 && (
-              <div className="result-empty">
-                <strong>CAROSELLO non presente nella strategia.</strong>
-                <p>Per questo prodotto il sistema ha preparato post, stories e foto sito. Se lo vuoi comunque, scrivilo nel brief: "voglio anche un carosello".</p>
-              </div>
-            )}
-            {carouselImageKeys.length > 0 && (
-              <TextBlock title="Caption carousel" value={carouselCopy.carousel_caption || publishPack.selected_caption || ''} filename="caption-carousel.txt" />
-            )}
-          </div>
-        )}
-
-        {activeTab === 'photos' && (
-          <div className="result-image-grid">
-            {results.image_feed && <ImageCard title="Post Instagram 4:5" imageUrl={`${apiUrl}/files/${results.image_feed}`} filename="post-1080x1350.jpg" />}
-            {results.image_stories && <ImageCard title="Story ottimizzata" imageUrl={`${apiUrl}/files/${results.image_stories}`} filename="story-1080x1920.jpg" />}
-            {siteImageKeys.map((key, index) => (
-              <ImageCard key={key} title={`Sito vetrina ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`sito-vetrina-${index + 1}.jpg`} />
-            ))}
-            {aiImageKeys.map((key, index) => (
-              <ImageCard key={key} title={`Visual ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`visual-${index + 1}.jpg`} />
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'google' && (
-          <div className="result-stack">
-            <TextBlock title="Google Business" value={gmbFinal} filename="google-business.txt" />
-            {publishPack.selected_tripadvisor_text && (
-              <TextBlock
-                title="TripAdvisor"
-                value={`${publishPack.selected_tripadvisor_title || ''}\n\n${publishPack.selected_tripadvisor_text || ''}`.trim()}
-                filename="tripadvisor.txt"
-              />
-            )}
-          </div>
-        )}
-
         {activeTab === 'sito' && (
           <div className="result-stack">
+            {results.decision_summary && (
+              <TextBlock title="Cosa fare ora" value={results.decision_summary} filename="cosa-fare-ora.txt" />
+            )}
             {siteImageKeys.length > 0 && (
               <div className="result-image-grid">
                 {siteImageKeys.map((key, index) => (
-                  <ImageCard key={key} title={`Foto sito ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`foto-sito-${index + 1}.jpg`} />
+                  <ImageCard
+                    key={key}
+                    title={results[key].includes('real_photo') ? 'Foto reale' : `Foto sito ${index + 1}`}
+                    imageUrl={`${apiUrl}/files/${results[key]}`}
+                    filename={`foto-sito-${index + 1}.jpg`}
+                  />
                 ))}
               </div>
             )}
             <ShowcasePublishPanel apiUrl={apiUrl} runId={runId} />
           </div>
         )}
+
+        {activeTab === 'whatsapp' && (
+          <div className="result-stack">
+            <TextBlock title="WhatsApp (da mandare con il link del pezzo)" value={whatsapp} filename="whatsapp.txt" />
+            <TextBlock title="Invito" value={cta} filename="invito.txt" />
+            <TextBlock title="Caption storia" value={[caption, hashtags].filter(Boolean).join('\n\n')} filename="caption-storia.txt" />
+          </div>
+        )}
+
+        {activeTab === 'google' && (
+          <div className="result-stack">
+            <TextBlock title="Google Business" value={gmbFinal} filename="google-business.txt" />
+            {seoFinal && <TextBlock title="Titolo e descrizione per Google" value={seoFinal} filename="seo.txt" />}
+          </div>
+        )}
+
+        {activeTab === 'instagram' && (
+          <div className="result-image-grid">
+            {legacyImageKeys.map((key, index) => (
+              <ImageCard key={key} title={`Immagine ${index + 1}`} imageUrl={`${apiUrl}/files/${results[key]}`} filename={`instagram-${index + 1}.jpg`} />
+            ))}
+          </div>
+        )}
       </div>
 
       <section className="result-block advanced">
         <button type="button" onClick={() => setAdvancedOpen((value) => !value)} className="btn-secondary result-button full">
-          {advancedOpen ? 'Nascondi dettagli avanzati' : 'Mostra strategia completa'}
+          {advancedOpen ? 'Nascondi dettagli' : 'Mostra dettagli'}
         </button>
         {advancedOpen && (
           <div className="result-stack spaced">
-            <TextBlock title="Piano statico JSON" value={results.strategy_plan || ''} filename="piano-statico.json" />
             <TextBlock title="Analisi prodotto" value={results.analisi || ''} filename="analisi-prodotto.txt" />
-            <TextBlock title="Prompt immagini" value={results.instagram_visual_prompts || ''} filename="prompt-images-2.txt" />
-            <TextBlock title="Report asset" value={results.asset_report_json || ''} filename="report-asset.json" />
+            <TextBlock title="Piano scheda" value={results.scheda_plan || results.strategy_plan || ''} filename="piano-scheda.json" />
+            <TextBlock title="Report foto" value={results.asset_report_json || ''} filename="report-foto.json" />
           </div>
         )}
       </section>
     </div>
   );
 }
-

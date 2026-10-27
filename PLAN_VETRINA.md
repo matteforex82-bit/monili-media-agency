@@ -355,6 +355,9 @@ Struttura del lancio, **3 pagine** (approvata):
 - Design System v1
 - **27/10 sera, decise con Matteo**: cosa è il sito (vetrina di brand a novità, niente e-commerce, niente collezioni), 3 pagine, prezzi visibili, SEO + GEO come obiettivo principale, bot Telegram per "Venduto", spedizioni Italia + Europa, Design System v2 approvato. Dettagli in sezione 6, "Scelte del 27/10/2026 (2)"
 
+- **27/10 sera: la missione dello Studio è diventata "Scheda pezzo"**: produce solo quello che serve al sito, cioè 2 foto AI + la foto reale, testi SEO, WhatsApp e Google Business. Si passa da 7 a 3 chiamate di testo e da 5 a 2 immagini. Instagram passa dal Reel Studio. Dettagli in `docs/STATO_PROGETTO.md`
+- Da fare più avanti: il Reel Studio rifà l'analisi del pezzo; potrebbe riusare quella della scheda (una chiamata in meno per ogni Reel)
+
 ### Il sito in una frase
 Una vetrina che sembra il feed editoriale di Instagram ma fa quello che Instagram non fa: farsi trovare su Google e dalle AI, dare un link fisso a ogni pezzo da girare su WhatsApp, portare la gente nei due negozi di via Cavour. La vendita avviene su WhatsApp e DM, risponde sempre Matteo.
 

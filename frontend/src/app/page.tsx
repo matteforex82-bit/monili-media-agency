@@ -39,115 +39,10 @@ interface HistoryItem {
 
 // â”€â”€ CONFIGURAZIONE AGENTI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const INITIAL_AGENTS: AgentDef[] = [
-  { id: 'product-analyst',       name: 'ANALISTA',    role: 'Categoria e dettagli', icon: 'A', status: 'offline', progress: 0 },
-  { id: 'content-director',      name: 'DIRECTOR',    role: 'Post, stories, carousel', icon: 'D', status: 'offline', progress: 0 },
-  { id: 'visual-prompts',        name: 'VISUAL',      role: 'Prompt Images 2', icon: 'V', status: 'offline', progress: 0 },
-  { id: 'copywriter',            name: 'COPY',        role: 'Caption e testi', icon: 'C', status: 'offline', progress: 0 },
-  { id: 'publisher',             name: 'PACK',        role: 'Kit pronto', icon: 'P', status: 'offline', progress: 0 },
-];
-
-// â”€â”€ SIMULAZIONE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const SIMULATION: Array<{
-  agentIdx: number;
-  duration: number;
-  logs: Array<{ delay: number; msg: string; type: LogEntry['type'] }>;
-}> = [
-  {
-    agentIdx: 0, duration: 1200,
-    logs: [
-      { delay: 0,   msg: 'Missione ricevuta. Analisi foto prodotto in corso...', type: 'info' },
-      { delay: 400, msg: 'Orchestrazione team avviata. 9 agenti in standby.', type: 'info' },
-    ],
-  },
-  {
-    agentIdx: 1, duration: 3500,
-    logs: [
-      { delay: 0,    msg: 'Ricerca trend hashtag bijoux Italia P/E 2026...', type: 'info' },
-      { delay: 800,  msg: '#bijouxdonna +340% reach ultimi 7gg', type: 'data' },
-      { delay: 1400, msg: '#gioiellihandmade trending su Reel Italia', type: 'data' },
-      { delay: 2000, msg: 'Audio Reel top: "Espresso" â€” Sabrina Carpenter (â†‘ moda)', type: 'data' },
-      { delay: 2800, msg: 'Competitor Ravenna: 3 negozi analizzati', type: 'data' },
-      { delay: 3200, msg: 'Intelligence completata. Dati pronti per team.', type: 'success' },
-    ],
-  },
-  {
-    agentIdx: 2, duration: 2800,
-    logs: [
-      { delay: 0,    msg: 'Analisi multimodale foto prodotto...', type: 'info' },
-      { delay: 600,  msg: 'Prodotto identificato: Orecchini a cerchio dorati', type: 'data' },
-      { delay: 1100, msg: 'Materiale: metallo dorato, superficie liscia', type: 'data' },
-      { delay: 1600, msg: 'Colori: #D4AF37 (78%), #FAD5A5 (22%)', type: 'data' },
-      { delay: 2000, msg: 'Mood: elegante minimal, boho chic â€” Stagione: P/E 2026', type: 'data' },
-      { delay: 2400, msg: 'Formato consigliato: REEL (impatto visivo alto)', type: 'success' },
-    ],
-  },
-  {
-    agentIdx: 3, duration: 3000,
-    logs: [
-      { delay: 0,    msg: 'Generazione 8 prompt shooting professionali...', type: 'info' },
-      { delay: 500,  msg: '[1/8] Hero shot â€” sfondo neutro bianco, studio lighting', type: 'data' },
-      { delay: 900,  msg: '[2/8] Vista 3/4 â€” angolazione 45Â°, soft shadows', type: 'data' },
-      { delay: 1300, msg: '[3/8] Close-up texture â€” macro, bokeh background', type: 'data' },
-      { delay: 1700, msg: '[4/8] Modella â€” lifestyle, centro storico Ravenna', type: 'data' },
-      { delay: 2100, msg: '[5/8] Flat lay P/E â€” abbinamenti fiori, tessuti leggeri', type: 'data' },
-      { delay: 2600, msg: '8 prompt con image reference pronti per Gemini/MJ', type: 'success' },
-    ],
-  },
-  {
-    agentIdx: 4, duration: 4000,
-    logs: [
-      { delay: 0,    msg: 'Chiamata Gemini Image API con image reference...', type: 'info' },
-      { delay: 800,  msg: 'Generazione hero_shot.jpg...', type: 'info' },
-      { delay: 1600, msg: 'Generazione detail_closeup.jpg...', type: 'info' },
-      { delay: 2400, msg: 'Generazione worn_by_model.jpg...', type: 'info' },
-      { delay: 3200, msg: '4 immagini professionali salvate in 02_SHOOTING/generated/', type: 'success' },
-    ],
-  },
-  {
-    agentIdx: 5, duration: 2500,
-    logs: [
-      { delay: 0,    msg: 'Struttura Reel: hook 3s + 3 scene + CTA', type: 'info' },
-      { delay: 600,  msg: '[Frame 1] Hook: "Questi orecchini valgono una serata..." â€” testo bold', type: 'data' },
-      { delay: 1100, msg: '[Frame 2-4] Product scenes con audio "Espresso"', type: 'data' },
-      { delay: 1700, msg: '[Frame 5] CTA: "Trovali solo da noi Â· Ravenna centro"', type: 'data' },
-      { delay: 2200, msg: 'Script + 5 frame prompt AI generati', type: 'success' },
-    ],
-  },
-  {
-    agentIdx: 6, duration: 2200,
-    logs: [
-      { delay: 0,    msg: 'Scrittura 3 varianti caption...', type: 'info' },
-      { delay: 700,  msg: '[Casual] "Questi orecchini hanno giÃ  scelto il tuo outfit ðŸŒ¿"', type: 'data' },
-      { delay: 1200, msg: '[Elegante] "Oro che accarezza. Luce che racconta."', type: 'data' },
-      { delay: 1700, msg: '[Urgency] "Nuovi arrivi â€” solo pochi pezzi disponibili âœ¨"', type: 'data' },
-      { delay: 2000, msg: 'Stories, WhatsApp, GMB pronti', type: 'success' },
-    ],
-  },
-  {
-    agentIdx: 7, duration: 1800,
-    logs: [
-      { delay: 0,    msg: 'Costruzione set 30 hashtag in 4 tier...', type: 'info' },
-      { delay: 500,  msg: 'Tier 1 (broad): #bijouxdonna #gioielli #moda', type: 'data' },
-      { delay: 900,  msg: 'Tier 3 (local): #ravenna #romagnastyle #imoniliravenna', type: 'data' },
-      { delay: 1400, msg: '3 hashtag "scommessa settimana" identificati', type: 'success' },
-    ],
-  },
-  {
-    agentIdx: 8, duration: 1400,
-    logs: [
-      { delay: 0,    msg: 'Ottimizzazione foto per Instagram...', type: 'info' },
-      { delay: 500,  msg: 'Feed 1080x1080 con padding bianco generata', type: 'data' },
-      { delay: 900,  msg: 'Stories 1080x1920 con sfondo blurrato generata', type: 'data' },
-      { delay: 1200, msg: 'Feed e Stories salvate in 05_FOTO_OTTIMIZZATE', type: 'success' },
-    ],
-  },
-  {
-    agentIdx: 9, duration: 900,
-    logs: [
-      { delay: 0,   msg: 'Sessione loggata in performance_log.json', type: 'info' },
-      { delay: 500, msg: 'Sistema aggiornato. Memoria persistente.', type: 'success' },
-    ],
-  },
+  { id: 'product-analyst', name: 'ANALISTA', role: 'Materiali e descrizione', icon: 'A', status: 'offline', progress: 0 },
+  { id: 'scheda-plan',     name: 'PIANO',    role: 'Styling e prompt foto', icon: 'P', status: 'offline', progress: 0 },
+  { id: 'site-visual',     name: 'FOTO SITO', role: 'Catalogo, indossato, reale', icon: 'V', status: 'offline', progress: 0 },
+  { id: 'copywriter',      name: 'TESTI',    role: 'Sito, WhatsApp, Google', icon: 'C', status: 'offline', progress: 0 },
 ];
 
 // â”€â”€ CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -165,13 +60,6 @@ const OPENROUTER_IMAGE_MODELS = [
   'google/gemini-3-pro-image',
 ] as const;
 const ACTIVE_JOB_STORAGE_KEY = 'monili_active_job_id';
-
-// Estrae sezioni di testo dai log grezzi del backend
-function estrai(logs: string, keyword: string): string {
-  const lines = logs.split('\n');
-  const relevant = lines.filter(l => l.toLowerCase().includes(keyword.toLowerCase()));
-  return relevant.length > 0 ? relevant.join('\n') : '';
-}
 
 // â”€â”€ HELPER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function now() {
@@ -327,18 +215,10 @@ export default function Home() {
     // â”€â”€ SSE stream: aggiornamenti in tempo reale â”€â”€
     const agentKeywords: [string, number][] = [
       ['ANALISTA', 0],
-      ['STRATEGIST', 1],
-      ['MERCHANDISER', 1],
-      ['INSTAGRAM VISUAL', 2],
-      ['CAROUSEL VISUAL', 2],
-      ['VISUAL GEN', 2],
-      ['FOTO DIR', 2],
-      ['CAROUSEL', 2],
-      ['LOCAL SEO', 3],
-      ['DISTRIBUZIONE', 3],
+      ['PIANO SCHEDA', 1],
+      ['SITO VISUAL', 2],
       ['PUBLISH PACK', 3],
-      ['FOTO OTT', 4],
-      ['MEMORIA', 4],
+      ['MEMORIA', 3],
     ];
 
     let currentAgentIdx = 0;
@@ -406,7 +286,7 @@ export default function Home() {
                 if (data.results) {
                   setResults(data.results);
                   setMissionState('complete');
-                  addLog('SISTEMA', 'Missione completata. Kit marketing pronto.', 'success');
+                  addLog('SISTEMA', 'Missione completata. Scheda pezzo pronta.', 'success');
                 } else {
                   setMissionState('error');
                   addLog('SISTEMA', 'Missione chiusa senza risultati. Le foto non sono state generate.', 'warn');
@@ -734,7 +614,7 @@ export default function Home() {
                   className="brief-area"
                   value={brief}
                   onChange={e => setBrief(e.target.value)}
-                  placeholder="Esempio: orecchini a cerchio dorati, 22 EUR, nuovi arrivi, perfetti per cerimonia o aperitivo. Vorrei farli vedere indossati e creare un carousel su come abbinarli."
+                  placeholder="Esempio: orecchini a cerchio dorati, 22 EUR, nuovi arrivi, perfetti per cerimonia o aperitivo. Vorrei farli vedere indossati."
                   style={{ minHeight: 200 }}
                 />
                 <div style={{
@@ -748,9 +628,9 @@ export default function Home() {
                     Cosa riceverai
                   </div>
                   <div style={{ display: 'grid', gap: 6, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.45 }}>
-                    <span>Post statico, stories e carousel scelti in base al prodotto.</span>
-                    <span>Prompt specifici per gioielli, borse, abiti, cinture e accessori.</span>
-                    <span>Caption, WhatsApp, Google Business e invio al sito vetrina.</span>
+                    <span>3 foto per il sito: catalogo, indossato e la tua foto reale.</span>
+                    <span>Titolo e descrizione per Google, materiali solo se certi.</span>
+                    <span>Messaggio WhatsApp da girare col link, post Google Business, invio al sito. Instagram: Reel Studio.</span>
                   </div>
                   <div style={{ marginTop: 12 }}>
                     <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -834,7 +714,7 @@ export default function Home() {
                   Il flusso e semplice
                 </div>
                 <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)' }}>
-                  1. Carichi la foto  2. Aggiungi note opzionali  3. Generi il kit  4. Scarichi testi e immagini
+                  1. Carichi la foto  2. Aggiungi note opzionali  3. Generi la scheda  4. La pubblichi sul sito e la giri su WhatsApp
                 </div>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
@@ -930,7 +810,7 @@ export default function Home() {
               <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Il team
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                 {agents.map((agent, i) => (
                   <AgentCard key={agent.id} agent={agent} index={i} />
                 ))}
@@ -988,10 +868,10 @@ export default function Home() {
                   Missione completata
                 </div>
                 <h2 style={{ fontFamily: 'var(--bot-font-display)', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', margin: 0 }}>
-                  Il tuo kit di oggi è pronto.
+                  La scheda del pezzo è pronta.
                 </h2>
                 <p style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 13, color: 'var(--espresso-mid)', margin: '4px 0 0' }}>
-                  Strategia, visual AI, contenuto scelto dallo strategist, Google Business, caption, WhatsApp e foto ottimizzate: tutto pronto da usare.
+                  Foto per il sito, testi per Google e il messaggio WhatsApp da girare con il link del pezzo.
                 </p>
               </div>
               <button
@@ -1008,7 +888,7 @@ export default function Home() {
               <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Il team - {INITIAL_AGENTS.length}/{INITIAL_AGENTS.length} completati
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {agents.map((agent, i) => (
                   <AgentCard key={agent.id} agent={agent} index={i} />
                 ))}

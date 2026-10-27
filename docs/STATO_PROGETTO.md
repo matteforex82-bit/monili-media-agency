@@ -2,7 +2,7 @@
 
 File di passaggio di consegne, condiviso con Hermes. Aggiornare a ogni sessione di lavoro.
 
-**Ultimo aggiornamento:** 2026-10-23 · branch `claude/determined-knuth-zp63a6`
+**Ultimo aggiornamento:** 2026-10-27 · branch `master`
 
 ## Cos'è
 App per creare contenuti social de I Monili Ravenna a partire dalle foto prodotto.
@@ -59,7 +59,15 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
   attivo solo con `OPENAI_API_KEY`; parametri verificati sulla reference ufficiale OpenAI.
 - **Test automatici** in `tests/` (27 test, senza rete né chiavi): `python -m pytest tests`.
 
+## Fatto il 2026-10-27
+- **Scheda vetrina corretta**: il riassunto viene dalla sezione "DESCRIZIONE AI" dell'analisi, e tra i materiali restano solo quelli certi (niente "argento" se è metallo argentato).
+- **Missione snellita in "Scheda pezzo"** (scelta di Matteo: il sito serve a farsi trovare su Google e dalle AI, a dare un link da girare su WhatsApp e a portare la gente in via Cavour).
+  Il flusso è: analisi → piano (styling + prompt) → 2 foto AI (catalogo, indossato) + foto reale ritagliata gratis → testi (SEO, WhatsApp, Google Business, caption, 3+2 hashtag).
+  Si passa **da 7 a 3 chiamate di testo e da 5 a 2 immagini**; niente più post, story e carosello statici (Instagram passa dal Reel Studio). `main.py` scende da circa 1980 a circa 830 righe.
+  Le missioni vecchie si aprono ancora, con la scheda "Instagram (vecchio kit)". Test: 33.
+
 ## Prossimi passi
+0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.
 1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` locale / su Render.
 2. Primo Reel vero con un prodotto reale: verificare fedeltà del gioiello e costo effettivo vs stima.
 3. Tarare le stime (`HF_FALLBACK_USD_PER_SEC_*`) con i costi reali.
