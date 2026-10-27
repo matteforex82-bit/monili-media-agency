@@ -331,11 +331,11 @@ Struttura del lancio, **3 pagine** (approvata):
 ## 10. Punto della situazione e ripartenza (aggiornato 27/10/2026 sera)
 
 **Per riprendere in una nuova chat**, scrivi:
-> Leggi `CLAUDE.md` e `PLAN_VETRINA.md` (sezione 10) nel repo monili-media-agency, branch `claude/blissful-darwin-7tnrfd`, e continua dal primo punto di "Prossimi passi".
+> Leggi `CLAUDE.md` e `PLAN_VETRINA.md` (sezione 10) nel repo monili-media-agency (`master`) e continua dal primo punto di "Prossimi passi".
 
 ### Istruzioni per chi riprende (vale per qualunque modello)
 1. **Leggi prima**: `CLAUDE.md` (tono, colori, regole del brand), questo file per intero, poi l'artifact del Design System (Artifact, `action: "read"` sull'URL qui sotto). Non rifare analisi già fatte: feed Instagram e louisemisha.com sono riassunti più sotto
-2. **Un passo per volta**, nell'ordine di "Prossimi passi". Alla fine di ogni passo: aggiorna le caselle in questo file, commit, push sul branch indicato
+2. **Un passo per volta**, nell'ordine di "Prossimi passi". Alla fine di ogni passo: aggiorna le caselle in questo file, commit, push sul branch di lavoro della sessione
 3. **Matteo** preferisce risposte in italiano, dirette e sincere, senza giri di parole; se una scelta è sbagliata diglielo. Fagli domande solo sulle decisioni che spettano a lui (sezione 8), una alla volta, con una raccomandazione. Non tutto in un muro di testo
 4. **Il repo della vetrina** (`matteforex82-bit/monili-vetrina`) non è nella sessione di partenza: in una chat cloud va aggiunto con `add_repo` (accesso `push`) e clonato. Lì valgono le sue regole (`.claude/skills/impeccable`)
 5. **Non** fare push su `master` senza un ok esplicito di Matteo. **Non** cambiare API, store, validazione o ingest durante il restyling (4.3)
@@ -343,7 +343,7 @@ Struttura del lancio, **3 pagine** (approvata):
 7. Segreti (token Telegram, Neon, Blob, `ADMIN_*`): solo come variabili d'ambiente, mai nel codice né in questo file
 
 ### Dove sono le cose
-- **Studio + Reel Studio**: repo `matteforex82-bit/monili-media-agency`, `master` (sul PC: `Desktop\PROGETTI AI\monili-deploy-temp`, avvio con `Avvia Agenzia Monili.bat`). Questo piano sta sul branch `claude/blissful-darwin-7tnrfd` (avanti rispetto a `master` solo con commit di documenti: da unire in `master` quando Matteo dà l'ok)
+- **Studio + Reel Studio**: repo `matteforex82-bit/monili-media-agency`, `master` (sul PC: `Desktop\PROGETTI AI\monili-deploy-temp`, avvio con `Avvia Agenzia Monili.bat`). Questo piano è su `master` (unito il 27/10/2026 sera); il branch di lavoro precedente era `claude/blissful-darwin-7tnrfd`
 - **Vetrina (frontend + backend)**: repo privato `matteforex82-bit/monili-vetrina`, `master` (`7f438be`), app in `apps/web` (sul PC: `Desktop\PROGETTI AI\Ecosistema Monili`)
 - **Design System v1**: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (tipo Design System, privato). Sorgenti: `project/tokens.json`, `project/README.md`, `project/components/*`. La v2 va pubblicata **sullo stesso URL**, non su uno nuovo
 - **Skill e plugin**: Impeccable (guida principale per il codice; il suo programma di controllo NON è autorizzato), frontend-design (alternativa, non insieme), Design (Anthropic: `design-critique`, `accessibility-review`), audit-suite (`web-animation-design`, `make-interfaces-feel-better`), **SEO-AEO-GEO Ultimate** e **AI SEO** (installati il 27/10, vedi tabella 4.4), `instagram-agent:ig-human` per i testi
