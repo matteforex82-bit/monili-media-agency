@@ -1101,6 +1101,13 @@ def showcase_candidates(run_id: str):
 
 @app.post("/missions/{run_id}/showcase/publish")
 async def showcase_publish(run_id: str, body: dict | None = None):
+    # Fail fast, before preparing images: without a verified destination the
+    # Studio must not send product fiches anywhere.
+    if not os.environ.get("SHOWCASE_INGEST_URL", "").strip():
+        return JSONResponse(
+            {"error": "Invio disattivato: l'indirizzo del sito vetrina Monili deve essere verificato e configurato."},
+            status_code=503,
+        )
     payload = _find_mission_payload(run_id)
     if not payload:
         return JSONResponse({"error": "Run non trovato"}, status_code=404)
