@@ -308,7 +308,6 @@ Fatta il 28/10/2026 e **unita in `master` di `monili-vetrina` (`b5cdabf`, fast-f
 - [x] Link "Reel" a `/admin/reels` nella testata di `/admin/review` (28/10/2026)
 - [ ] Reel Studio: la prima volta online, prova vera con un Reel Higgsfield (le prove sono state fatte con video sintetici)
 - [x] Fase 4 chiusa: tavole approvate e branch uniti (28/10/2026). Restano solo `design:accessibility-review` (facoltativa: Lighthouse accessibilità = 100) e Lighthouse sul sito online (Fase 5)
-- [ ] Sul PC: `git pull` in `Ecosistema Monili` (ora su `master`) e in `monili-deploy-temp`
 - [ ] Token e componenti dal Design System v2 in `apps/web`
 - [ ] Le 3 pagine fedeli alle tavole, screenshot di confronto con `run`; pagine fuori lancio nascoste da menu e sitemap
 - [ ] WhatsApp e "Chiama" della scheda col numero del negozio del pezzo (`availableAt`): oggi la vetrina ha un solo `NEXT_PUBLIC_SHOP_PHONE`, servono due numeri
