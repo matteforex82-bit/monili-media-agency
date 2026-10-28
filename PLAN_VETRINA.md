@@ -263,12 +263,15 @@ Struttura del lancio, **3 pagine** (approvata):
 - [ ] `design:design-critique` sulle tavole, poi **approvazione di Matteo**, max 2 giri per pagina
 - [ ] `design:accessibility-review` prima di passare al codice
 
-### Fase 3 — Backend affidabile (1 giornata)
-- [ ] Tutti i punti della sezione 5
-- [ ] Regola di Matteo (28/10/2026) anche sul sito: l'ingest rifiuta schede senza prezzo e capi d'abbigliamento senza `size`. Nello Studio il controllo c'è già (prezzo obbligatorio, taglia obbligatoria per l'abbigliamento, categoria scelta a mano); oggi la vetrina accetta ancora `price: null`
-- [ ] In produzione `PRODUCT_STORE_DRIVER=postgres` e `IMAGE_STORAGE_DRIVER=vercel-blob`, log su Postgres
-- [ ] Stato **venduto** e uscita automatica da "Appena arrivati" dopo 6–8 settimane (campo data di pubblicazione già presente → filtro, niente cron)
-- [ ] Prezzo nel modello scheda già presente (Studio lo invia): verificarlo fino al JSON-LD
+### Fase 3 — Backend affidabile ✅ fatta il 28/10/2026 (branch `claude/fase-3-backend` di `monili-vetrina`, da unire con l'ok di Matteo)
+- [x] Regola di Matteo anche sul sito: l'ingest rifiuta schede senza prezzo, senza un solo negozio, capi senza `size`, più di 8 foto, body oltre 4,5 MB (413)
+- [x] Telefoni dei due negozi nel codice (`site-config.ts`); WhatsApp della scheda al negozio del pezzo; orari veri nel JSON-LD e nel footer; tolto l'obbligo di `NEXT_PUBLIC_SHOP_PHONE`
+- [x] Uscita automatica da "Appena arrivati" dopo 8 settimane (`new-arrivals.ts`, home rigenerata ogni ora); il venduto resta nel feed fino ad allora
+- [x] JSON-LD: prezzo e `SoldOut` per i venduti; **corretto un buco di sicurezza**: i testi AI potevano chiudere il tag `<script>` del JSON-LD
+- [x] Test di contratto con una scheda come quella dello Studio (`npm test`, vitest): 8 test. Build, tipi e lint ok
+- [x] Già a posto da prima: token confrontato a tempo costante, testi AI mostrati come testo, reinvio dello stesso id rifiutato (409), immagini solo JPEG/PNG/WebP, log su Postgres
+- [ ] Non fatto: limite di richieste sull'ingest (protetto dal token di 24+ caratteri, rischio basso); controllo del contenuto reale delle immagini oltre al tipo dichiarato
+- [ ] In produzione `PRODUCT_STORE_DRIVER=postgres` e `IMAGE_STORAGE_DRIVER=vercel-blob` (il deploy si ferma già senza): da impostare in Fase 5
 
 ### Fase 3b — Bot Telegram "Venduto" (½ giornata)
 - [ ] Matteo crea il bot con @BotFather e passa il token (variabili `TELEGRAM_BOT_TOKEN`, `TELEGRAM_OWNER_CHAT_ID` su Vercel, mai nel codice)
