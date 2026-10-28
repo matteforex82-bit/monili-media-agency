@@ -1190,6 +1190,9 @@ async def showcase_publish(run_id: str, body: dict | None = None):
     audit_payload = {
         "id": audit_id,
         "run_id": run_id,
+        # Serve al Reel Studio per collegare un Reel a questo pezzo sul sito.
+        "product_id": prepared["payload"]["product_fiche"]["id"],
+        "product_title": prepared["payload"]["product_fiche"]["title"],
         "created_at": datetime.now().isoformat(),
         "selected_images": selected,
         "prepared_images": prepared["prepared_images"],
@@ -1554,6 +1557,132 @@ async def reel_render(reel_id: str, body: dict | None = None):
         return JSONResponse({"error": str(exc)}, status_code=400)
     asyncio.create_task(asyncio.to_thread(reel_studio.render_reel, reel_id, api_key))
     return _public_reel(state)
+
+
+
+# ── REEL → SITO VETRINA ──────────────────────────────────────────────────────
+def _reel_ingest_url() -> str:
+    """Indirizzo dell'ingest dei Reel: quello delle schede con /reel al posto del finale."""
+    explicit = os.environ.get("SHOWCASE_REEL_INGEST_URL", "").strip()
+    if explicit:
+        return explicit
+    fiche_url = os.environ.get("SHOWCASE_INGEST_URL", "").strip()
+    if not fiche_url:
+        return ""
+    return re.sub(r"/ingest/[^/]+/?$", "/ingest/reel", fiche_url)
+
+
+def _send_reel_to_showcase(meta: dict, video: Path, poster: Path) -> dict:
+    url = _reel_ingest_url()
+    if not url:
+        return {"ok": False, "status_code": None, "error": "SHOWCASE_INGEST_URL non configurata."}
+    headers = {}
+    token = os.environ.get("SHOWCASE_ADMIN_TOKEN", "").strip()
+    if token:
+        headers["x-admin-token"] = token
+    try:
+        with video.open("rb") as video_file, poster.open("rb") as poster_file:
+            response = requests.post(
+                url,
+                headers=headers,
+                data={"meta": json.dumps(meta, ensure_ascii=False)},
+                files={
+                    "video": ("reel.mp4", video_file, "video/mp4"),
+                    "poster": (poster.name, poster_file, "image/jpeg"),
+                },
+                timeout=max(SHOWCASE_INGEST_TIMEOUT_SECONDS, 120),
+            )
+        try:
+            body = response.json()
+        except Exception:
+            body = None
+        if response.status_code >= 400:
+            message = body.get("error") if isinstance(body, dict) else None
+            return {"ok": False, "status_code": response.status_code, "error": message or response.text[:400]}
+        return {"ok": True, "status_code": response.status_code, "body": body}
+    except Exception as exc:
+        return {"ok": False, "status_code": None, "error": str(exc)}
+
+
+@app.get("/showcase/products")
+def showcase_products(limit: int = 30):
+    """Pezzi già inviati al sito dallo Studio (più recenti prima): a uno di questi si collega un Reel."""
+    items = []
+    for path in SHOWCASE_DRAFTS_DIR.glob("showcase-*.json"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if data.get("product_id"):
+            items.append(
+                {
+                    "product_id": data["product_id"],
+                    "title": data.get("product_title") or data["product_id"],
+                    "created_at": data.get("created_at", ""),
+                }
+            )
+    items.sort(key=lambda item: item["created_at"], reverse=True)
+    return {"items": items[:limit]}
+
+
+def _prepare_reel_for_showcase(reel_id: str, state: dict) -> tuple[dict, Path, Path]:
+    results = state.get("results") or {}
+    if state.get("status") != "done" or not results.get("final_video"):
+        raise ValueError("Il Reel non è ancora pronto.")
+    if results.get("preview_only"):
+        raise ValueError("Questa è solo un'anteprima senza Higgsfield: non si pubblica sul sito.")
+    web_dir = reel_studio.reel_dir(reel_id) / "web"
+    video = reel_studio.make_web_video(reel_studio._abs(results["final_video"]), web_dir / "reel.mp4")
+    poster_source = reel_studio._abs(results.get("cover") or results.get("cover_plain") or state["photos"][0])
+    poster = reel_studio.make_web_poster(poster_source, web_dir / "poster.jpg")
+    storyboard = state.get("storyboard") or {}
+    copy = results.get("copy") or {}
+    return (
+        {
+            "id": _slugify(f"reel-{reel_id}"),
+            "title": str(storyboard.get("title") or "Reel I Monili")[:120],
+            "caption": str(copy.get("caption_short") or "")[:600],
+            "duration_sec": reel_studio.probe_duration(video),
+            "run_id": reel_id,
+        },
+        video,
+        poster,
+    )
+
+
+@app.post("/reel/{reel_id}/showcase/publish")
+async def reel_showcase_publish(reel_id: str, body: dict | None = None):
+    if not _reel_ingest_url():
+        return JSONResponse(
+            {"error": "Invio disattivato: l'indirizzo del sito vetrina Monili deve essere configurato."}, status_code=503
+        )
+    state = reel_studio.load_state(reel_id)
+    if not state:
+        return JSONResponse({"error": "Reel non trovato"}, status_code=404)
+    product_id = str((body or {}).get("product_id") or "").strip()
+    try:
+        meta, video, poster = await asyncio.to_thread(_prepare_reel_for_showcase, reel_id, state)
+    except (ValueError, RuntimeError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    if product_id:
+        meta["product_id"] = product_id
+    result = await asyncio.to_thread(_send_reel_to_showcase, meta, video, poster)
+    if not result.get("ok"):
+        return JSONResponse(
+            {"error": result.get("error") or "Invio al sito non riuscito.", "details": result},
+            status_code=502 if result.get("status_code") is None else int(result["status_code"]),
+        )
+
+    def _mark(s: dict):
+        s["showcase"] = {
+            "reel_id": meta["id"],
+            "product_id": meta.get("product_id"),
+            "sent_at": datetime.now().isoformat(),
+            "video_bytes": video.stat().st_size,
+        }
+
+    reel_studio._mutate(reel_id, _mark)
+    return {"ok": True, "reel_id": meta["id"], "product_id": meta.get("product_id"), "video_bytes": video.stat().st_size}
 
 
 if __name__ == "__main__":

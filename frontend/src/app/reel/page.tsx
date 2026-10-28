@@ -111,6 +111,7 @@ interface ReelState {
   estimate: Estimate | null;
   logs: ReelLog[];
   error: string | null;
+  showcase?: { reel_id: string; product_id?: string | null; sent_at: string };
   results: {
     final_video?: string;
     cover?: string;
@@ -737,7 +738,7 @@ export default function ReelStudioPage() {
 
             {/* risultato */}
             {reel.status === 'done' && reel.results.final_video && (
-              <ResultView reel={reel} onPersona={setPersona} />
+              <ResultView reel={reel} onPersona={setPersona} onSent={() => void loadReel(reel.id)} />
             )}
 
             {/* storyboard */}
@@ -1029,8 +1030,79 @@ function EstimatePanel({
   );
 }
 
+// ── PUBBLICA SUL SITO ───────────────────────────────────────────────────────
+// Empty until the showcase site is online (same rule as the fiche panel).
+const SHOWCASE_REVIEW_URL = process.env.NEXT_PUBLIC_SHOWCASE_REVIEW_URL || '';
+
+function ShowcaseReelPanel({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
+  const [products, setProducts] = useState<{ product_id: string; title: string }[]>([]);
+  const [productId, setProductId] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const preview = !!reel.results.preview_only;
+
+  useEffect(() => {
+    fetch(`${API_URL}/showcase/products`)
+      .then((res) => (res.ok ? res.json() : { items: [] }))
+      .then((data) => setProducts(Array.isArray(data.items) ? data.items : []))
+      .catch(() => setProducts([]));
+  }, []);
+
+  const send = async () => {
+    setSending(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/reel/${encodeURIComponent(reel.id)}/showcase/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: productId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Errore ${res.status}`);
+      onSent();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invio non riuscito.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const reviewUrl = SHOWCASE_REVIEW_URL.replace(/\/review\/?$/, '/reels');
+
+  return (
+    <div className="rs-copy-block">
+      <div className="rs-copy-head"><span>Pubblica sul sito vetrina</span></div>
+      {reel.showcase ? (
+        <p>
+          Inviato come bozza{reel.showcase.product_id ? ` (collegato a ${reel.showcase.product_id})` : ''}. Pubblicalo da{' '}
+          {reviewUrl ? <a href={reviewUrl} target="_blank" rel="noreferrer">Reel del sito</a> : 'Reel del sito (/admin/reels)'}.
+        </p>
+      ) : preview ? (
+        <p>Questa è solo un&apos;anteprima senza Higgsfield: sul sito si pubblicano solo i Reel veri.</p>
+      ) : (
+        <>
+          <label className="rs-field">
+            <span>Pezzo collegato (facoltativo)</span>
+            <select value={productId} onChange={(e) => setProductId(e.target.value)} disabled={sending}>
+              <option value="">Nessuno: Reel generale</option>
+              {products.map((item) => (
+                <option key={item.product_id} value={item.product_id}>{item.title}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className="btn-mission rs-small-btn" onClick={() => void send()} disabled={sending}>
+            {sending ? 'Preparo e invio...' : 'Pubblica sul sito'}
+          </button>
+          <small>Il sito riceve una versione leggera (720×1280, senza audio) come bozza; la pubblichi tu da /admin/reels.</small>
+        </>
+      )}
+      {error && <p className="rs-warn">{error}</p>}
+    </div>
+  );
+}
+
 // ── RISULTATO ───────────────────────────────────────────────────────────────
-function ResultView({ reel, onPersona }: { reel: ReelState; onPersona: (p: Persona) => void }) {
+function ResultView({ reel, onPersona, onSent }: { reel: ReelState; onPersona: (p: Persona) => void; onSent: () => void }) {
   const results = reel.results;
   const copy = results.copy || {};
   const [saving, setSaving] = useState('');
@@ -1095,6 +1167,7 @@ function ResultView({ reel, onPersona }: { reel: ReelState; onPersona: (p: Perso
         </div>
 
         <div className="rs-copy">
+          <ShowcaseReelPanel reel={reel} onSent={onSent} />
           <div className="rs-copy-block">
             <div className="rs-copy-head"><span>Caption + hashtag</span><CopyButton text={fullCaption} /></div>
             <pre>{fullCaption}</pre>

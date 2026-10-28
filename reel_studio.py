@@ -377,6 +377,47 @@ def make_cover(source_image: Path, destination: Path) -> Path:
     return destination
 
 
+# Versione leggera per il sito vetrina: Vercel non accetta richieste sopra 4,5 MB, quindi
+# il video 1080x1920 del Reel Studio non può andare così com'è. Limiti uguali a quelli
+# del sito (apps/web/src/lib/reel.ts): se cambiano di là, cambiano anche qui.
+WEB_REEL_MAX_VIDEO_BYTES = 4_000_000
+WEB_REEL_MAX_POSTER_BYTES = 600_000
+WEB_REEL_MAX_SECONDS = 60
+# (larghezza, altezza, crf): dal migliore al più leggero, si ferma al primo che sta nel limite.
+WEB_REEL_STEPS = [(720, 1280, 26), (720, 1280, 30), (720, 1280, 34), (540, 960, 32), (540, 960, 36)]
+
+
+def make_web_video(source: Path, destination: Path, max_bytes: int = WEB_REEL_MAX_VIDEO_BYTES) -> Path:
+    """MP4 9:16 leggero e senza audio, sotto `max_bytes`. Errore chiaro se non ci sta."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if probe_duration(source) > WEB_REEL_MAX_SECONDS:
+        raise RuntimeError(f"Reel troppo lungo per il sito (massimo {WEB_REEL_MAX_SECONDS} secondi).")
+    for width, height, crf in WEB_REEL_STEPS:
+        vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},fps=30,format=yuv420p,setsar=1"
+        _run_ffmpeg([
+            "-i", str(source), "-vf", vf, "-an",
+            "-c:v", "libx264", "-preset", "medium", "-crf", str(crf),
+            "-maxrate", "2M", "-bufsize", "4M", "-movflags", "+faststart", str(destination),
+        ])
+        if destination.stat().st_size <= max_bytes:
+            return destination
+    raise RuntimeError(
+        f"Il Reel resta sopra {max_bytes / 1_000_000:.0f} MB anche alla qualità minima: accorcialo e riprova."
+    )
+
+
+def make_web_poster(source: Path, destination: Path, max_bytes: int = WEB_REEL_MAX_POSTER_BYTES) -> Path:
+    """Copertina JPEG 540x960 sotto `max_bytes`."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(source) as img:
+        cover = ImageOps.fit(img.convert("RGB"), (540, 960), Image.LANCZOS)
+    for quality in (82, 72, 62, 50, 40):
+        cover.save(destination, "JPEG", quality=quality, optimize=True, progressive=True)
+        if destination.stat().st_size <= max_bytes:
+            return destination
+    raise RuntimeError("Copertina troppo pesante per il sito.")
+
+
 # ── STORYBOARD ───────────────────────────────────────────────────────────────
 
 def _performance_hints() -> str:
