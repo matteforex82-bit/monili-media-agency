@@ -272,7 +272,7 @@ Struttura del lancio, **3 pagine** (approvata):
 - [ ] `design:design-critique` sulle tavole, poi **approvazione di Matteo**, max 2 giri per pagina
 - [ ] `design:accessibility-review` prima di passare al codice
 
-### Fase 3 — Backend affidabile ✅ fatta il 28/10/2026 (branch `claude/fase-3-backend` di `monili-vetrina`, da unire con l'ok di Matteo)
+### Fase 3 — Backend affidabile ✅ fatta il 28/10/2026 (unita in `master` di `monili-vetrina` il 28/10/2026, con l'ok di Matteo)
 - [x] Regola di Matteo anche sul sito: l'ingest rifiuta schede senza prezzo, senza un solo negozio, capi senza `size`, più di 8 foto, body oltre 4,5 MB (413)
 - [x] Telefoni dei due negozi nel codice (`site-config.ts`); WhatsApp della scheda al negozio del pezzo; orari veri nel JSON-LD e nel footer; tolto l'obbligo di `NEXT_PUBLIC_SHOP_PHONE`
 - [x] Uscita automatica da "Appena arrivati" dopo 8 settimane (`new-arrivals.ts`, home rigenerata ogni ora); il venduto resta nel feed fino ad allora
@@ -289,7 +289,7 @@ Struttura del lancio, **3 pagine** (approvata):
 - [ ] Il bot non scrive mai ai clienti e non legge WhatsApp. Separato da Hermes
 
 ### Fase 4 — Restyling frontend + SEO/GEO (2–3 giornate)
-Prima parte fatta il 28/10/2026 sul branch `claude/fase-4-frontend` di `monili-vetrina` (parte da `claude/fase-3-backend`), da unire con l'ok di Matteo:
+Fatta il 28/10/2026 e **unita in `master` di `monili-vetrina` (`b5cdabf`, fast-forward, con l'ok di Matteo)**. Su `master` passano tipi, lint, 12 test e build:
 - [x] Stili del Design System v2 e delle tavole nel sito (`src/app/vetrina.css`, `site.css`), font Outfit + Cormorant + Caveat con next/font
 - [x] Header trasparente sulla foto che diventa pieno scorrendo, logo originale, menu del telefono, footer con il logo completo
 - [x] Menu "A quale negozio scrivi/chiami?" per WhatsApp e Chiama generici; nella scheda vanno al negozio del pezzo
@@ -307,7 +307,8 @@ Prima parte fatta il 28/10/2026 sul branch `claude/fase-4-frontend` di `monili-v
 - [x] **Sala Reel, lato Studio** (28/10/2026): `reel_studio.make_web_video` (720×1280, senza audio, prova qualità decrescenti fino a ≤ 4 MB; il caso peggiore, sorgente da 338 MB con rumore, esce a 3,8 MB in 17 s) e `make_web_poster` (≤ 600 KB); `POST /reel/{id}/showcase/publish` (multipart verso `/api/ingest/reel`, dedotto da `SHOWCASE_INGEST_URL` o da `SHOWCASE_REEL_INGEST_URL`; rifiuta le anteprime senza Higgsfield); `GET /showcase/products` per collegare il Reel a un pezzo già inviato (l'audit delle schede ora salva `product_id` e titolo: i pezzi inviati prima di oggi non compaiono nell'elenco); pannello "Pubblica sul sito vetrina" nel risultato del Reel Studio. Provato Studio → vetrina locale (bozza collegata al pezzo, secondo invio 409). 45 test (8 nuovi). Il lint del frontend dello Studio non esiste (solo `tsc`)
 - [x] Link "Reel" a `/admin/reels` nella testata di `/admin/review` (28/10/2026)
 - [ ] Reel Studio: la prima volta online, prova vera con un Reel Higgsfield (le prove sono state fatte con video sintetici)
-- [ ] Ancora da fare in Fase 4: nessuna parte di codice; restano l'approvazione di Matteo sulle tavole e il merge dei branch
+- [x] Fase 4 chiusa: tavole approvate e branch uniti (28/10/2026). Restano solo `design:accessibility-review` (facoltativa: Lighthouse accessibilità = 100) e Lighthouse sul sito online (Fase 5)
+- [ ] Sul PC: `git pull` in `Ecosistema Monili` (ora su `master`) e in `monili-deploy-temp`
 - [ ] Token e componenti dal Design System v2 in `apps/web`
 - [ ] Le 3 pagine fedeli alle tavole, screenshot di confronto con `run`; pagine fuori lancio nascoste da menu e sitemap
 - [ ] WhatsApp e "Chiama" della scheda col numero del negozio del pezzo (`availableAt`): oggi la vetrina ha un solo `NEXT_PUBLIC_SHOP_PHONE`, servono due numeri
