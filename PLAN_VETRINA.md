@@ -256,12 +256,16 @@ Struttura del lancio, **3 pagine** (approvata):
 - [x] Proposta v2 approvata da Matteo ("ok", 27/10/2026 sera), vedi sezione 10
 - [x] **Design System v2** pubblicato il 28/10/2026 sullo stesso artifact (versione 5): Outfit, terracotta `#c8593a` + `terracotta-deep` `#9e4128` per il testo, oro `#c79849`, token di movimento, 8 componenti nuovi (SiteHeader, MegaMenu, TileGrid, CtaLink, ArrivalCard, FilterBar, VisitBlock, SoldNotice). Il prezzo del cartellino passa a Cormorant corsivo (Outfit non ha il corsivo). Orari e telefono nelle anteprime sono d'esempio
 - [ ] Impostarlo come **predefinito**: lo fa Matteo dalla pagina dell'artifact su claude.ai (non si può da Claude Code)
-- [ ] Tavole mobile + desktop delle 3 pagine (4.2), testi passati con `ig-human`, struttura SEO/GEO già prevista (titoli, testi che rispondono a domande vere, blocchi negozio con NAP completo)
+- [x] Tavole mobile + desktop delle 3 pagine (4.2), 28/10/2026, giro 1: https://claude.ai/artifact/NNmcN1Y1goYwFfZHfDexjP (9 tavole: Home desktop/telefono con filtri funzionanti, Scheda pezzo nei 4 stati + telefono, Negozi desktop/telefono con FAQ per Google e AI). Foto e pezzi veri (outfit della settimana, Studio, foto del negozio); **mancano** e sono segnati `[tra parentesi]`: prezzi, orari, telefono, foto di via Cavour 17, spedizioni, taglie. Solo 6 pezzi veri trovati (un solo bijou: l'anello). I Reel sono copertine d'esempio: non ci sono ancora video
+- [x] Giro 1b (28/10/2026): orari e spedizioni veri, tolto lo stato "Su richiesta" (ogni pezzo ha un prezzo)
+- [ ] Approvazione di Matteo sulle tavole (max 2 giri per pagina)
+- [ ] **Foto della vetrina di via Cavour 17**: Matteo la manda appena può, va nella pagina Negozi (oggi c'è un riquadro segnaposto)
 - [ ] `design:design-critique` sulle tavole, poi **approvazione di Matteo**, max 2 giri per pagina
 - [ ] `design:accessibility-review` prima di passare al codice
 
 ### Fase 3 — Backend affidabile (1 giornata)
 - [ ] Tutti i punti della sezione 5
+- [ ] Regola di Matteo (28/10/2026) anche sul sito: l'ingest rifiuta schede senza prezzo e capi d'abbigliamento senza `size`. Nello Studio il controllo c'è già (prezzo obbligatorio, taglia obbligatoria per l'abbigliamento, categoria scelta a mano); oggi la vetrina accetta ancora `price: null`
 - [ ] In produzione `PRODUCT_STORE_DRIVER=postgres` e `IMAGE_STORAGE_DRIVER=vercel-blob`, log su Postgres
 - [ ] Stato **venduto** e uscita automatica da "Appena arrivati" dopo 6–8 settimane (campo data di pubblicazione già presente → filtro, niente cron)
 - [ ] Prezzo nel modello scheda già presente (Studio lo invia): verificarlo fino al JSON-LD
@@ -319,10 +323,10 @@ Struttura del lancio, **3 pagine** (approvata):
 4. ~~Pagine del lancio~~ ✅ 3 pagine
 5. **Dominio**: ne hai già uno?
 6. ~~**Prezzi**~~ ✅ sì, visibili sul sito
-7. **Orari e numero WhatsApp** veri dei due negozi di via Cavour
+7. ~~Orari~~ ✅ tutti i giorni 9:30–13:00 e 15:00–19:30, uguali nei due negozi (28/10/2026). Manca ancora il **numero WhatsApp/telefono**
 8. **Logo**: file originali (SVG o PNG ad alta risoluzione); esiste un monogramma "iM"?
 9. ~~Plugin `frontend-design`~~ ✅ installato
-10. **Spedizioni**: ok a Italia 7 € fissi, gratis sopra 69 €, Europa su preventivo? (dipende dal margine, solo Matteo lo sa)
+10. ~~Spedizioni~~ ✅ Italia 8 €, gratis sopra 99 € (28/10/2026). Europa: non deciso
 11. **Database Neon**: contiene prodotti veri o solo test? Per la produzione serve comunque un database pulito
 12. ~~Canale "Venduto"~~ ✅ bot Telegram dedicato, separato da Hermes
 13. ~~Design System v2~~ ✅ ok
@@ -395,7 +399,7 @@ Si prendono i principi, non codice/logo/foto/layout identico:
 
 ### Prossimi passi, in ordine
 1. ~~Design System v2~~ ✅ 28/10/2026 (resta solo "imposta come predefinito", lo fa Matteo)
-2. **Tavole delle 3 pagine** con Claude Design (Artifact `quickstart`, `intent: "design"`): Home "Al bancone", Scheda pezzo nei 4 stati, Negozi e contatti, mobile + desktop, foto e prezzi veri, testi con `ig-human`, struttura SEO/GEO già prevista. `design-critique`, poi ok di Matteo (max 2 giri)
+2. **Tavole delle 3 pagine**: giro 1 pubblicato il 28/10/2026 (https://claude.ai/artifact/NNmcN1Y1goYwFfZHfDexjP). Ora: commenti di Matteo, giro 2, ok finale; poi `design:accessibility-review`
 3. **Backend**: stato venduto, archivio automatico dopo 6–8 settimane, punti della sezione 5 (Fase 3)
 4. **Codice del frontend** nel repo `monili-vetrina` con Impeccable, passaggi e filtri animati, SEO/GEO completo (Fase 4)
 5. **Bot Telegram "Venduto"** (Fase 3b)
