@@ -301,7 +301,8 @@ Prima parte fatta il 28/10/2026 sul branch `claude/fase-4-frontend` di `monili-v
 - [x] `/admin/review` comoda da iPhone: campi da 16 px (niente zoom), bottoni Pubblica/Archivia grandi e affiancati, niente footer nell'admin
 - [x] Passaggio animato card → scheda (View Transitions di React, `experimental.viewTransition`), spento con "riduci movimento"
 - [x] `code-review` (8 punti: 6 corretti, 1 voluto, 1 rimandato: i testi dei negozi ripetuti in 4 file) e `security-review` (nessuna vulnerabilità; il JSON-LD era una XSS su `master`, già chiusa). Corretti: scorrimento dei simili bloccato dopo un tocco, pagine vecchie con `noindex`, limite di 4,5 MB anche senza Content-Length, cmd/ctrl-click sui link negozi, loghi più leggeri, stato "su richiesta" coerente
-- [ ] Ancora da fare: sala Reel (serve l'ingest dei video dallo Studio), Lighthouse sul sito online, testi dei negozi in un solo posto
+- [x] Testi dei negozi in un solo posto (`locations` in `product-fiche.ts`: via, CAP, cosa vendono; footer, selettore e mappe lo usano), 28/10/2026
+- [ ] Ancora da fare: sala Reel (serve l'ingest dei video dallo Studio), Lighthouse sul sito online
 - [ ] Token e componenti dal Design System v2 in `apps/web`
 - [ ] Le 3 pagine fedeli alle tavole, screenshot di confronto con `run`; pagine fuori lancio nascoste da menu e sitemap
 - [ ] WhatsApp e "Chiama" della scheda col numero del negozio del pezzo (`availableAt`): oggi la vetrina ha un solo `NEXT_PUBLIC_SHOP_PHONE`, servono due numeri
