@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 import api.server as server
@@ -65,6 +66,39 @@ def test_showcase_materials_skip_guesses():
         "argento",
         "pietra dura",
     ]
+
+
+def test_showcase_price_is_required():
+    for body in ({}, {"price": ""}, {"price": "  "}, {"price": None}):
+        with pytest.raises(ValueError, match="Manca il prezzo"):
+            server._parse_showcase_price(body)
+    with pytest.raises(ValueError):
+        server._parse_showcase_price({"price": "0"})
+    assert server._parse_showcase_price({"price": "€ 22,50"}) == 22.5
+
+
+def test_showcase_size_and_category_parsing():
+    assert server._parse_showcase_size({"size": "  S,   M "}) == "S, M"
+    assert server._parse_showcase_size({"size": ""}) is None
+    with pytest.raises(ValueError):
+        server._parse_showcase_size({"size": "x" * 61})
+    assert server._parse_showcase_category({"category": "Abbigliamento"}) == "abbigliamento"
+    assert server._parse_showcase_category({}) is None
+    with pytest.raises(ValueError):
+        server._parse_showcase_category({"category": "scarpe"})
+
+
+def test_showcase_clothing_needs_a_size(monkeypatch, tmp_path):
+    manifest = {"results": {"analisi": "Giacca in suede traforata color cammello"}}
+    monkeypatch.setattr(server, "_find_manifest_by_run_id", lambda run_id: (tmp_path / "run_manifest.json", manifest))
+    with pytest.raises(ValueError, match="Manca la taglia"):
+        server._build_showcase_payload("r1", [], price=89.0)
+    # A ring guessed from the text needs no size, but the owner's category wins.
+    manifest["results"]["analisi"] = "Anello con pietra viola"
+    with pytest.raises(ValueError, match="Manca la taglia"):
+        server._build_showcase_payload("r1", [], price=89.0, category="abbigliamento")
+    with pytest.raises(ValueError, match="Nessuna immagine"):
+        server._build_showcase_payload("r1", [], price=89.0)
 
 
 def test_results_take_skill_from_reel(product_photo):

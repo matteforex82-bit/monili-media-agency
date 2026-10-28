@@ -78,6 +78,8 @@ SHOWCASE_MIN_SHARPNESS_SCORE = float(os.environ.get("SHOWCASE_MIN_SHARPNESS_SCOR
 SHOWCASE_MAX_IMAGES = int(os.environ.get("SHOWCASE_MAX_IMAGES", "4"))
 SHOWCASE_MAX_PAYLOAD_BYTES = int(os.environ.get("SHOWCASE_MAX_PAYLOAD_BYTES", str(4_200_000)))
 SHOWCASE_MAX_PRICE_EUR = 100_000
+SHOWCASE_MAX_SIZE_CHARS = 60
+SHOWCASE_CATEGORIES = ("gioielli", "bijoux", "accessori", "abbigliamento")
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 HEIC_EXTENSIONS = {".heic", ".heif"}
 ALLOWED_IMAGE_CONTENT_TYPES = {
@@ -513,18 +515,15 @@ def _send_payload_to_showcase(payload: dict) -> dict:
         return {"ok": False, "status_code": None, "error": str(exc)}
 
 
-def _parse_showcase_price(body: dict) -> tuple[float | None, bool]:
-    """Price typed by the owner in the Studio: (price, on_request).
+def _parse_showcase_price(body: dict) -> float:
+    """Price typed by the owner in the Studio, required to publish.
 
-    Accepts numbers or strings like "22" / "22,50" / "€ 22.50"; empty means
-    "no price yet" (the draft is completed later in the showcase admin).
+    Accepts numbers or strings like "22" / "22,50" / "€ 22.50". Matteo's rule:
+    no piece reaches the site without a price, so empty is refused.
     """
-    on_request = bool(body.get("on_request"))
-    if on_request:
-        return None, True
     raw = body.get("price")
     if raw is None or (isinstance(raw, str) and not raw.strip()):
-        return None, False
+        raise ValueError("Manca il prezzo: senza prezzo il pezzo non va sul sito.")
     if isinstance(raw, bool):
         raise ValueError("Prezzo non valido.")
     if isinstance(raw, (int, float)):
@@ -537,14 +536,41 @@ def _parse_showcase_price(body: dict) -> tuple[float | None, bool]:
             raise ValueError("Prezzo non valido: usa un numero, ad esempio 22 o 22,50.") from exc
     if not (0 < value < SHOWCASE_MAX_PRICE_EUR):
         raise ValueError("Prezzo non valido: deve essere maggiore di zero.")
-    return round(value, 2), False
+    return round(value, 2)
+
+
+def _parse_showcase_size(body: dict) -> str | None:
+    raw = body.get("size")
+    if raw is None or isinstance(raw, bool):
+        return None
+    size = re.sub(r"\s+", " ", str(raw)).strip()
+    if len(size) > SHOWCASE_MAX_SIZE_CHARS:
+        raise ValueError(f"Taglia troppo lunga: massimo {SHOWCASE_MAX_SIZE_CHARS} caratteri.")
+    return size or None
+
+
+def _parse_showcase_category(body: dict) -> str | None:
+    raw = str(body.get("category") or "").strip().lower()
+    if not raw:
+        return None
+    if raw not in SHOWCASE_CATEGORIES:
+        raise ValueError("Categoria non valida.")
+    return raw
+
+
+def _showcase_signal_text(results: dict) -> str:
+    publish_pack = _parse_json_loose(results.get("publish_pack_json"))
+    gmb_title = str(publish_pack.get("selected_gmb_title", "")).strip()
+    gmb_title = re.sub(r"\s+[–-]\s+I Monili Ravenna$", "", gmb_title, flags=re.IGNORECASE).strip()
+    return "\n".join([gmb_title, str(results.get("analisi", ""))])
 
 
 def _build_showcase_payload(
     run_id: str,
     selected_images: list[str],
-    price: float | None = None,
-    on_request: bool = False,
+    price: float,
+    size: str | None = None,
+    category: str | None = None,
 ) -> dict[str, Any]:
     found = _find_manifest_by_run_id(run_id)
     if not found:
@@ -556,9 +582,8 @@ def _build_showcase_payload(
 
     publish_pack = _parse_json_loose(results.get("publish_pack_json"))
     analisi = str(results.get("analisi", ""))
-    gmb_title = str(publish_pack.get("selected_gmb_title", "")).strip()
-    gmb_title = re.sub(r"\s+[–-]\s+I Monili Ravenna$", "", gmb_title, flags=re.IGNORECASE).strip()
-    product_signal_text = "\n".join([gmb_title, analisi])
+    product_signal_text = _showcase_signal_text(results)
+    gmb_title = product_signal_text.split("\n", 1)[0]
 
     title = (
         str(publish_pack.get("product_name", "")).strip()
@@ -566,13 +591,13 @@ def _build_showcase_payload(
         or _first_meaningful_line(analisi)
         or f"Prodotto {run_id}"
     )
-    category = _pick_category(product_signal_text)
+    # The owner's category in the Studio wins over the one guessed from the text.
+    category = category or _pick_category(product_signal_text)
+    if category == "abbigliamento" and not size:
+        raise ValueError("Manca la taglia: per l'abbigliamento è obbligatoria.")
     state = _pick_state(product_signal_text)
-    # The owner's choice in the Studio wins over the state guessed from the text:
-    # "su richiesta" has no price, and a typed price means the piece is for sale.
-    if on_request:
-        state = "req"
-    elif price is not None and state == "req":
+    # Every piece now has a price, and the site refuses a price on "su richiesta".
+    if state == "req":
         state = "disp"
     product_id = _slugify(f"{title}-{run_id}")
     output_dir_name = manifest_path.parent.name
@@ -641,6 +666,7 @@ def _build_showcase_payload(
         "state": state,
         "price": price,
         "currency": "EUR",
+        "size": size,
         "summary": summary or None,
         "story": story or None,
         "materials": _extract_materials(analisi),
@@ -665,7 +691,7 @@ def _build_showcase_payload(
         product_fiche["seo"] = {"title": seo_title, "description": seo_description}
 
     # Drop optional null fields, but keep required nullable contract fields such as price.
-    optional_nullable_fields = {"summary", "story", "materials", "relatedTags"}
+    optional_nullable_fields = {"summary", "story", "materials", "relatedTags", "size"}
     product_fiche = {
         k: v
         for k, v in product_fiche.items()
@@ -1111,6 +1137,8 @@ def showcase_candidates(run_id: str):
     return {
         "run_id": run_id,
         "items": _showcase_image_candidates(results),
+        # Pre-selects the category in the Studio; the owner can change it.
+        "category": _pick_category(_showcase_signal_text(results)),
     }
 
 
@@ -1139,9 +1167,15 @@ async def showcase_publish(run_id: str, body: dict | None = None):
     if not selected:
         return JSONResponse({"error": "Seleziona almeno una foto disponibile."}, status_code=400)
 
+    form = body if isinstance(body, dict) else {}
     try:
-        price, on_request = _parse_showcase_price(body if isinstance(body, dict) else {})
-        prepared = _build_showcase_payload(run_id, selected, price=price, on_request=on_request)
+        prepared = _build_showcase_payload(
+            run_id,
+            selected,
+            price=_parse_showcase_price(form),
+            size=_parse_showcase_size(form),
+            category=_parse_showcase_category(form),
+        )
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:

@@ -184,7 +184,15 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
   const [error, setError] = useState('');
   const [result, setResult] = useState<any | null>(null);
   const [price, setPrice] = useState('');
-  const [onRequest, setOnRequest] = useState(false);
+  const [size, setSize] = useState('');
+  const [category, setCategory] = useState('');
+  // Must match the checks in _build_showcase_payload (api/server.py): no piece
+  // reaches the site without a price, nor clothing without a size.
+  const sizeRequired = category === 'abbigliamento';
+  const missing = [
+    !price.trim() && 'il prezzo',
+    sizeRequired && !size.trim() && 'la taglia',
+  ].filter(Boolean) as string[];
 
   const loadCandidates = async () => {
     if (!runId) return;
@@ -211,6 +219,9 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
         })
         .filter((item: ShowcaseCandidate | null): item is ShowcaseCandidate => Boolean(item));
       setCandidates(items);
+      if (typeof data?.category === 'string') {
+        setCategory((prev) => prev || data.category);
+      }
       const recommended = items.filter((item) => item.available && item.recommended).map((item) => item.src);
       const fallback = items.filter((item) => item.available).map((item) => item.src);
       setSelected((recommended.length ? recommended : fallback).slice(0, SHOWCASE_MAX_IMAGES));
@@ -230,6 +241,10 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
       setError('Seleziona almeno una foto da inviare.');
       return;
     }
+    if (missing.length) {
+      setError(`Per pubblicare manca ${missing.join(' e ')}.`);
+      return;
+    }
     setPublishing(true);
     setError('');
     setResult(null);
@@ -239,8 +254,9 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           selected_images: selected,
-          price: onRequest ? null : price.trim(),
-          on_request: onRequest,
+          price: price.trim(),
+          size: size.trim(),
+          category,
         }),
       });
       const data = await res.json();
@@ -263,7 +279,12 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
           <button type="button" onClick={() => void loadCandidates()} className="btn-secondary result-button" disabled={loading || publishing}>
             {loading ? 'Analisi...' : 'Rianalizza'}
           </button>
-          <button type="button" onClick={() => void publish()} className="btn-mission result-button" disabled={publishing || !selected.length}>
+          <button
+            type="button"
+            onClick={() => void publish()}
+            className="btn-mission result-button"
+            disabled={publishing || !selected.length || missing.length > 0}
+          >
             Invia draft
           </button>
         </div>
@@ -271,23 +292,36 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
       {error && <p className="result-error">{error}</p>}
       <div className="showcase-price">
         <label>
-          Prezzo (€)
+          Categoria
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="bijoux">Bijoux</option>
+            <option value="gioielli">Gioielli</option>
+            <option value="accessori">Accessori</option>
+            <option value="abbigliamento">Abbigliamento</option>
+          </select>
+        </label>
+        <label>
+          Prezzo (€) *
           <input
             type="text"
             inputMode="decimal"
             placeholder="es. 22,50"
             value={price}
-            disabled={onRequest}
+            required
             onChange={(e) => setPrice(e.target.value)}
           />
         </label>
-        <label className="showcase-price-check">
-          <input type="checkbox" checked={onRequest} onChange={(e) => setOnRequest(e.target.checked)} />
-          Su richiesta (senza prezzo)
+        <label>
+          {sizeRequired ? 'Taglia *' : 'Taglia o misura (facoltativa)'}
+          <input
+            type="text"
+            placeholder={sizeRequired ? 'es. S, M, L oppure 42' : 'es. 16 per un anello'}
+            value={size}
+            required={sizeRequired}
+            onChange={(e) => setSize(e.target.value)}
+          />
         </label>
-        {!onRequest && !price.trim() && (
-          <small>Senza prezzo la scheda arriva come bozza da completare nell&apos;admin del sito.</small>
-        )}
+        {missing.length > 0 && <small>Per pubblicare manca {missing.join(' e ')}.</small>}
       </div>
       <p className="result-image-note">
         Foto per il sito: {selected.length}/{SHOWCASE_MAX_IMAGES} selezionate.
