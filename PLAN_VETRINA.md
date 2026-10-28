@@ -298,7 +298,10 @@ Prima parte fatta il 28/10/2026 sul branch `claude/fase-4-frontend` di `monili-v
 - [x] Pagina `/negozi` (con `/contatti` reindirizzato), FAQ; JSON-LD `JewelryStore`/`ClothingStore`, `FAQPage`, `Product` con spedizione e `SoldOut`
 - [x] Menu e sitemap solo con le 3 pagine (le vecchie restano nel codice); `robots.txt` che apre ai crawler AI; `llms.txt`
 - [x] Verificato nel browser in locale (desktop e telefono): niente scroll orizzontale, link WhatsApp giusti, JSON-LD corretto. Build, lint, tipi e 8 test ok
-- [ ] Ancora da fare: sala Reel (serve l'ingest dei video), `/admin/review` comoda da iPhone, passaggi animati card → scheda, Lighthouse, `code-review` + `security-review`
+- [x] `/admin/review` comoda da iPhone: campi da 16 px (niente zoom), bottoni Pubblica/Archivia grandi e affiancati, niente footer nell'admin
+- [x] Passaggio animato card → scheda (View Transitions di React, `experimental.viewTransition`), spento con "riduci movimento"
+- [x] `code-review` (8 punti: 6 corretti, 1 voluto, 1 rimandato: i testi dei negozi ripetuti in 4 file) e `security-review` (nessuna vulnerabilità; il JSON-LD era una XSS su `master`, già chiusa). Corretti: scorrimento dei simili bloccato dopo un tocco, pagine vecchie con `noindex`, limite di 4,5 MB anche senza Content-Length, cmd/ctrl-click sui link negozi, loghi più leggeri, stato "su richiesta" coerente
+- [ ] Ancora da fare: sala Reel (serve l'ingest dei video dallo Studio), Lighthouse sul sito online, testi dei negozi in un solo posto
 - [ ] Token e componenti dal Design System v2 in `apps/web`
 - [ ] Le 3 pagine fedeli alle tavole, screenshot di confronto con `run`; pagine fuori lancio nascoste da menu e sitemap
 - [ ] WhatsApp e "Chiama" della scheda col numero del negozio del pezzo (`availableAt`): oggi la vetrina ha un solo `NEXT_PUBLIC_SHOP_PHONE`, servono due numeri
