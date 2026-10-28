@@ -258,7 +258,16 @@ Struttura del lancio, **3 pagine** (approvata):
 - [ ] Impostarlo come **predefinito**: lo fa Matteo dalla pagina dell'artifact su claude.ai (non si può da Claude Code)
 - [x] Tavole mobile + desktop delle 3 pagine (4.2), 28/10/2026, giro 1: https://claude.ai/artifact/NNmcN1Y1goYwFfZHfDexjP (9 tavole: Home desktop/telefono con filtri funzionanti, Scheda pezzo nei 4 stati + telefono, Negozi desktop/telefono con FAQ per Google e AI). Foto e pezzi veri (outfit della settimana, Studio, foto del negozio); **mancano** e sono segnati `[tra parentesi]`: prezzi, orari, telefono, foto di via Cavour 17, spedizioni, taglie. Solo 6 pezzi veri trovati (un solo bijou: l'anello). I Reel sono copertine d'esempio: non ci sono ancora video
 - [x] Giro 1b (28/10/2026): orari e spedizioni veri, tolto lo stato "Su richiesta" (ogni pezzo ha un prezzo)
-- [ ] Approvazione di Matteo sulle tavole (max 2 giri per pagina)
+- [x] Giro 2 dai commenti di Matteo (28/10/2026), da portare nel codice in Fase 4:
+  - logo originale scontornato: chiaro (solo scritta avorio) sulle foto, a colori sull'header pieno, completo con lo slogan nel footer
+  - prezzi **fuori dalla foto**, sulla riga del nome, in corsivo serif **verde smeraldo `#2e6a4b`** (il rosso sembrava uno stop); nella scheda prezzo grande allo stesso modo
+  - card prodotto in rilievo (foglio avorio, ombra calda, angoli 14 px, si solleva al passaggio del mouse)
+  - stato: Disponibile verde `#3a6b3a`, Pezzo unico giallo brillante `#ffc928` con scritta scura, venduto rosso `#b3261e` con "Ha già trovato casa"; sulla foto "Pezzo Unico" in giallo
+  - WhatsApp in inchiostro scuro (niente verde acceso), terracotta al passaggio del mouse; bottone della scheda "Scrivici su WhatsApp per prenotarlo/a o acquistarlo/a", su telefono largo quanto il testo e centrato
+  - WhatsApp e Chiama generici aprono un menu per scegliere il negozio; nella scheda vanno al negozio del pezzo
+  - "Potrebbero piacerti anche" scorre da solo (una card ogni 3 s, una card intera alla volta su telefono)
+  - tessere della Home 4:5 su telefono; "Vieni a trovarci" su fondo avorio chiaro
+- [ ] Approvazione finale di Matteo sulle tavole
 - [ ] **Foto della vetrina di via Cavour 17**: Matteo la manda appena può, va nella pagina Negozi (oggi c'è un riquadro segnaposto)
 - [ ] `design:design-critique` sulle tavole, poi **approvazione di Matteo**, max 2 giri per pagina
 - [ ] `design:accessibility-review` prima di passare al codice
