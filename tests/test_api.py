@@ -88,17 +88,26 @@ def test_showcase_size_and_category_parsing():
         server._parse_showcase_category({"category": "scarpe"})
 
 
+def test_showcase_shop_is_required():
+    with pytest.raises(ValueError, match="Manca il negozio"):
+        server._parse_showcase_location({})
+    with pytest.raises(ValueError):
+        server._parse_showcase_location({"location": "via-roma-1"})
+    assert server._parse_showcase_location({"location": "via-cavour-21"}) == "via-cavour-21"
+
+
 def test_showcase_clothing_needs_a_size(monkeypatch, tmp_path):
     manifest = {"results": {"analisi": "Giacca in suede traforata color cammello"}}
     monkeypatch.setattr(server, "_find_manifest_by_run_id", lambda run_id: (tmp_path / "run_manifest.json", manifest))
+    shop = "via-cavour-21"
     with pytest.raises(ValueError, match="Manca la taglia"):
-        server._build_showcase_payload("r1", [], price=89.0)
+        server._build_showcase_payload("r1", [], price=89.0, location=shop)
     # A ring guessed from the text needs no size, but the owner's category wins.
     manifest["results"]["analisi"] = "Anello con pietra viola"
     with pytest.raises(ValueError, match="Manca la taglia"):
-        server._build_showcase_payload("r1", [], price=89.0, category="abbigliamento")
+        server._build_showcase_payload("r1", [], price=89.0, location=shop, category="abbigliamento")
     with pytest.raises(ValueError, match="Nessuna immagine"):
-        server._build_showcase_payload("r1", [], price=89.0)
+        server._build_showcase_payload("r1", [], price=89.0, location=shop)
 
 
 def test_results_take_skill_from_reel(product_photo):

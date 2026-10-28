@@ -87,9 +87,10 @@ def test_mission_makes_only_what_the_site_needs(tmp_path, monkeypatch, capsys):
 def test_new_mission_builds_the_site_card(tmp_path, monkeypatch, capsys):
     results, _, _ = _run(tmp_path, monkeypatch, capsys)
     fiche = server._build_showcase_payload(
-        results["run_id"], [results["image_site_1"], results["image_site_3"]], price=45
+        results["run_id"], [results["image_site_1"], results["image_site_3"]], price=45, location="via-cavour-17"
     )["payload"]["product_fiche"]
     assert fiche["title"] == "Anello con pietra viola"
+    assert fiche["availableAt"] == ["via-cavour-17"] and "size" not in fiche
     assert fiche["seo"] == {"title": PACK["seo_title"], "description": PACK["seo_description"]}
     assert fiche["summary"].startswith("Anello in metallo argentato")
     assert fiche["materials"] == ["metallo argentato"]

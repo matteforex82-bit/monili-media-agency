@@ -80,6 +80,7 @@ SHOWCASE_MAX_PAYLOAD_BYTES = int(os.environ.get("SHOWCASE_MAX_PAYLOAD_BYTES", st
 SHOWCASE_MAX_PRICE_EUR = 100_000
 SHOWCASE_MAX_SIZE_CHARS = 60
 SHOWCASE_CATEGORIES = ("gioielli", "bijoux", "accessori", "abbigliamento")
+SHOWCASE_LOCATIONS = ("via-cavour-17", "via-cavour-21")
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
 HEIC_EXTENSIONS = {".heic", ".heif"}
 ALLOWED_IMAGE_CONTENT_TYPES = {
@@ -344,14 +345,6 @@ def _pick_category(text: str) -> str:
     return "bijoux"
 
 
-def _pick_location(category: str, text: str) -> list[str]:
-    source = text.lower()
-    if category in {"gioielli", "bijoux"}:
-        return ["via-cavour-17"]
-    if category in {"abbigliamento", "accessori"} or re.search(r"borsa|abbigliamento|regalo|lifestyle", source):
-        return ["via-cavour-21"]
-    return ["via-cavour-17"]
-
 
 def _pick_state(text: str) -> str:
     source = text.lower()
@@ -558,6 +551,16 @@ def _parse_showcase_category(body: dict) -> str | None:
     return raw
 
 
+def _parse_showcase_location(body: dict) -> str:
+    """Shop chosen by the owner: silver and bijoux at no. 17, clothing and accessories at no. 21."""
+    raw = str(body.get("location") or "").strip()
+    if not raw:
+        raise ValueError("Manca il negozio: scegli via Cavour 17 o via Cavour 21.")
+    if raw not in SHOWCASE_LOCATIONS:
+        raise ValueError("Negozio non valido.")
+    return raw
+
+
 def _showcase_signal_text(results: dict) -> str:
     publish_pack = _parse_json_loose(results.get("publish_pack_json"))
     gmb_title = str(publish_pack.get("selected_gmb_title", "")).strip()
@@ -569,6 +572,7 @@ def _build_showcase_payload(
     run_id: str,
     selected_images: list[str],
     price: float,
+    location: str,
     size: str | None = None,
     category: str | None = None,
 ) -> dict[str, Any]:
@@ -676,7 +680,7 @@ def _build_showcase_payload(
             "reservable": state != "sold",
             "shipsFrom": "Ravenna",
         },
-        "availableAt": _pick_location(category, product_signal_text),
+        "availableAt": [location],
         "whatsappPreset": _pick_whatsapp_preset(state, product_signal_text),
         "relatedTags": _extract_tags_from_pack(publish_pack),
         "updatedAt": datetime.now().isoformat(),
@@ -1173,6 +1177,7 @@ async def showcase_publish(run_id: str, body: dict | None = None):
             run_id,
             selected,
             price=_parse_showcase_price(form),
+            location=_parse_showcase_location(form),
             size=_parse_showcase_size(form),
             category=_parse_showcase_category(form),
         )

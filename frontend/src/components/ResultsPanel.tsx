@@ -186,11 +186,13 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
   const [price, setPrice] = useState('');
   const [size, setSize] = useState('');
   const [category, setCategory] = useState('');
-  // Must match the checks in _build_showcase_payload (api/server.py): no piece
-  // reaches the site without a price, nor clothing without a size.
+  const [location, setLocation] = useState('');
+  // Must match the checks in api/server.py: no piece reaches the site without
+  // a price and a shop, nor clothing without a size.
   const sizeRequired = category === 'abbigliamento';
   const missing = [
     !price.trim() && 'il prezzo',
+    !location && 'il negozio',
     sizeRequired && !size.trim() && 'la taglia',
   ].filter(Boolean) as string[];
 
@@ -242,7 +244,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
       return;
     }
     if (missing.length) {
-      setError(`Per pubblicare manca ${missing.join(' e ')}.`);
+      setError(`Per pubblicare manca ${missing.join(', ')}.`);
       return;
     }
     setPublishing(true);
@@ -257,6 +259,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
           price: price.trim(),
           size: size.trim(),
           category,
+          location,
         }),
       });
       const data = await res.json();
@@ -301,6 +304,14 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
           </select>
         </label>
         <label>
+          Negozio *
+          <select value={location} required onChange={(e) => setLocation(e.target.value)}>
+            <option value="">Scegli il negozio</option>
+            <option value="via-cavour-17">Via Cavour 17 (argento e bijoux)</option>
+            <option value="via-cavour-21">Via Cavour 21 (abbigliamento e accessori)</option>
+          </select>
+        </label>
+        <label>
           Prezzo (€) *
           <input
             type="text"
@@ -321,7 +332,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
             onChange={(e) => setSize(e.target.value)}
           />
         </label>
-        {missing.length > 0 && <small>Per pubblicare manca {missing.join(' e ')}.</small>}
+        {missing.length > 0 && <small>Per pubblicare manca {missing.join(', ')}.</small>}
       </div>
       <p className="result-image-note">
         Foto per il sito: {selected.length}/{SHOWCASE_MAX_IMAGES} selezionate.
