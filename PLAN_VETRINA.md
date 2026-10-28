@@ -255,7 +255,7 @@ Struttura del lancio, **3 pagine** (approvata):
 - [x] Design System v1 creato il 27/10/2026: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (token "Avorio caldo", stile editoriale del feed Instagram, sala Reel, pietre, 11 componenti)
 - [x] Proposta v2 approvata da Matteo ("ok", 27/10/2026 sera), vedi sezione 10
 - [x] **Design System v2** pubblicato il 28/10/2026 sullo stesso artifact (versione 5): Outfit, terracotta `#c8593a` + `terracotta-deep` `#9e4128` per il testo, oro `#c79849`, token di movimento, 8 componenti nuovi (SiteHeader, MegaMenu, TileGrid, CtaLink, ArrivalCard, FilterBar, VisitBlock, SoldNotice). Il prezzo del cartellino passa a Cormorant corsivo (Outfit non ha il corsivo). Orari e telefono nelle anteprime sono d'esempio
-- [ ] Impostarlo come **predefinito**: lo fa Matteo dalla pagina dell'artifact su claude.ai (non si può da Claude Code)
+- [x] ~~Impostarlo come predefinito~~: nel menu dell'artifact di Matteo la voce non esiste (28/10/2026). Basta sceglierlo a mano nei design nuovi; si può "Fissare" nella barra laterale
 - [x] Tavole mobile + desktop delle 3 pagine (4.2), 28/10/2026, giro 1: https://claude.ai/artifact/NNmcN1Y1goYwFfZHfDexjP (9 tavole: Home desktop/telefono con filtri funzionanti, Scheda pezzo nei 4 stati + telefono, Negozi desktop/telefono con FAQ per Google e AI). Foto e pezzi veri (outfit della settimana, Studio, foto del negozio); **mancano** e sono segnati `[tra parentesi]`: prezzi, orari, telefono, foto di via Cavour 17, spedizioni, taglie. Solo 6 pezzi veri trovati (un solo bijou: l'anello). I Reel sono copertine d'esempio: non ci sono ancora video
 - [x] Giro 1b (28/10/2026): orari e spedizioni veri, tolto lo stato "Su richiesta" (ogni pezzo ha un prezzo)
 - [x] Giro 2 dai commenti di Matteo (28/10/2026), da portare nel codice in Fase 4:
@@ -267,7 +267,7 @@ Struttura del lancio, **3 pagine** (approvata):
   - WhatsApp e Chiama generici aprono un menu per scegliere il negozio; nella scheda vanno al negozio del pezzo
   - "Potrebbero piacerti anche" scorre da solo (una card ogni 3 s, una card intera alla volta su telefono)
   - tessere della Home 4:5 su telefono; "Vieni a trovarci" su fondo avorio chiaro
-- [ ] Approvazione finale di Matteo sulle tavole
+- [x] Approvazione finale di Matteo sulle tavole (28/10/2026, "si approvo")
 - [ ] **Foto della vetrina di via Cavour 17**: Matteo la manda appena può, va nella pagina Negozi (oggi c'è un riquadro segnaposto)
 - [ ] `design:design-critique` sulle tavole, poi **approvazione di Matteo**, max 2 giri per pagina
 - [ ] `design:accessibility-review` prima di passare al codice
@@ -305,7 +305,7 @@ Prima parte fatta il 28/10/2026 sul branch `claude/fase-4-frontend` di `monili-v
 - [x] Lighthouse mobile in locale (build di produzione, 28/10/2026): Accessibilità 100, Best practices 100, SEO 100 su Home, Negozi e scheda; Performance 85–88 (LCP simulato ~4 s, ma il primo disegno reale è a ~0,2 s e la foto della Home pesa 86 KB). Il punteggio non si muove con le correzioni piccole: da rimisurare sul sito online (Fase 5), obiettivo ≥ 90
 - [x] **Sala Reel, lato sito** (28/10/2026, commit `519f912` su `claude/fase-4-frontend`): `POST /api/ingest/reel` (multipart `meta` + `video` + `poster`, stesso token delle schede, controllo dei byte reali, bozza); `/admin/reels` per pubblicare o archiviare; striscia "Guarda i Reel" nella Home (fondo scuro) e "Guardalo indossato" nella scheda del pezzo collegato; copertina subito, video al tocco. Provata in locale con un MP4 vero (401, finto MP4, senza copertina, troppo pesante, duplicato, bozza nascosta, pubblicazione, riproduzione); 12 test, build ok
 - [x] **Sala Reel, lato Studio** (28/10/2026): `reel_studio.make_web_video` (720×1280, senza audio, prova qualità decrescenti fino a ≤ 4 MB; il caso peggiore, sorgente da 338 MB con rumore, esce a 3,8 MB in 17 s) e `make_web_poster` (≤ 600 KB); `POST /reel/{id}/showcase/publish` (multipart verso `/api/ingest/reel`, dedotto da `SHOWCASE_INGEST_URL` o da `SHOWCASE_REEL_INGEST_URL`; rifiuta le anteprime senza Higgsfield); `GET /showcase/products` per collegare il Reel a un pezzo già inviato (l'audit delle schede ora salva `product_id` e titolo: i pezzi inviati prima di oggi non compaiono nell'elenco); pannello "Pubblica sul sito vetrina" nel risultato del Reel Studio. Provato Studio → vetrina locale (bozza collegata al pezzo, secondo invio 409). 45 test (8 nuovi). Il lint del frontend dello Studio non esiste (solo `tsc`)
-- [ ] Link a `/admin/reels` da `/admin/review` (oggi la pagina si raggiunge solo dall'indirizzo, o dal link nel pannello dello Studio se `NEXT_PUBLIC_SHOWCASE_REVIEW_URL` è impostata)
+- [x] Link "Reel" a `/admin/reels` nella testata di `/admin/review` (28/10/2026)
 - [ ] Reel Studio: la prima volta online, prova vera con un Reel Higgsfield (le prove sono state fatte con video sintetici)
 - [ ] Ancora da fare in Fase 4: nessuna parte di codice; restano l'approvazione di Matteo sulle tavole e il merge dei branch
 - [ ] Token e componenti dal Design System v2 in `apps/web`
