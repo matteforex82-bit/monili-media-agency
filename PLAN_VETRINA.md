@@ -1,6 +1,6 @@
 # Piano — Sito Vetrina I Monili Ravenna
 
-> Stato: **approvato, in lavorazione** (siamo alla Fase 2, Design) · Creato il 27/10/2026 · Ultimo aggiornamento: 27/10/2026 sera, passaggio di consegne a una nuova chat
+> Stato: **approvato, in lavorazione** (siamo alla Fase 2, Design) · Creato il 27/10/2026 · Ultimo aggiornamento: 28/10/2026, Design System v2 pubblicato
 > **Per ripartire leggi prima la sezione 10.**
 > Obiettivo: **riprendere** il sito vetrina già iniziato (frontend + backend), metterlo al sicuro, ridisegnare il frontend con Claude Design e portarlo online collegato allo Studio AI.
 
@@ -254,7 +254,8 @@ Struttura del lancio, **3 pagine** (approvata):
 - [x] Pagine del lancio decise: 3 pagine (4.2)
 - [x] Design System v1 creato il 27/10/2026: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (token "Avorio caldo", stile editoriale del feed Instagram, sala Reel, pietre, 11 componenti)
 - [x] Proposta v2 approvata da Matteo ("ok", 27/10/2026 sera), vedi sezione 10
-- [ ] **Design System v2**: aggiornare lo stesso artifact (stesso URL), poi impostarlo come predefinito
+- [x] **Design System v2** pubblicato il 28/10/2026 sullo stesso artifact (versione 5): Outfit, terracotta `#c8593a` + `terracotta-deep` `#9e4128` per il testo, oro `#c79849`, token di movimento, 8 componenti nuovi (SiteHeader, MegaMenu, TileGrid, CtaLink, ArrivalCard, FilterBar, VisitBlock, SoldNotice). Il prezzo del cartellino passa a Cormorant corsivo (Outfit non ha il corsivo). Orari e telefono nelle anteprime sono d'esempio
+- [ ] Impostarlo come **predefinito**: lo fa Matteo dalla pagina dell'artifact su claude.ai (non si può da Claude Code)
 - [ ] Tavole mobile + desktop delle 3 pagine (4.2), testi passati con `ig-human`, struttura SEO/GEO già prevista (titoli, testi che rispondono a domande vere, blocchi negozio con NAP completo)
 - [ ] `design:design-critique` sulle tavole, poi **approvazione di Matteo**, max 2 giri per pagina
 - [ ] `design:accessibility-review` prima di passare al codice
@@ -345,7 +346,7 @@ Struttura del lancio, **3 pagine** (approvata):
 ### Dove sono le cose
 - **Studio + Reel Studio**: repo `matteforex82-bit/monili-media-agency`, `master` (sul PC: `Desktop\PROGETTI AI\monili-deploy-temp`, avvio con `Avvia Agenzia Monili.bat`). **Scelta del 27/10/2026: lo Studio resta in locale sul PC e Matteo lo usa dal telefono ovunque con Tailscale** (gratis; guida in `docs/local-mode.md`). Render non ha password: va sospeso finché non c'è. Lo Studio online "fatto bene" (Vercel + Render a pagamento con disco, ~8–10 €/mese, password) si valuta con la Fase 5. Questo piano è su `master` (unito il 27/10/2026 sera); il branch di lavoro precedente era `claude/blissful-darwin-7tnrfd`
 - **Vetrina (frontend + backend)**: repo privato `matteforex82-bit/monili-vetrina`, `master` (`7f438be`), app in `apps/web` (sul PC: `Desktop\PROGETTI AI\Ecosistema Monili`)
-- **Design System v1**: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (tipo Design System, privato). Sorgenti: `project/tokens.json`, `project/README.md`, `project/components/*`. La v2 va pubblicata **sullo stesso URL**, non su uno nuovo
+- **Design System v2**: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (tipo Design System, privato; v2 dal 28/10/2026, stesso URL della v1). Sorgenti: `project/tokens.json`, `project/README.md`, `project/components/*`. `tokens.css` va rigenerato da `tokens.json` a ogni modifica dei token
 - **Skill e plugin**: Impeccable (guida principale per il codice; il suo programma di controllo NON è autorizzato), frontend-design (alternativa, non insieme), Design (Anthropic: `design-critique`, `accessibility-review`), audit-suite (`web-animation-design`, `make-interfaces-feel-better`), **SEO-AEO-GEO Ultimate** e **AI SEO** (installati il 27/10, vedi tabella 4.4), `instagram-agent:ig-human` per i testi
 
 ### Fatto fino a qui
@@ -393,7 +394,7 @@ Si prendono i principi, non codice/logo/foto/layout identico:
 - Dominio, contenuto del database Neon → servono in Fase 5
 
 ### Prossimi passi, in ordine
-1. **Design System v2** sull'artifact esistente, poi impostarlo come predefinito (Fase 2)
+1. ~~Design System v2~~ ✅ 28/10/2026 (resta solo "imposta come predefinito", lo fa Matteo)
 2. **Tavole delle 3 pagine** con Claude Design (Artifact `quickstart`, `intent: "design"`): Home "Al bancone", Scheda pezzo nei 4 stati, Negozi e contatti, mobile + desktop, foto e prezzi veri, testi con `ig-human`, struttura SEO/GEO già prevista. `design-critique`, poi ok di Matteo (max 2 giri)
 3. **Backend**: stato venduto, archivio automatico dopo 6–8 settimane, punti della sezione 5 (Fase 3)
 4. **Codice del frontend** nel repo `monili-vetrina` con Impeccable, passaggi e filtri animati, SEO/GEO completo (Fase 4)
