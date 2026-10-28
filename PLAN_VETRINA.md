@@ -279,6 +279,7 @@ Struttura del lancio, **3 pagine** (approvata):
 ### Fase 4 — Restyling frontend + SEO/GEO (2–3 giornate)
 - [ ] Token e componenti dal Design System v2 in `apps/web`
 - [ ] Le 3 pagine fedeli alle tavole, screenshot di confronto con `run`; pagine fuori lancio nascoste da menu e sitemap
+- [ ] WhatsApp e "Chiama" della scheda col numero del negozio del pezzo (`availableAt`): oggi la vetrina ha un solo `NEXT_PUBLIC_SHOP_PHONE`, servono due numeri
 - [ ] Bottone WhatsApp con messaggio precompilato: *"Ciao! Mi piace questo [nome] ([link]), è ancora disponibile?"*; secondario "Scrivici in DM su Instagram"
 - [ ] `/admin/review` comoda da iPhone
 - [ ] SEO locale (`seo-aeo-geo-ultimate:seo-local`): metadata, Open Graph, JSON-LD `LocalBusiness` ×2 (via Cavour 17 e 21, orari veri) e `Product` con prezzo, `availability` (venduto = `SoldOut`) e, dopo l'ok sulle cifre, `shippingDetails`; `sitemap`
@@ -323,7 +324,7 @@ Struttura del lancio, **3 pagine** (approvata):
 4. ~~Pagine del lancio~~ ✅ 3 pagine
 5. **Dominio**: ne hai già uno?
 6. ~~**Prezzi**~~ ✅ sì, visibili sul sito
-7. ~~Orari~~ ✅ tutti i giorni 9:30–13:00 e 15:00–19:30, uguali nei due negozi (28/10/2026). Manca ancora il **numero WhatsApp/telefono**
+7. ~~Orari~~ ✅ tutti i giorni 9:30–13:00 e 15:00–19:30, uguali nei due negozi (28/10/2026). Telefoni: via Cavour 17 → 331 428 5295, via Cavour 21 → 375 771 3966 (28/10/2026). Regola: ogni pezzo scrive e chiama il **suo** negozio (17 argento e bijoux, 21 abbigliamento e accessori); nello Studio il negozio si sceglie a mano ed è obbligatorio. Da decidere: il numero dei WhatsApp generici (header, Home, barra "Chiama" fuori dalle schede)
 8. **Logo**: file originali (SVG o PNG ad alta risoluzione); esiste un monogramma "iM"?
 9. ~~Plugin `frontend-design`~~ ✅ installato
 10. ~~Spedizioni~~ ✅ Italia 8 €, gratis sopra 99 € (28/10/2026). Europa: non deciso
