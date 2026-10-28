@@ -289,6 +289,16 @@ Struttura del lancio, **3 pagine** (approvata):
 - [ ] Il bot non scrive mai ai clienti e non legge WhatsApp. Separato da Hermes
 
 ### Fase 4 — Restyling frontend + SEO/GEO (2–3 giornate)
+Prima parte fatta il 28/10/2026 sul branch `claude/fase-4-frontend` di `monili-vetrina` (parte da `claude/fase-3-backend`), da unire con l'ok di Matteo:
+- [x] Stili del Design System v2 e delle tavole nel sito (`src/app/vetrina.css`, `site.css`), font Outfit + Cormorant + Caveat con next/font
+- [x] Header trasparente sulla foto che diventa pieno scorrendo, logo originale, menu del telefono, footer con il logo completo
+- [x] Menu "A quale negozio scrivi/chiami?" per WhatsApp e Chiama generici; nella scheda vanno al negozio del pezzo
+- [x] Home: apertura con foto, "Appena arrivati" con filtri (anche nell'indirizzo, `/?tipo=bijoux`), tessere per tipo, "Vieni a trovarci" con "Aperto ora" calcolato nel browser
+- [x] Scheda pezzo: galleria, prezzo verde in corsivo, stati colorati, venduto con i simili, simili che scorrono da soli, barra contatti del negozio del pezzo
+- [x] Pagina `/negozi` (con `/contatti` reindirizzato), FAQ; JSON-LD `JewelryStore`/`ClothingStore`, `FAQPage`, `Product` con spedizione e `SoldOut`
+- [x] Menu e sitemap solo con le 3 pagine (le vecchie restano nel codice); `robots.txt` che apre ai crawler AI; `llms.txt`
+- [x] Verificato nel browser in locale (desktop e telefono): niente scroll orizzontale, link WhatsApp giusti, JSON-LD corretto. Build, lint, tipi e 8 test ok
+- [ ] Ancora da fare: sala Reel (serve l'ingest dei video), `/admin/review` comoda da iPhone, passaggi animati card → scheda, Lighthouse, `code-review` + `security-review`
 - [ ] Token e componenti dal Design System v2 in `apps/web`
 - [ ] Le 3 pagine fedeli alle tavole, screenshot di confronto con `run`; pagine fuori lancio nascoste da menu e sitemap
 - [ ] WhatsApp e "Chiama" della scheda col numero del negozio del pezzo (`availableAt`): oggi la vetrina ha un solo `NEXT_PUBLIC_SHOP_PHONE`, servono due numeri
