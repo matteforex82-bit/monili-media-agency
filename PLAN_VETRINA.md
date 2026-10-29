@@ -308,7 +308,7 @@ Fatta il 28/10/2026 e **unita in `master` di `monili-vetrina` (`b5cdabf`, fast-f
 - [x] Link "Reel" a `/admin/reels` nella testata di `/admin/review` (28/10/2026)
 - [ ] Reel Studio: la prima volta online, prova vera con un Reel Higgsfield (le prove sono state fatte con video sintetici)
 - [x] Fase 4 chiusa: tavole approvate e branch uniti (28/10/2026). Resta solo Lighthouse sul sito online (Fase 5)
-- [x] `design:accessibility-review` (29/10/2026), WCAG 2.1 AA: nessun problema critico, contrasti tutti ≥ 4,5:1. Corretti sul branch `claude/a11y-fixes` di `monili-vetrina` (da unire con l'ok di Matteo): finestra del negozio con focus trattenuto e restituito, bottone "Ferma lo scorrimento" per i simili, link "Vai al contenuto", area cliccabile dei filtri ≥ 44 px. Provati da tastiera nel browser; Lighthouse accessibilità 100 su Home, scheda e Negozi
+- [x] `design:accessibility-review` (29/10/2026), WCAG 2.1 AA: nessun problema critico, contrasti tutti ≥ 4,5:1. Corretti e uniti in master di `monili-vetrina` (b47cdee, 29/10/2026): finestra del negozio con focus trattenuto e restituito, bottone "Ferma lo scorrimento" per i simili, link "Vai al contenuto", area cliccabile dei filtri ≥ 44 px. Provati da tastiera nel browser; Lighthouse accessibilità 100 su Home, scheda e Negozi
 - [ ] Da fare a mano, non verificabile da Claude: VoiceOver su iPhone, zoom al 200%, leggibilità del testo bianco sulle foto
 - [ ] Token e componenti dal Design System v2 in `apps/web`
 - [ ] Le 3 pagine fedeli alle tavole, screenshot di confronto con `run`; pagine fuori lancio nascoste da menu e sitemap
