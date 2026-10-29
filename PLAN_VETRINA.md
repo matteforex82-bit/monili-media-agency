@@ -321,6 +321,7 @@ Fatta il 28/10/2026 e **unita in `master` di `monili-vetrina` (`b5cdabf`, fast-f
 - [ ] `code-review` + `security-review`
 
 ### Fase 5 — Messa online (½ giornata)
+Decisioni del 29/10/2026: progetto Vercel nuovo e separato da Alfred; database Neon nuovo e pulito (l'attuale ha solo pezzi venduti, resta come archivio); foto prodotto in un formato unico, Instagram solo come extra (`docs/foto-prodotti.md`); dominio da scegliere. Passi dettagliati in `docs/fase-5-messa-online.md`.
 - [ ] Nuovo progetto Vercel `monili-vetrina` collegato al nuovo repo, root `apps/web`
 - [ ] Variabili d'ambiente su Vercel (Neon, Blob, `ADMIN_*`), `NEXT_PUBLIC_SITE_URL` = dominio vero (oggi punta a `http://127.0.0.1:3100`)
 - [ ] Dominio personalizzato
