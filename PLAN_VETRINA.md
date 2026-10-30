@@ -1,6 +1,6 @@
 # Piano — Sito Vetrina I Monili Ravenna
 
-> Stato: **approvato, in lavorazione** (siamo alla Fase 2, Design) · Creato il 27/10/2026 · Ultimo aggiornamento: 28/10/2026, Design System v2 pubblicato
+> Stato: **approvato, in lavorazione** (siamo alla Fase 5, messa online, per la prima prova del weekend) · Creato il 27/10/2026 · Ultimo aggiornamento: 30/10/2026, foto del sito e donne AI decise nello Studio
 > **Per ripartire leggi prima la sezione 10.**
 > Obiettivo: **riprendere** il sito vetrina già iniziato (frontend + backend), metterlo al sicuro, ridisegnare il frontend con Claude Design e portarlo online collegato allo Studio AI.
 
@@ -249,7 +249,7 @@ Struttura del lancio, **3 pagine** (approvata):
 - Sconsigliato: un bot che risponde da solo ai clienti. La risposta a chi scrive resta di Matteo: è il momento della vendita e il tono "da amica" non si automatizza
 - Il messaggio WhatsApp precompilato contiene nome e link del pezzo, così Matteo sa subito di cosa si parla
 
-### Fase 2 — Design con Claude Design (1–2 giornate) ← **SIAMO QUI**
+### Fase 2 — Design con Claude Design (1–2 giornate) ✅ tavole approvate
 - [ ] Rileggere i wireframe in `reference/showcase-wireframe-claude-design` e `reference/hi fi sito` (repo `monili-vetrina`)
 - [x] Pagine del lancio decise: 3 pagine (4.2)
 - [x] Design System v1 creato il 27/10/2026: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (token "Avorio caldo", stile editoriale del feed Instagram, sala Reel, pietre, 11 componenti)
@@ -320,7 +320,7 @@ Fatta il 28/10/2026 e **unita in `master` di `monili-vetrina` (`b5cdabf`, fast-f
 - [ ] `ai-seo:ai-page-audit` su una scheda pezzo vera; Lighthouse mobile ≥ 90
 - [ ] `code-review` + `security-review`
 
-### Fase 5 — Messa online (½ giornata)
+### Fase 5 — Messa online (½ giornata) ← **SIAMO QUI**
 Decisioni del 29/10/2026: progetto Vercel nuovo e separato da Alfred; database Neon nuovo e pulito (l'attuale ha solo pezzi venduti, resta come archivio); foto prodotto in un formato unico, Instagram solo come extra (`docs/foto-prodotti.md`); dominio da scegliere. Passi dettagliati in `docs/fase-5-messa-online.md`.
 - [ ] Nuovo progetto Vercel `monili-vetrina` collegato al nuovo repo, root `apps/web`
 - [ ] Variabili d'ambiente su Vercel (Neon, Blob, `ADMIN_*`), `NEXT_PUBLIC_SITE_URL` = dominio vero (oggi punta a `http://127.0.0.1:3100`)
@@ -329,6 +329,21 @@ Decisioni del 29/10/2026: progetto Vercel nuovo e separato da Alfred; database N
 - [ ] Link nel profilo Google Business e nella bio Instagram
 - [ ] Fuori dal sito (conta per Google e per le AI): profilo Google Business completo per entrambi i negozi, richiesta recensioni ai clienti, stessi dati ovunque
 - [ ] Dopo 2–4 settimane: `ai-seo:ai-seo-audit` (ChatGPT/Gemini/Perplexity ci nominano per "bijoux Ravenna"?)
+
+**Prima prova del weekend (31/10–1/11/2026)**: cosa serve davvero, in ordine
+- [ ] Fase 5 minima: progetto Vercel `monili-vetrina` + Neon + Blob nuovi, variabili, indirizzo `.vercel.app` (il dominio può aspettare)
+- [ ] Studio `.env` sul PC: `SHOWCASE_INGEST_URL`, `SHOWCASE_REEL_INGEST_URL` (facoltativa, si deduce), `NEXT_PUBLIC_SHOWCASE_REVIEW_URL`, stesso token dei due lati
+- [ ] Matteo: account e API key Higgsfield (`HF_API_KEY_ID` / `HF_API_KEY_SECRET`), senza i Reel restano anteprime
+- [ ] Riavviare lo Studio sul PC (codice del 30/10: pulizia foto e donne AI)
+- [ ] Prova completa con 1–2 pezzi veri: foto → Scheda pezzo → "Pubblica sul sito vetrina" → `/admin/review` Pubblica → "Fai il Reel di questo pezzo" → Reel sul sito → segnare Venduto
+- Possono aspettare: bot Telegram, dominio, foto di via Cavour 17, Google Business
+
+**Decisioni sullo Studio del 29–30/10/2026** (commit `93487c3` di `monili-media-agency`; dettagli in `docs/foto-prodotti.md` e `docs/reel-studio.md`)
+- **Foto per pezzo: 2 o 3**, tutte 4:5 su fondo avorio, in quest'ordine: pulita AI (copertina, controllare che sia fedele), indossata da una donna AI, foto vera ripulita. I fotogrammi dei Reel non si pubblicano come foto
+- **Foto vera ripulita senza AI sul pezzo** (`photo_cleanup.py`): scontorno BiRefNet sul PC, luce e colore sistemati, fondo avorio. È spuntata solo se lo scontorno è pulito, altrimenti lo Studio scrive il motivo. Pesa ~1 GB di modello e memoria: **solo sul PC**, su Render free (512 MB) rischia di bloccare la missione
+- **Niente modella fissa, una donna per pezzo**: la inventa l'AI nella Scheda pezzo (reale ed elegante, non una modella perfetta) e i Reel fatti con "Fai il Reel di questo pezzo" usano lei, con la foto indossata come riferimento del viso. Mai lo stesso pezzo con due donne diverse; il pezzo dopo ne ha un'altra
+- **Libertà creativa + divieti**: l'AI inventa luoghi, donne, pose e abiti e riceve donne e scene recenti da non ripetere. L'unico limite fisso è "Mai nei contenuti" (`skills/_base/divieti.md`, pagina Skill): eleganza come linea guida, no sesso, violenza, bambini, cose illegali, uomini, animali, kitsch, marchi, luoghi fuori dalla Romagna. Niente elenchi che rendono i contenuti tutti uguali
+- Skill `/modella-monili` → `/indossato` (il vecchio nome funziona ancora)
 
 ### Fase 6 — Contenuti che spingono la ricerca (continuo, nello Studio)
 - [ ] Caption e Reel con le parole che la gente cerca (pietra, tipo di pezzo, "Ravenna"): regola da aggiungere in `skills/*.md`, non nel codice
@@ -368,7 +383,7 @@ Decisioni del 29/10/2026: progetto Vercel nuovo e separato da Alfred; database N
 
 ---
 
-## 10. Punto della situazione e ripartenza (aggiornato 27/10/2026 sera)
+## 10. Punto della situazione e ripartenza (aggiornato 30/10/2026)
 
 **Per riprendere in una nuova chat**, scrivi:
 > Leggi `CLAUDE.md` e `PLAN_VETRINA.md` (sezione 10) nel repo monili-media-agency (`master`) e continua dal primo punto di "Prossimi passi".
@@ -383,7 +398,7 @@ Decisioni del 29/10/2026: progetto Vercel nuovo e separato da Alfred; database N
 7. Segreti (token Telegram, Neon, Blob, `ADMIN_*`): solo come variabili d'ambiente, mai nel codice né in questo file
 
 ### Dove sono le cose
-- **Studio + Reel Studio**: repo `matteforex82-bit/monili-media-agency`, `master` (sul PC: `Desktop\PROGETTI AI\monili-deploy-temp`, avvio con `Avvia Agenzia Monili.bat`). **Scelta del 27/10/2026: lo Studio resta in locale sul PC e Matteo lo usa dal telefono ovunque con Tailscale** (gratis; guida in `docs/local-mode.md`). Render non ha password: va sospeso finché non c'è. Lo Studio online "fatto bene" (Vercel + Render a pagamento con disco, ~8–10 €/mese, password) si valuta con la Fase 5. Questo piano è su `master` (unito il 27/10/2026 sera); il branch di lavoro precedente era `claude/blissful-darwin-7tnrfd`
+- **Studio + Reel Studio**: repo `matteforex82-bit/monili-media-agency`, `master` (sul PC: `Desktop\PROGETTI AI\monili-deploy-temp`, avvio con `Avvia Agenzia Monili.bat`). **Scelta del 27/10/2026: lo Studio resta in locale sul PC e Matteo lo usa dal telefono ovunque con Tailscale** (gratis; guida in `docs/local-mode.md`). Render non ha password: va sospeso finché non c'è (se è ancora attivo si aggiorna da solo a ogni push, e dal 30/10 la pulizia foto lì rischia di bloccare la Scheda pezzo per mancanza di memoria). Lo Studio online "fatto bene" (Vercel + Render a pagamento con disco, ~8–10 €/mese, password) si valuta con la Fase 5. Questo piano è su `master` (unito il 27/10/2026 sera); il branch di lavoro precedente era `claude/blissful-darwin-7tnrfd`
 - **Vetrina (frontend + backend)**: repo privato `matteforex82-bit/monili-vetrina`, `master` (`7f438be`), app in `apps/web` (sul PC: `Desktop\PROGETTI AI\Ecosistema Monili`)
 - **Design System v2**: https://claude.ai/artifact/62dgz9RcfeetzXXfVZpFvq (tipo Design System, privato; v2 dal 28/10/2026, stesso URL della v1). Sorgenti: `project/tokens.json`, `project/README.md`, `project/components/*`. `tokens.css` va rigenerato da `tokens.json` a ogni modifica dei token
 - **Skill e plugin**: Impeccable (guida principale per il codice; il suo programma di controllo NON è autorizzato), frontend-design (alternativa, non insieme), Design (Anthropic: `design-critique`, `accessibility-review`), audit-suite (`web-animation-design`, `make-interfaces-feel-better`), **SEO-AEO-GEO Ultimate** e **AI SEO** (installati il 27/10, vedi tabella 4.4), `instagram-agent:ig-human` per i testi
@@ -397,6 +412,9 @@ Decisioni del 29/10/2026: progetto Vercel nuovo e separato da Alfred; database N
 
 - **27/10 sera: la missione dello Studio è diventata "Scheda pezzo"**: produce solo quello che serve al sito, cioè 2 foto AI + la foto reale, testi SEO, WhatsApp e Google Business. Si passa da 7 a 3 chiamate di testo e da 5 a 2 immagini. Instagram passa dal Reel Studio. Dettagli in `docs/STATO_PROGETTO.md`
 - Da fare più avanti: il Reel Studio rifà l'analisi del pezzo; potrebbe riusare quella della scheda (una chiamata in meno per ogni Reel)
+- **28/10**: tavole approvate, Fasi 3 e 4 fatte e unite in `master` di `monili-vetrina` (backend affidabile, restyling, SEO/GEO, sala Reel), correzioni di accessibilità unite
+- **29/10**: checklist della Fase 5 (`docs/fase-5-messa-online.md`) e formato unico delle foto prodotto
+- **29–30/10, nello Studio**: foto vera ripulita, una donna AI per pezzo, libertà creativa con l'elenco dei divieti (vedi Fase 5, "Decisioni sullo Studio"). 59 test, commit `93487c3` su `master`, push fatto
 
 ### Il sito in una frase
 Una vetrina che sembra il feed editoriale di Instagram ma fa quello che Instagram non fa: farsi trovare su Google e dalle AI, dare un link fisso a ogni pezzo da girare su WhatsApp, portare la gente nei due negozi di via Cavour. La vendita avviene su WhatsApp e DM, risponde sempre Matteo.
@@ -433,11 +451,10 @@ Si prendono i principi, non codice/logo/foto/layout identico:
 - Dominio, contenuto del database Neon → servono in Fase 5
 
 ### Prossimi passi, in ordine
-1. ~~Design System v2~~ ✅ 28/10/2026 (resta solo "imposta come predefinito", lo fa Matteo)
-2. **Tavole delle 3 pagine**: giro 1 pubblicato il 28/10/2026 (https://claude.ai/artifact/NNmcN1Y1goYwFfZHfDexjP). Ora: commenti di Matteo, giro 2, ok finale; poi `design:accessibility-review`
-3. **Backend**: stato venduto, archivio automatico dopo 6–8 settimane, punti della sezione 5 (Fase 3)
-4. **Codice del frontend** nel repo `monili-vetrina` con Impeccable, passaggi e filtri animati, SEO/GEO completo (Fase 4)
-5. **Bot Telegram "Venduto"** (Fase 3b)
-6. **Ingest dei video Reel** dallo Studio alla vetrina (parte dinamica n.1)
-7. **Deploy** su Vercel: progetto nuovo `monili-vetrina`, database pulito, dominio (Fase 5)
-8. Google Business, recensioni, controllo visibilità AI, contenuti dello Studio orientati alla ricerca (Fasi 5 e 6)
+1. ~~Design System v2~~ ✅ 28/10/2026
+2. ~~Tavole delle 3 pagine~~ ✅ approvate (https://claude.ai/artifact/NNmcN1Y1goYwFfZHfDexjP)
+3. ~~Backend (Fase 3)~~ ✅ · ~~Frontend (Fase 4)~~ ✅ · ~~Ingest dei video Reel~~ ✅
+4. **Prima prova del weekend**: la lista in Fase 5 ("Prima prova del weekend"): deploy minimo su Vercel, `.env` dello Studio, key Higgsfield, prova completa con 1–2 pezzi veri
+5. Dopo la prova: controllare quanto costa davvero una Scheda pezzo e un Reel, e se donne e scene escono varie; completare "Mai nei contenuti" se serve
+6. **Bot Telegram "Venduto"** (Fase 3b)
+7. Dominio, Google Business, recensioni, controllo visibilità AI, contenuti dello Studio orientati alla ricerca (Fasi 5 e 6)
