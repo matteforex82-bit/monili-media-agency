@@ -1,6 +1,6 @@
 # Modalita Locale Monili
 
-Questa modalita salva foto, output, cronologia e memoria sul portatile invece che nello storage temporaneo di Render.
+Lo Studio gira solo così, sul PC: foto, output, cronologia e memoria restano sul portatile (Render è stato dismesso il 30/10/2026).
 
 ## Avvio rapido Windows
 
@@ -78,7 +78,6 @@ MoniliStorage/
 
 ## Note importanti
 
-- Render oggi **non ha password**: chi conosce l'indirizzo può lanciare generazioni con le tue chiavi. Se usi la modalità locale, sospendi i servizi `monili-backend` e `monili-frontend` dal dashboard Render (Settings → Suspend) finché non c'è una password.
 - Se usi l'app locale da iPhone, i file master restano sul portatile.
 - Il backend locale deve restare aperto durante la generazione.
 - Images 2 via OpenRouter puo richiedere diversi minuti per completare le immagini.

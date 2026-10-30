@@ -1,4 +1,5 @@
-const DEFAULT_API_URL = 'https://monili-backend.onrender.com';
+// Lo Studio gira solo sul PC (Render dismesso il 30/10/2026): di base il backend locale.
+const DEFAULT_API_URL = 'http://localhost:8000';
 
 // Modalità locale (NEXT_PUBLIC_API_PORT, impostata da scripts/start-local.ps1):
 // il backend gira sullo stesso PC del frontend, quindi si usa l'indirizzo con

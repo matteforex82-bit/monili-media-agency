@@ -127,7 +127,6 @@ testi prima di attivare i video veri.
      HF_API_KEY_ID=...
      HF_API_KEY_SECRET=...
      ```
-   - **su Render**: servizio `monili-backend` → Environment → aggiungi `HF_API_KEY_ID` e `HF_API_KEY_SECRET`.
 5. Riavvia il backend: in alto nella pagina Reel compare **"Higgsfield attivo"** e le stime diventano quelle
    ufficiali (endpoint `/estimate` di Higgsfield).
 
@@ -150,8 +149,7 @@ I lavori falliti o bloccati dalla moderazione non vengono addebitati da Higgsfie
   Per questo: movimenti lenti, prompt di fedeltà e la possibilità di usare la **foto reale** come fotogramma
   (opzione "Foto reale (massima fedeltà)"). Controlla sempre il risultato prima di pubblicare.
 - I video su Higgsfield restano disponibili 7 giorni: l'app li scarica subito nello storage.
-- **Render free** (512 MB, file temporanei) va bene per provare. Per l'uso quotidiano usa la **modalità locale**
-  (`scripts/start-local.ps1`): video e archivio restano sul portatile.
+- Lo Studio gira sul PC (`scripts/start-local.ps1`): video e archivio restano lì. Render è stato dismesso il 30/10/2026.
 
 ## Dove finiscono i file
 

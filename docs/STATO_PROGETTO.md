@@ -7,7 +7,7 @@ File di passaggio di consegne, condiviso con Hermes. Aggiornare a ogni sessione 
 ## Cos'è
 App per creare contenuti social de I Monili Ravenna a partire dalle foto prodotto.
 Backend FastAPI (`api/server.py`, `main.py`, `reel_studio.py`) + frontend Next.js (`frontend/`).
-Gira su Render (`monili-backend`, `monili-frontend`, piano free) o in locale sul portatile (`scripts/start-local.ps1`).
+Gira solo sul PC (`scripts/start-local.ps1`), usato anche dal telefono con Tailscale. Render è stato dismesso il 30/10/2026: `render.yaml` tolto, servizi da sospendere.
 
 ## Decisione strategica (ott 2026)
 Matteo: **le foto statiche su Instagram non rendono più → priorità a Reel e Story video.**
@@ -74,7 +74,7 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 
 ## Prossimi passi
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.
-1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` locale / su Render.
+1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` del PC.
 2. Primo Reel vero con un prodotto reale: verificare fedeltà del gioiello e costo effettivo vs stima.
 3. Tarare le stime (`HF_FALLBACK_USD_PER_SEC_*`) con i costi reali.
 4. Matteo: verificare il fuso orario del grafico "Periodi di maggiore attività" dall'app e aggiornare le storie in evidenza (ferme all'estate).
@@ -86,5 +86,3 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - **Sito vetrina non online**: l'URL nel codice (`web-five-theta-58.vercel.app`) ora ospita un'altra app ("Alfred");
   `/admin/review` → 404. `SHOWCASE_INGEST_URL` va impostata quando il sito vetrina sarà pubblicato.
   Il codice del sito vetrina non è in nessun repo GitHub collegato.
-- Render free: ok per provare, per i video meglio la modalità locale (storage persistente, CPU).
-- Le variabili in `render.yaml` valgono solo con il sync del Blueprint: verificare l'Environment sul dashboard Render.

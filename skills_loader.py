@@ -16,7 +16,7 @@ from main import STORAGE_ROOT
 
 REPO_SKILLS_DIR = Path(__file__).parent / "skills"
 # Le modifiche dall'app non devono mai sovrascrivere i file del repo (succederebbe se lo storage
-# coincide con la cartella del progetto, es. su Render): in quel caso usano skills_custom/.
+# coincide con la cartella del progetto): in quel caso usano skills_custom/.
 _override = STORAGE_ROOT / "skills"
 OVERRIDE_SKILLS_DIR = (
     STORAGE_ROOT / "skills_custom" if _override.resolve() == REPO_SKILLS_DIR.resolve() else _override
