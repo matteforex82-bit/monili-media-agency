@@ -173,15 +173,10 @@ export default function RisultatiPage() {
 
   return (
     <div className="rs-page">
-      <header className="app-header sticky top-0 z-50">
-        <div className="rs-header">
-          <a href="/reel" className="rs-back">← Reel Studio</a>
-          <div className="rs-brand">
-            <span className="rs-brand-title">Risultati</span>
-            <span className="rs-brand-sub">cosa funziona davvero</span>
-          </div>
-          <span />
-        </div>
+      <header className="page-head">
+        <a href="/altro" className="back-link">‹ Altro</a>
+        <h1 className="page-title">Risultati</h1>
+        <p className="page-lead">Cosa funziona davvero, dai numeri di quello che hai pubblicato.</p>
       </header>
 
       <main className="rs-main">

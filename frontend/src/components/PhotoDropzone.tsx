@@ -86,7 +86,7 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
           <button
             onClick={onClear}
             className="btn-secondary"
-            style={{ padding: '5px 12px', fontSize: 11 }}
+            style={{ padding: '0 16px', fontSize: 14, minHeight: 44 }}
           >
             Cambia
           </button>
@@ -112,7 +112,7 @@ export default function PhotoDropzone({ photo, photoPreview, onFile, onClear }: 
           Anche scattata al volo va bene · JPG · PNG · HEIC
         </div>
         <div className="bot-upload-button">
-          Sfoglia dall'iPhone
+          Scegli la foto
         </div>
       </div>
     </label>

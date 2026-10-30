@@ -184,6 +184,7 @@ def list_reels(limit: int = 20) -> list[dict]:
                 "created_at": state.get("created_at"),
                 "final_video": (state.get("results") or {}).get("final_video"),
                 "cover": (state.get("results") or {}).get("cover"),
+                "scheda_run_id": state.get("scheda_run_id") or "",
             }
         )
     return items

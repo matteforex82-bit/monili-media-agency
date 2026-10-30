@@ -75,6 +75,8 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 
 - **Studio v2, Fase A** (30/10): "Invia bozza / Pubblica subito" sotto i campi; foto etichettate per tipo ("Catalogo (AI)", "Indossata (AI)", "Foto vera ripulita"), 2 per riga sul telefono; Reel dalla scheda usa la foto della scheda senza ricaricarla (backend copia `source_photo`); cronologia con nome del pezzo e data; testi e accenti sistemati. Test: 63. Non provato: invio vero al sito e Reel vero dalla scheda.
 
+- **Studio v2, Fase B** (30/10): font e colori del sito (Cormorant + Outfit, avorio, terracotta); barra in basso su telefono / colonna a sinistra su computer (Nuovo pezzo · Pezzi · Reel · Altro); pagina **Pezzi** con le 4 tessere di stato (Scheda, Sito, Reel, Instagram) colorate dalla foto del pezzo; pagina **del pezzo** (`/pezzi/<id>`: foto, sito, testi da copiare, Reel); Nuovo pezzo semplificato (passaggi Analisi, Foto, Testi; a fine lavoro si apre il pezzo); motore delle foto in Altro → Impostazioni; Reel Studio con lo stesso riquadro di caricamento. Backend: `/pieces`, `/pieces/{id}`; il sito conta come "fatto" solo se l'invio è riuscito. Test: 65. Non provato: una missione vera dall'app nuova e l'invio vero al sito.
+
 ## Prossimi passi
 - **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, Fase A fatta; B–F dopo la prova del weekend e con l'ok di Matteo (prima le decisioni della sezione 0).
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.

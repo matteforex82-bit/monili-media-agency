@@ -236,3 +236,38 @@ def test_publish_now_goes_online_without_review(tmp_path, monkeypatch, capsys):
     fiche = sent[-1]["product_fiche"]
     assert live["published"] is True and fiche["publicationStatus"] == "published" and fiche["publishedAt"]
     assert live["product_url"] == f"https://sito.example/p/{fiche['id']}"
+
+
+def test_pieces_list_tracks_the_four_steps(tmp_path, monkeypatch, capsys):
+    from fastapi.testclient import TestClient
+
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    monkeypatch.setenv("SHOWCASE_INGEST_URL", "https://sito.example/api/ingest/internal-webapp")
+    client = TestClient(server.app)
+
+    def mine():
+        return next(p for p in client.get("/pieces").json()["items"] if p["run_id"] == results["run_id"])
+
+    piece = mine()
+    assert piece["title"] == PACK["product_name"] and piece["cover"].endswith(main.REAL_PHOTO_NAME)
+    assert piece["steps"] == {"scheda": True, "sito": "none", "reel": "none", "instagram": "none"}
+    assert len(piece["palette"]) >= 1 and all(c.startswith("#") and len(c) == 7 for c in piece["palette"])
+
+    monkeypatch.setattr(server, "_send_payload_to_showcase", lambda payload: {"ok": True})
+    body = {"selected_images": [results["image_site_1"]], "price": "45", "location": "via-cavour-17"}
+    client.post(f"/missions/{results['run_id']}/showcase/publish", json=body)
+    assert mine()["steps"]["sito"] == "draft"
+    client.post(f"/missions/{results['run_id']}/showcase/publish", json={**body, "publish_now": True})
+    assert mine()["steps"]["sito"] == "published"
+
+
+def test_failed_site_ingest_does_not_count_as_sent(tmp_path, monkeypatch, capsys):
+    from fastapi.testclient import TestClient
+
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    monkeypatch.setenv("SHOWCASE_INGEST_URL", "https://sito.example/api/ingest/internal-webapp")
+    monkeypatch.setattr(server, "_send_payload_to_showcase", lambda payload: {"ok": False, "status_code": 500})
+    client = TestClient(server.app)
+    body = {"selected_images": [results["image_site_1"]], "price": "45", "location": "via-cavour-17"}
+    assert client.post(f"/missions/{results['run_id']}/showcase/publish", json=body).status_code == 500
+    assert server._showcase_state(results["run_id"]) == "none"

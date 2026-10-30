@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FileDropzone from '@/components/FileDropzone';
 import { API_URL } from '@/lib/apiUrl';
 
 // ── CONFIG ──────────────────────────────────────────────────────────────────
@@ -307,8 +308,6 @@ export default function ReelStudioPage() {
   // Il pezzo della Scheda da cui parte il Reel (/reel?pezzo=<run_id>): stessa donna della foto indossata.
   const [piece, setPiece] = useState<Piece | null>(null);
 
-  const photoPreviews = useMemo(() => photos.map((file) => URL.createObjectURL(file)), [photos]);
-  useEffect(() => () => photoPreviews.forEach((url) => URL.revokeObjectURL(url)), [photoPreviews]);
 
   // storyboard in modifica
   const [draft, setDraft] = useState<Storyboard | null>(null);
@@ -362,8 +361,16 @@ export default function ReelStudioPage() {
       } catch {
         setError(`Backend non raggiungibile su ${API_URL}`);
       }
+      // /reel?reel=<id> apre quel Reel; /reel?pezzo=<id> parte dal modulo (non dall'ultimo Reel aperto).
+      const params = new URLSearchParams(window.location.search);
+      const wanted = params.get('reel') || '';
       let saved = '';
-      try { saved = localStorage.getItem(ACTIVE_REEL_KEY) || ''; } catch { /* storage non disponibile */ }
+      if (wanted) {
+        saved = wanted;
+        try { localStorage.setItem(ACTIVE_REEL_KEY, wanted); } catch { /* storage non disponibile */ }
+      } else if (!params.get('pezzo')) {
+        try { saved = localStorage.getItem(ACTIVE_REEL_KEY) || ''; } catch { /* storage non disponibile */ }
+      }
       if (saved) {
         try { await loadReel(saved); } catch { /* reel non più disponibile */ }
       }
@@ -557,21 +564,14 @@ export default function ReelStudioPage() {
 
   return (
     <div className="rs-page">
-      <header className="app-header sticky top-0 z-50">
-        <div className="rs-header">
-          <span className="rs-header-links">
-            <a href="/" className="rs-back">← Foto</a>
-            <a href="/skills" className="rs-back">Skill</a>
-            <a href="/risultati" className="rs-back">Risultati</a>
-          </span>
-          <div className="rs-brand">
-            <span className="rs-brand-title">Reel Studio</span>
-            <span className="rs-brand-sub">I Monili · video-first</span>
-          </div>
+      <header className="page-head">
+        <h1 className="page-title">Reel</h1>
+        <p className="page-lead">
+          Video e storie dai tuoi pezzi.{' '}
           <span className={`rs-engine ${hfReady ? 'rs-engine-on' : 'rs-engine-off'}`}>
             {hfReady ? 'Higgsfield attivo' : 'Modalità anteprima'}
           </span>
-        </div>
+        </p>
       </header>
 
       <main className="rs-main">
@@ -588,7 +588,7 @@ export default function ReelStudioPage() {
         {!reel && (
           <section className="card rs-card">
             <div className="label-eyebrow">Nuovo contenuto video</div>
-            <h1 className="rs-h1">Dalla foto al Reel</h1>
+            <h2 className="rs-h1">Dalla foto al Reel</h2>
             <p className="rs-muted">
               Carica 1-3 foto del prodotto. Se vuoi, aggiungi fino a 3 clip vere girate in negozio: il regista AI le
               mescola con le scene generate. Senza clip, fa tutto l&apos;AI.
@@ -597,32 +597,26 @@ export default function ReelStudioPage() {
             {piece && <PieceBanner piece={piece} onClear={() => setPiece(null)} />}
 
             <div className="rs-grid-2">
-              <Field label={piece && !photos.length ? 'Foto prodotto: usiamo quella della scheda' : `Foto prodotto (${photos.length}/3)`}>
-                <input
-                  type="file"
-                  accept="image/*,.heic,.heif"
-                  multiple
-                  onChange={(e) => setPhotos(Array.from(e.target.files || []).slice(0, 3))}
-                />
-              </Field>
-              <Field label={`Clip reali facoltative (${clips.length}/3)`}>
-                <input
-                  type="file"
-                  accept="video/mp4,video/quicktime,.mov,.mp4,.m4v"
-                  multiple
-                  onChange={(e) => setClips(Array.from(e.target.files || []).slice(0, 3))}
-                />
-              </Field>
+              <FileDropzone
+                files={photos}
+                onFiles={setPhotos}
+                accept="image/*,.heic,.heif"
+                max={3}
+                kind="photo"
+                title="Foto del prodotto"
+                hint="Da 1 a 3 foto. Anche scattate al volo."
+                note={piece ? 'Usiamo la foto della scheda: se vuoi, aggiungine altre.' : undefined}
+              />
+              <FileDropzone
+                files={clips}
+                onFiles={setClips}
+                accept="video/mp4,video/quicktime,.mov,.mp4,.m4v"
+                max={3}
+                kind="video"
+                title="Clip girate in negozio"
+                hint="Facoltative, fino a 3. Senza clip fa tutto l'AI."
+              />
             </div>
-
-            {photos.length > 0 && (
-              <div className="rs-thumbs">
-                {photoPreviews.map((url, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={url} src={url} alt={`foto ${i + 1}`} />
-                ))}
-              </div>
-            )}
 
             <Field label="Brief (facoltativo)">
               <textarea
@@ -651,7 +645,6 @@ export default function ReelStudioPage() {
                       }
                     }}
                   >
-                    <span className="rs-recipe-title">/{item.id}</span>
                     <span className="rs-recipe-label">{item.label}</span>
                     <span className="rs-recipe-desc">{item.description}</span>
                   </button>
@@ -687,6 +680,11 @@ export default function ReelStudioPage() {
                   onChange={(e) => setSeconds(Number(e.target.value))}
                 />
               </Field>
+            </div>
+
+            <details className="rs-engines">
+              <summary className="btn-secondary details-toggle">Motori (foto e video)</summary>
+              <div className="rs-grid-3" style={{ marginTop: 10 }}>
               <Field label="Motore immagini">
                 <select value={keyframeModel} onChange={(e) => setKeyframeModel(e.target.value)} className="rs-input">
                   {(config?.keyframe_models || []).map((model) => (
@@ -701,7 +699,8 @@ export default function ReelStudioPage() {
                   ))}
                 </select>
               </Field>
-            </div>
+              </div>
+            </details>
 
             <label className="rs-check">
               <input type="checkbox" checked={posterCover} onChange={(e) => setPosterCover(e.target.checked)} />
@@ -724,7 +723,7 @@ export default function ReelStudioPage() {
                   {reel.format === 'story' ? 'Story video' : 'Reel'}
                   {reel.recipe && reel.recipe !== 'libera' ? ` · /${reel.recipe}` : ''} · {STATUS_LABELS[reel.status]}
                 </div>
-                <h1 className="rs-h1">{reel.storyboard?.title || 'Nuovo reel'}</h1>
+                <h2 className="rs-h1">{reel.storyboard?.title || 'Nuovo reel'}</h2>
                 {reel.storyboard?.concept && <p className="rs-muted">{reel.storyboard.concept}</p>}
               </div>
               <button type="button" className="btn-secondary rs-small-btn" onClick={newReel}>+ Nuovo</button>

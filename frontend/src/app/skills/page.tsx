@@ -152,15 +152,10 @@ export default function SkillsPage() {
 
   return (
     <div className="rs-page">
-      <header className="app-header sticky top-0 z-50">
-        <div className="rs-header">
-          <a href="/reel" className="rs-back">← Reel Studio</a>
-          <div className="rs-brand">
-            <span className="rs-brand-title">Skill</span>
-            <span className="rs-brand-sub">ricette dei contenuti</span>
-          </div>
-          <span />
-        </div>
+      <header className="page-head">
+        <a href="/altro" className="back-link">‹ Altro</a>
+        <h1 className="page-title">Skill</h1>
+        <p className="page-lead">Le regole che seguono i contenuti: donne, cose da non fare, ricette dei Reel.</p>
       </header>
 
       <main className="rs-main">

@@ -1,994 +1,277 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
-import AgentCard from '@/components/AgentCard';
-import TerminalLog from '@/components/TerminalLog';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import MosaicTiles, { type TileItem } from '@/components/MosaicTiles';
 import PhotoDropzone from '@/components/PhotoDropzone';
-import ResultsPanel from '@/components/ResultsPanel';
 import { API_URL } from '@/lib/apiUrl';
+import { photoPalette } from '@/lib/palette';
+import { loadSettings } from '@/lib/settings';
 
-// â”€â”€ TIPI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export type AgentStatus = 'offline' | 'standby' | 'active' | 'done' | 'error';
-export type MissionState = 'idle' | 'running' | 'complete' | 'error';
+type MissionState = 'idle' | 'running' | 'error';
 
-export interface AgentDef {
-  id: string;
-  name: string;
-  role: string;
-  icon: string;
-  status: AgentStatus;
-  progress: number;
-  log?: string;
-}
-
-export interface LogEntry {
-  time: string;
-  agent: string;
-  msg: string;
-  type: 'info' | 'success' | 'warn' | 'data';
-}
-
-interface HistoryItem {
-  run_id: string;
-  created_at: string;
-  brief: string;
-  source_photo: string;
-  output_dir: string;
-  selected_format: string;
-  title?: string;
-}
-
-function formatHistoryDate(value: string) {
-  const date = value ? new Date(value) : null;
-  if (!date || Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('it-IT', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-}
-
-// â”€â”€ CONFIGURAZIONE AGENTI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const INITIAL_AGENTS: AgentDef[] = [
-  { id: 'product-analyst', name: 'ANALISTA', role: 'Materiali e descrizione', icon: 'A', status: 'offline', progress: 0 },
-  { id: 'scheda-plan',     name: 'PIANO',    role: 'Styling e prompt foto', icon: 'P', status: 'offline', progress: 0 },
-  { id: 'site-visual',     name: 'FOTO SITO', role: 'Catalogo, indossato, reale', icon: 'V', status: 'offline', progress: 0 },
-  { id: 'copywriter',      name: 'TESTI',    role: 'Sito, WhatsApp, Google', icon: 'C', status: 'offline', progress: 0 },
-];
-
-// â”€â”€ CONFIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const OPENROUTER_TEXT_MODELS = [
-  'openai/gpt-5.5',
-  'openai/gpt-4.1-mini',
-  'google/gemini-2.5-flash',
-  'google/gemini-2.5-pro',
-  'anthropic/claude-sonnet-5.5',
-] as const;
-const OPENROUTER_IMAGE_MODELS = [
-  'openai/gpt-5.4-image-2',
-  'google/gemini-3.1-flash-image-preview',
-  'google/gemini-3.1-flash-image',
-  'google/gemini-3-pro-image',
-] as const;
 const ACTIVE_JOB_STORAGE_KEY = 'monili_active_job_id';
 
-// â”€â”€ HELPER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function now() {
-  return new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+// Le parole chiave dei log del backend -> a che punto è il lavoro (0 analisi, 1 piano, 2 foto, 3 testi).
+const STAGE_KEYWORDS: Array<[string, number]> = [
+  ['ANALISTA', 0],
+  ['PIANO SCHEDA', 1],
+  ['SITO VISUAL', 2],
+  ['PUBLISH PACK', 3],
+  ['MEMORIA', 3],
+];
+
+function stepTiles(stage: number): TileItem[] {
+  return [
+    { label: 'Analisi', state: stage >= 2 ? 'done' : 'working' },
+    { label: 'Foto', state: stage >= 3 ? 'done' : stage === 2 ? 'working' : 'none' },
+    { label: 'Testi', state: stage >= 3 ? 'working' : 'none' },
+  ];
 }
 
-// â”€â”€ COMPONENTE PRINCIPALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export default function Home() {
-  const [missionState, setMissionState] = useState<MissionState>('idle');
+const STAGE_TEXT = [
+  'Guardo il pezzo e ne descrivo i materiali.',
+  'Preparo lo stile e le foto.',
+  'Creo le foto per il sito.',
+  'Scrivo i testi.',
+];
+
+export default function NewPiecePage() {
+  const router = useRouter();
+  const [state, setState] = useState<MissionState>('idle');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [palette, setPalette] = useState<string[]>([]);
   const [brief, setBrief] = useState('');
-  const [agents, setAgents] = useState<AgentDef[]>(INITIAL_AGENTS);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [overallProgress, setOverallProgress] = useState(0);
-  const [results, setResults] = useState<Record<string, string>>({});
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [textModel, setTextModel] = useState('openai/gpt-5.5');
-  const [imageModel, setImageModel] = useState('openai/gpt-5.4-image-2');
-  const [modelsDialogOpen, setModelsDialogOpen] = useState(false);
-  const [checkingOpenRouter, setCheckingOpenRouter] = useState(false);
-  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState('');
-  const [currentJobId, setCurrentJobId] = useState('');
-  const [lastProgressAt, setLastProgressAt] = useState<number | null>(null);
-  const briefRef = useRef<HTMLTextAreaElement>(null);
+  const [stage, setStage] = useState(0);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [error, setError] = useState('');
+  const stopRef = useRef<() => void>(() => undefined);
 
-  // Boot: offline â†’ standby
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setAgents(prev => prev.map(a => ({ ...a, status: 'standby' })));
-    }, 600);
-    return () => clearTimeout(t);
-  }, []);
+  const addLog = useCallback((msg: string) => setLogs((prev) => [...prev.slice(-80), msg]), []);
 
   useEffect(() => {
     return () => {
-      if (photoPreview?.startsWith('blob:')) {
-        URL.revokeObjectURL(photoPreview);
-      }
+      if (photoPreview?.startsWith('blob:')) URL.revokeObjectURL(photoPreview);
     };
   }, [photoPreview]);
 
-  const updateAgent = useCallback((idx: number, patch: Partial<AgentDef>) => {
-    setAgents(prev => prev.map((a, i) => i === idx ? { ...a, ...patch } : a));
-  }, []);
-
-  const addLog = useCallback((agent: string, msg: string, type: LogEntry['type']) => {
-    setLogs(prev => [...prev, { time: now(), agent, msg, type }]);
-  }, []);
-
-  const fetchHistory = useCallback(async () => {
-    setHistoryLoading(true);
-    setHistoryError('');
-    try {
-      const res = await fetch(`${API_URL}/missions/history?limit=20`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      setHistoryItems(Array.isArray(data?.items) ? data.items : []);
-    } catch (err) {
-      setHistoryError(`Cronologia non disponibile: ${err}`);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, []);
-
-  const loadHistoryRun = useCallback(async (runId: string) => {
-    try {
-      const res = await fetch(`${API_URL}/missions/${encodeURIComponent(runId)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-      if (!data?.results) throw new Error('Risultati non trovati');
-      setResults(data.results);
-      setMissionState('complete');
-      setOverallProgress(100);
-      setAgents(INITIAL_AGENTS.map(a => ({ ...a, status: 'done', progress: 100 })));
-      addLog('SISTEMA', `Cronologia caricata: ${runId}`, 'success');
-    } catch (err) {
-      addLog('SISTEMA', `Errore caricamento cronologia: ${err}`, 'warn');
-    }
-  }, [addLog]);
-
-  useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
-
-  useEffect(() => {
-    if (missionState === 'complete') {
-      fetchHistory();
-    }
-  }, [missionState, fetchHistory]);
+  useEffect(() => () => stopRef.current(), []);
 
   const handlePhotoSelect = useCallback((file: File, url: string) => {
     setPhoto(file);
-    setPhotoPreview(prev => {
-      if (prev?.startsWith('blob:')) {
-        URL.revokeObjectURL(prev);
-      }
+    setPhotoPreview((prev) => {
+      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
       return url;
     });
+    void photoPalette(url).then(setPalette);
   }, []);
 
   const handlePhotoClear = useCallback(() => {
     setPhoto(null);
-    setPhotoPreview(prev => {
-      if (prev?.startsWith('blob:')) {
-        URL.revokeObjectURL(prev);
-      }
+    setPalette([]);
+    setPhotoPreview((prev) => {
+      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
       return null;
     });
   }, []);
 
-  const runReal = useCallback(async () => {
-    if (!photo) return;
-    setMissionState('running');
-    setLogs([]);
-    setOverallProgress(0);
-    setLastProgressAt(Date.now());
+  const finish = useCallback(
+    (jobId: string) => {
+      fetch(`${API_URL}/mission/${jobId}/status`)
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+          return data;
+        })
+        .then((data) => {
+          const runId = data?.results?.run_id;
+          if (!runId) throw new Error('La missione si è chiusa senza foto né testi.');
+          try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch { /* storage non disponibile */ }
+          router.push(`/pezzi/${encodeURIComponent(runId)}`);
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : String(err));
+          setState('error');
+        });
+    },
+    [router],
+  );
 
-    // â”€â”€ Invia foto + brief al backend â”€â”€
-    const formData = new FormData();
-    formData.append('foto', photo);
-    formData.append('brief', brief);
-    formData.append('text_model', textModel);
-    formData.append('image_model', imageModel);
+  // Segue il lavoro del backend: aggiornamenti in diretta, con controllo periodico se la diretta cade.
+  const follow = useCallback(
+    (jobId: string) => {
+      let closed = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let source: EventSource | undefined;
 
-    let jobId: string;
-    let resolvedTextModel = textModel;
-    let resolvedImageModel = imageModel;
-    try {
-      const res = await fetch(`${API_URL}/mission/start`, { method: 'POST', body: formData });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.error || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      jobId = data.job_id;
-      setCurrentJobId(jobId);
-      try { localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, jobId); } catch {}
-      resolvedTextModel = data.text_model || textModel;
-      resolvedImageModel = data.image_model || imageModel;
-    } catch (err) {
-      addLog('SISTEMA', `Errore avvio missione: ${err}`, 'warn');
-      setMissionState('error');
-      return;
-    }
+      const fail = (message: string) => {
+        if (closed) return;
+        closed = true;
+        source?.close();
+        try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch { /* storage non disponibile */ }
+        setError(message);
+        setState('error');
+      };
 
-    addLog('SISTEMA', `Missione avviata (job: ${jobId})`, 'info');
-    addLog('SISTEMA', `Modello testo: ${resolvedTextModel}`, 'data');
-    addLog('SISTEMA', `Modello immagini: ${resolvedImageModel}`, 'data');
+      const poll = async () => {
+        if (closed) return;
+        try {
+          const res = await fetch(`${API_URL}/mission/${jobId}/status`);
+          const data = await res.json();
+          if (!res.ok) return fail('Non trovo più questo lavoro: carica di nuovo la foto e riprova.');
+          if (data.status === 'running') {
+            timer = setTimeout(poll, 2500);
+          } else if (data.status === 'done' && data.results) {
+            closed = true;
+            finish(jobId);
+          } else {
+            fail('Il lavoro si è fermato prima di finire.');
+          }
+        } catch {
+          timer = setTimeout(poll, 3500);
+        }
+      };
 
-    // â”€â”€ SSE stream: aggiornamenti in tempo reale â”€â”€
-    const agentKeywords: [string, number][] = [
-      ['ANALISTA', 0],
-      ['PIANO SCHEDA', 1],
-      ['SITO VISUAL', 2],
-      ['PUBLISH PACK', 3],
-      ['MEMORIA', 3],
-    ];
-
-    let currentAgentIdx = 0;
-    let progressInterval: ReturnType<typeof setInterval>;
-
-    const startAgentProgress = (idx: number) => {
-      if (progressInterval) clearInterval(progressInterval);
-      updateAgent(idx, { status: 'active', progress: 0 });
-      let p = 0;
-      progressInterval = setInterval(() => {
-        p = Math.min(p + 2, 95);
-        updateAgent(idx, { progress: p });
-      }, 300);
-    };
-
-    startAgentProgress(0);
-
-    const es = new EventSource(`${API_URL}/mission/${jobId}/stream`);
-
-    es.onmessage = (e) => {
-      try {
-        const payload = JSON.parse(e.data);
-
-        if (payload.type === 'log') {
-          const msg: string = payload.msg;
-
-          // Rileva quale agente Ã¨ attivo dal testo del log
-          for (const [keyword, idx] of agentKeywords) {
-            if (msg.toLowerCase().includes(keyword.toLowerCase()) && idx !== currentAgentIdx) {
-              updateAgent(currentAgentIdx, { status: 'done', progress: 100 });
-              currentAgentIdx = idx;
-              startAgentProgress(idx);
-              setOverallProgress(Math.round((idx / INITIAL_AGENTS.length) * 100));
-              break;
+      source = new EventSource(`${API_URL}/mission/${jobId}/stream`);
+      source.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload.type === 'log') {
+            const msg = String(payload.msg || '');
+            addLog(msg);
+            for (const [keyword, idx] of STAGE_KEYWORDS) {
+              if (msg.toLowerCase().includes(keyword.toLowerCase())) {
+                setStage((prev) => Math.max(prev, idx));
+                break;
+              }
+            }
+          } else if (payload.type === 'status') {
+            source?.close();
+            if (payload.status === 'done') {
+              closed = true;
+              setStage(4);
+              finish(jobId);
+            } else {
+              fail('Qualcosa è andato storto durante il lavoro. Controlla la chiave OpenRouter e riprova.');
             }
           }
-
-          // Classifica il tipo di log
-          const type: LogEntry['type'] =
-            msg.includes('[OK]') || msg.includes('completat') ? 'success' :
-            msg.toLowerCase().includes('errore')              ? 'warn'    :
-            msg.match(/#\w+|trend|reach|\d+\s?(EUR|euro)/i)   ? 'data'    : 'info';
-
-          addLog(INITIAL_AGENTS[currentAgentIdx]?.name || 'SISTEMA', msg, type);
-          setLastProgressAt(Date.now());
+        } catch {
+          /* riga non leggibile: si ignora */
         }
+      };
+      source.onerror = () => {
+        source?.close();
+        timer = setTimeout(poll, 2000);
+      };
 
-        if (payload.type === 'status') {
-          clearInterval(progressInterval);
-          es.close();
-          setCurrentJobId('');
-          try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
+      stopRef.current = () => {
+        closed = true;
+        source?.close();
+        if (timer) clearTimeout(timer);
+      };
+    },
+    [addLog, finish],
+  );
 
-          if (payload.status === 'done') {
-            INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
-            setOverallProgress(100);
-
-            fetch(`${API_URL}/mission/${jobId}/status`)
-              .then(async r => {
-                const data = await r.json();
-                if (!r.ok) throw new Error(data?.error || `HTTP ${r.status}`);
-                return data;
-              })
-              .then(data => {
-                if (data.results) {
-                  setResults(data.results);
-                  setMissionState('complete');
-                  addLog('SISTEMA', 'Missione completata. Scheda pezzo pronta.', 'success');
-                } else {
-                  setMissionState('error');
-                  addLog('SISTEMA', 'Missione chiusa senza risultati. Le foto non sono state generate.', 'warn');
-                }
-              })
-              .catch((err) => {
-                setMissionState('error');
-                addLog('SISTEMA', `Risultati non recuperabili: ${err}. Rilancia la missione.`, 'warn');
-              });
-          } else {
-            setMissionState('error');
-            addLog('SISTEMA', 'Errore durante la missione. Controlla OPENROUTER_API_KEY nel backend locale.', 'warn');
-          }
-        }
-      } catch {
-        // ignora errori parse SSE
-      }
-    };
-
-    es.onerror = () => {
-      clearInterval(progressInterval);
-      es.close();
-      // Polling fallback se SSE non supportato
-      setTimeout(() => pollStatus(jobId), 2000);
-    };
-  }, [photo, brief, textModel, imageModel, updateAgent, addLog]);
-
-  const pollStatus = useCallback(async (jobId: string) => {
+  const start = useCallback(async () => {
+    if (!photo) return;
+    stopRef.current();
+    setState('running');
+    setStage(0);
+    setLogs([]);
+    setError('');
+    const settings = loadSettings();
+    const form = new FormData();
+    form.append('foto', photo);
+    form.append('brief', brief);
+    form.append('text_model', settings.textModel);
+    form.append('image_model', settings.imageModel);
     try {
-      const res = await fetch(`${API_URL}/mission/${jobId}/status`);
-      const data = await res.json();
-      if (!res.ok) {
-        setCurrentJobId('');
-        try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
-        setMissionState('error');
-        addLog('SISTEMA', `Missione non recuperabile: ${data?.error || `HTTP ${res.status}`}. Rilancia il test.`, 'warn');
-        return;
-      }
-      if (data.status === 'running') {
-        setCurrentJobId(jobId);
-        setTimeout(() => pollStatus(jobId), 2000);
-      } else {
-        setCurrentJobId('');
-        try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
-        if (data.status === 'done' && data.results) {
-          INITIAL_AGENTS.forEach((_, i) => updateAgent(i, { status: 'done', progress: 100 }));
-          setOverallProgress(100);
-          setResults(data.results);
-          setMissionState('complete');
-          addLog('SISTEMA', 'Missione completata.', 'success');
-        } else {
-          setMissionState('error');
-          addLog('SISTEMA', data.status === 'error' ? 'Missione terminata con errore.' : 'Missione chiusa senza risultati o foto generate.', 'warn');
-        }
-      }
-    } catch {
-      setTimeout(() => pollStatus(jobId), 3000);
+      const res = await fetch(`${API_URL}/mission/start`, { method: 'POST', body: form });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      try { localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, data.job_id); } catch { /* storage non disponibile */ }
+      follow(data.job_id);
+    } catch (err) {
+      setError(`Non riesco ad avviare il lavoro: ${err instanceof Error ? err.message : err}`);
+      setState('error');
     }
-  }, [updateAgent, addLog]);
+  }, [photo, brief, follow]);
 
+  // Se la pagina viene riaperta mentre il lavoro è in corso, lo riprende.
   useEffect(() => {
     let stored = '';
-    try {
-      stored = localStorage.getItem(ACTIVE_JOB_STORAGE_KEY) || '';
-    } catch {
-      stored = '';
-    }
+    try { stored = localStorage.getItem(ACTIVE_JOB_STORAGE_KEY) || ''; } catch { /* storage non disponibile */ }
     if (!stored) return;
+    setState('running');
+    follow(stored);
+  }, [follow]);
 
-    setMissionState('running');
-    setCurrentJobId(stored);
-    setAgents(prev => prev.map(a => ({ ...a, status: 'standby', progress: 0 })));
-    setLogs(prev => prev.length ? prev : [{ time: now(), agent: 'SISTEMA', msg: `Ripresa missione in corso: ${stored}`, type: 'info' }]);
-    setLastProgressAt(Date.now());
-    pollStatus(stored);
-  }, [pollStatus]);
-
-  useEffect(() => {
-    if (missionState !== 'running' || !lastProgressAt) return;
-    const interval = setInterval(() => {
-      const silentFor = Date.now() - lastProgressAt;
-      if (silentFor > 90000) {
-        addLog(
-          'SISTEMA',
-          'Sto ancora aspettando la risposta del modello immagini. Images 2 può richiedere qualche minuto sulle foto più pesanti.',
-          'info',
-        );
-        setLastProgressAt(Date.now());
-      }
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [missionState, lastProgressAt, addLog]);
-
-  const checkOpenRouter = useCallback(async () => {
-    setCheckingOpenRouter(true);
-    try {
-      const res = await fetch(
-        `${API_URL}/openrouter/check?image_model=${encodeURIComponent(imageModel)}&text_model=${encodeURIComponent(textModel)}`
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        addLog('VISUAL GEN', `OpenRouter KO: ${data.error || `HTTP ${res.status}`}`, 'warn');
-      } else if (data.image_model_supported && data.text_model_supported) {
-        addLog('SISTEMA', `OpenRouter OK. Text: ${data.selected_text_model}`, 'success');
-        addLog('SISTEMA', `OpenRouter OK. Image: ${data.selected_image_model}`, 'success');
-      } else {
-        if (!data.text_model_supported) {
-          addLog('SISTEMA', `Modello testo non trovato su OpenRouter: ${data.selected_text_model}`, 'warn');
-        }
-        if (!data.image_model_supported) {
-          addLog('VISUAL GEN', `Modello immagini non trovato su OpenRouter: ${data.selected_image_model}`, 'warn');
-        }
-      }
-    } catch (err) {
-      addLog('VISUAL GEN', `Errore check OpenRouter: ${err}`, 'warn');
-    } finally {
-      setCheckingOpenRouter(false);
-    }
-  }, [imageModel, textModel, addLog]);
-
-  const handleLaunch = useCallback(() => {
-    if (!photo) return;
-    setCountdown(3);
-    const tick = (n: number) => {
-      if (n <= 0) { setCountdown(null); runReal(); return; }
-      setTimeout(() => { setCountdown(n - 1); tick(n - 1); }, 800);
-    };
-    tick(3);
-  }, [photo, runReal]);
-
-  const handleReset = useCallback(() => {
-    setMissionState('idle');
-    setPhoto(null);
-    setPhotoPreview(prev => {
-      if (prev?.startsWith('blob:')) {
-        URL.revokeObjectURL(prev);
-      }
-      return null;
-    });
-    setBrief('');
-    setLogs([]);
-    setOverallProgress(0);
-    setResults({});
-    setCurrentJobId('');
-    setLastProgressAt(null);
-    try { localStorage.removeItem(ACTIVE_JOB_STORAGE_KEY); } catch {}
-    setCountdown(null);
-    setModelsDialogOpen(false);
-    setCheckingOpenRouter(false);
-    setTextModel('openai/gpt-5.5');
-    setImageModel('openai/gpt-5.4-image-2');
-    setAgents(INITIAL_AGENTS.map(a => ({ ...a, status: 'standby' })));
-  }, []);
-
-  const doneCount  = agents.filter(a => a.status === 'done').length;
-  const activeAgent = agents.find(a => a.status === 'active');
+  if (state === 'running') {
+    return (
+      <div className="page working" aria-live="polite">
+        <h1 className="page-title">Sto preparando la scheda</h1>
+        {photoPreview && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoPreview} alt="Il pezzo che stai caricando" />
+        )}
+        <MosaicTiles items={stepTiles(stage)} palette={palette} large />
+        <p className="working-steps">{STAGE_TEXT[Math.min(stage, STAGE_TEXT.length - 1)]}</p>
+        <p className="page-lead" style={{ margin: 0 }}>
+          Ci vogliono alcuni minuti. Puoi lasciare la pagina aperta: quando è pronta si apre da sola.
+        </p>
+        {logs.length > 0 && (
+          <details style={{ width: '100%', textAlign: 'left' }}>
+            <summary className="btn-secondary details-toggle">Cosa sta succedendo</summary>
+            <pre className="text-card" style={{ whiteSpace: 'pre-wrap', fontSize: 12, marginTop: 8 }}>{logs.slice(-12).join('\n')}</pre>
+          </details>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="page new-piece">
+      <div>
+        <h1 className="page-title">Nuovo pezzo</h1>
+        <p className="page-lead">Carica la foto del pezzo, aggiungi una nota se serve: lo Studio prepara la scheda per il sito, WhatsApp e Google.</p>
+      </div>
 
-      {/* â”€â”€ HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <header className="app-header sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-
-          {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: '1px solid var(--terracotta-light)',
-              background: 'var(--terracotta-pale)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'var(--bot-font-sans)',
-              fontSize: 12,
-              fontWeight: 800,
-              color: 'var(--terracotta-dark)',
-              letterSpacing: 0,
-            }}>
-              IM
-            </span>
-            <div>
-              <div style={{ fontFamily: 'var(--bot-font-display)', fontWeight: 700, fontSize: 17, color: 'var(--espresso)', lineHeight: 1.1 }}>
-                I Monili
-              </div>
-              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 10, color: 'var(--espresso-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                Studio AI
-              </div>
-            </div>
-          </div>
-
-          {/* Center: progress bar when running */}
-          {missionState === 'running' && (
-            <div style={{ flex: 1, maxWidth: 320, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1, height: 6, background: 'var(--cream-3)', borderRadius: 99, overflow: 'hidden' }}>
-                <div className="progress-bar-fill" style={{ width: `${overallProgress}%`, height: '100%' }} />
-              </div>
-              <span style={{ fontFamily: 'var(--bot-font-mono)', fontSize: 12, color: 'var(--terracotta-dark)', fontWeight: 500, minWidth: 36 }}>
-                {overallProgress}%
-              </span>
-            </div>
+      {state === 'error' && (
+        <div className="notice error" role="alert">
+          <strong>Qualcosa è andato storto.</strong> {error}
+          {logs.length > 0 && (
+            <details style={{ marginTop: 6 }}>
+              <summary>Dettagli</summary>
+              <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12 }}>{logs.slice(-8).join('\n')}</pre>
+            </details>
           )}
-
-          {/* Right: status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <a href="/reel" className="btn-mission" style={{ padding: '7px 12px', fontSize: 12, textDecoration: 'none', marginRight: 6 }}>
-              Reel Studio
-            </a>
-            <span className={`status-dot ${missionState === 'idle' ? 'online' : missionState === 'running' ? 'active' : 'done'}`} />
-            <span style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-mid)', fontWeight: 500 }}>
-              {missionState === 'idle' && 'Pronta'}
-              {missionState === 'running' && 'In elaborazione'}
-              {missionState === 'complete' && 'Completata'}
-            </span>
-          </div>
         </div>
+      )}
 
-        {/* Thin progress line */}
-        {missionState === 'running' && (
-          <div className="overall-progress-bar">
-            <div className="overall-progress-fill" style={{ width: `${overallProgress}%` }} />
-          </div>
-        )}
-      </header>
+      <PhotoDropzone photo={photo} photoPreview={photoPreview} onFile={handlePhotoSelect} onClear={handlePhotoClear} />
 
-      {/* â”€â”€ MAIN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
+      <div>
+        <label className="field-label" htmlFor="brief">
+          Nota <small>facoltativa</small>
+        </label>
+        <textarea
+          id="brief"
+          className="brief-area"
+          rows={4}
+          value={brief}
+          onChange={(e) => setBrief(e.target.value)}
+          placeholder="Es. orecchini a cerchio, 22 euro, nuovi arrivi, per cerimonia o aperitivo."
+        />
+      </div>
 
-        {/* â•â• IDLE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-        {(missionState === 'idle' || countdown !== null) && (
-          <div className="fade-up">
-
-            {/* Hero */}
-            <div style={{ textAlign: 'center', marginBottom: 40 }}>
-              <div style={{
-                fontFamily: 'var(--bot-font-sans)',
-                fontSize: 11,
-                letterSpacing: '0.20em',
-                textTransform: 'uppercase',
-                color: 'var(--terracotta)',
-                fontWeight: 600,
-                marginBottom: 14,
-              }}>
-                Bottega Monili
-              </div>
-              <h1 style={{
-                fontFamily: 'var(--bot-font-display)',
-                fontSize: 38,
-                fontWeight: 700,
-                color: 'var(--espresso)',
-                lineHeight: 1.18,
-                margin: '0 auto 14px',
-                maxWidth: 560,
-              }}>
-                Cosa lanciamo<br />
-                <span className="text-terracotta-gradient">oggi in vetrina?</span>
-              </h1>
-              <p style={{
-                fontFamily: 'var(--bot-font-sans)',
-                fontSize: 15,
-                color: 'var(--espresso-mid)',
-                lineHeight: 1.6,
-                maxWidth: 440,
-                margin: '0 auto',
-              }}>
-                Carica la foto del pezzo, aggiungi una nota se serve: lo Studio prepara la scheda per il sito, WhatsApp e Google.
-              </p>
-            </div>
-
-            {/* Step cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-
-              {/* Step 1 */}
-              <div className="card fade-up fade-up-d1" style={{ padding: '22px 24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  <div className="step-badge">1</div>
-                  <div>
-                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', marginBottom: 2 }}>
-                      1. Carica la foto base
-                    </div>
-                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-dim)' }}>
-                      Anche una foto semplice va bene: l'AI la usa come riferimento reale.
-                    </div>
-                  </div>
-                </div>
-                <PhotoDropzone
-                  photo={photo}
-                  photoPreview={photoPreview}
-                  onFile={handlePhotoSelect}
-                  onClear={handlePhotoClear}
-                />
-              </div>
-
-              {/* Step 2 */}
-              <div className="card fade-up fade-up-d2" style={{ padding: '22px 24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  <div className="step-badge" style={{ opacity: 0.6 }}>2</div>
-                  <div>
-                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', marginBottom: 2 }}>
-                      2. Aggiungi contesto
-                      <span style={{
-                        marginLeft: 8,
-                        fontFamily: 'var(--bot-font-sans)',
-                        fontSize: 11,
-                        fontWeight: 500,
-                        color: 'var(--espresso-dim)',
-                        background: 'var(--cream-2)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 99,
-                        padding: '2px 9px',
-                        verticalAlign: 'middle',
-                      }}>
-                        Opzionale
-                      </span>
-                    </div>
-                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-dim)' }}>
-                      Prezzo, occasione, materiale o obiettivo. Puoi lasciarlo vuoto.
-                    </div>
-                  </div>
-                </div>
-                <textarea
-                  ref={briefRef}
-                  className="brief-area"
-                  value={brief}
-                  onChange={e => setBrief(e.target.value)}
-                  placeholder="Esempio: orecchini a cerchio dorati, 22 EUR, nuovi arrivi, perfetti per cerimonia o aperitivo. Vorrei farli vedere indossati."
-                  style={{ minHeight: 200 }}
-                />
-                <div style={{
-                  marginTop: 14,
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  background: 'var(--cream-2)',
-                  border: '1px solid var(--border)',
-                }}>
-                  <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso)', marginBottom: 8, fontWeight: 700 }}>
-                    Cosa riceverai
-                  </div>
-                  <div style={{ display: 'grid', gap: 6, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-mid)', lineHeight: 1.45 }}>
-                    <span>3 foto per il sito: catalogo, indossato e la tua foto reale.</span>
-                    <span>Titolo e descrizione per Google, materiali solo se certi.</span>
-                    <span>Messaggio WhatsApp da girare col link, post Google Business, invio al sito. Instagram: Reel Studio.</span>
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, fontWeight: 700, color: 'var(--espresso-dim)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      Motore immagini
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        onClick={() => setImageModel('openai/gpt-5.4-image-2')}
-                        className={imageModel === 'openai/gpt-5.4-image-2' ? 'btn-mission' : 'btn-secondary'}
-                        style={{ padding: '7px 12px', fontSize: 12 }}
-                      >
-                        Images 2
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImageModel('google/gemini-3.1-flash-image-preview')}
-                        className={imageModel === 'google/gemini-3.1-flash-image-preview' ? 'btn-mission' : 'btn-secondary'}
-                        style={{ padding: '7px 12px', fontSize: 12 }}
-                      >
-                        Gemini
-                      </button>
-                    </div>
-                  </div>
-                  <details style={{ marginTop: 12 }}>
-                    <summary style={{ cursor: 'pointer', fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)', fontWeight: 600 }}>
-                      Impostazioni tecniche
-                    </summary>
-                    <div style={{ marginTop: 8, fontFamily: 'var(--bot-font-mono)', fontSize: 10.5, color: 'var(--espresso-mid)', lineHeight: 1.6 }}>
-                      <div>Text: {textModel}</div>
-                      <div>Image: {imageModel}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={checkOpenRouter}
-                      disabled={checkingOpenRouter}
-                      style={{
-                        marginTop: 10,
-                        padding: '8px 11px',
-                        borderRadius: 10,
-                        border: '1px solid var(--terracotta-light)',
-                        background: 'var(--cream-2)',
-                        color: 'var(--espresso)',
-                        fontFamily: 'var(--bot-font-sans)',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: checkingOpenRouter ? 'not-allowed' : 'pointer',
-                        opacity: checkingOpenRouter ? 0.7 : 1,
-                      }}
-                    >
-                      {checkingOpenRouter ? 'Verifica in corso...' : 'Verifica OpenRouter'}
-                    </button>
-                  </details>
-                </div>
-                {brief.length > 0 && (
-                  <div style={{ marginTop: 8, fontFamily: 'var(--bot-font-mono)', fontSize: 10, color: 'var(--espresso-dim)' }}>
-                    {brief.length} caratteri
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Team ready strip */}
-            <div className="fade-up fade-up-d3 card" style={{ padding: '16px 20px', marginBottom: 32, display: 'flex', alignItems: 'center', gap: 14 }}>
-              <span style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                background: 'var(--terracotta-pale)',
-                color: 'var(--terracotta-dark)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontFamily: 'var(--bot-font-sans)',
-                fontWeight: 800,
-                fontSize: 12,
-                flexShrink: 0,
-              }}>AI</span>
-              <div>
-                <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--espresso)', marginBottom: 2 }}>
-                  Il flusso è semplice
-                </div>
-                <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)' }}>
-                  1. Carichi la foto  2. Aggiungi note opzionali  3. Generi la scheda  4. La pubblichi sul sito e la giri su WhatsApp
-                </div>
-              </div>
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                {agents.map(a => (
-                  <div key={a.id} className="agent-strip-dot" title={a.name} />
-                ))}
-              </div>
-            </div>
-
-            {/* CTA */}
-            <div className="fade-up fade-up-d4" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-              {countdown !== null ? (
-                <div style={{ textAlign: 'center' }}>
-                  <div
-                    key={countdown}
-                    className="countdown-pop"
-                    style={{
-                      fontFamily: 'var(--bot-font-display)',
-                      fontSize: 72,
-                      fontWeight: 700,
-                      color: 'var(--terracotta)',
-                      lineHeight: 1,
-                      marginBottom: 12,
-                    }}
-                  >
-                    {countdown === 0 ? 'Via' : countdown}
-                  </div>
-                  <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 14, color: 'var(--espresso-mid)', fontWeight: 500 }}>
-                    {countdown === 0 ? 'Avvio del team...' : 'Il team si sta preparando...'}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={handleLaunch}
-                    disabled={!photo}
-                    className="btn-mission"
-                    style={{ padding: '18px 52px', fontSize: 16 }}
-                  >
-                    Avvia il team
-                  </button>
-
-                  {!photo && (
-                    <p style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 13, color: 'var(--espresso-dim)' }}>
-                      Carica una foto per cominciare
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* â•â• RUNNING â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-        {missionState === 'running' && (
-          <div className="fade-up">
-
-            {/* Status banner */}
-            <div className="card fade-up" style={{ padding: '20px 24px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{
-                width: 48, height: 48,
-                borderRadius: '50%',
-                background: 'var(--terracotta-pale)',
-                border: '2px solid var(--terracotta-light)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22,
-                flexShrink: 0,
-              }}>
-                <span className="spin-slow" style={{ display: 'inline-block' }}>...</span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 700, fontSize: 16, color: 'var(--espresso)', marginBottom: 4 }}>
-                  Il team sta preparando la vetrina.
-                </div>
-                <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 13, color: 'var(--espresso-mid)' }}>
-                  {activeAgent
-                    ? <span>Ora attivo: <strong style={{ color: 'var(--terracotta-dark)' }}>{activeAgent.name}</strong> - {activeAgent.role}</span>
-                    : 'Finalizzazione in corso...'}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontFamily: 'var(--bot-font-display)', fontSize: 36, fontWeight: 700, color: 'var(--terracotta)', lineHeight: 1 }}>
-                  {overallProgress}%
-                </div>
-                <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)', marginTop: 2 }}>
-                  {doneCount} di {INITIAL_AGENTS.length} completati
-                </div>
-              </div>
-            </div>
-
-            {/* Agent grid */}
-            <div style={{ marginBottom: 6 }}>
-              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Il team
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                {agents.map((agent, i) => (
-                  <AgentCard key={agent.id} agent={agent} index={i} />
-                ))}
-              </div>
-            </div>
-
-            {/* Activity feed */}
-            <div>
-              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Cosa sta succedendo
-              </div>
-              <TerminalLog logs={logs} />
-            </div>
-          </div>
-        )}
-
-        {/* â•â• ERROR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-        {missionState === 'error' && (
-          <div className="fade-up" style={{ textAlign: 'center', padding: '60px 24px' }}>
-            <div style={{ fontSize: 32, marginBottom: 16, fontFamily: 'var(--bot-font-sans)', fontWeight: 800 }}>!</div>
-            <h2 style={{ fontFamily: 'var(--bot-font-display)', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', marginBottom: 12 }}>
-              Qualcosa e andato storto
-            </h2>
-            <p style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 14, color: 'var(--espresso-mid)', maxWidth: 400, margin: '0 auto 28px' }}>
-              Errore durante l'elaborazione. Controlla OPENROUTER_API_KEY nel backend locale e riprova.
-            </p>
-            <div style={{ marginBottom: 20 }}>
-              <TerminalLog logs={logs} />
-            </div>
-            <button onClick={handleReset} className="btn-mission" style={{ padding: '14px 32px', fontSize: 14 }}>
-              Riprova con un altro prodotto
-            </button>
-          </div>
-        )}
-
-        {/* â•â• COMPLETE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-        {missionState === 'complete' && (
-          <div className="fade-up">
-
-            {/* Success header */}
-            <div className="success-banner fade-up" style={{ padding: '22px 28px', marginBottom: 28, display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{
-                width: 52, height: 52,
-                borderRadius: '50%',
-                background: 'var(--sage-pale)',
-                border: '2px solid rgba(126,158,114,0.4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 26,
-                flexShrink: 0,
-              }}>
-                OK
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, fontWeight: 600, color: 'var(--sage)', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 4 }}>
-                  Missione completata
-                </div>
-                <h2 style={{ fontFamily: 'var(--bot-font-display)', fontSize: 24, fontWeight: 700, color: 'var(--espresso)', margin: 0 }}>
-                  La scheda del pezzo è pronta.
-                </h2>
-                <p style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 13, color: 'var(--espresso-mid)', margin: '4px 0 0' }}>
-                  Foto per il sito, testi per Google e il messaggio WhatsApp da girare con il link del pezzo.
-                </p>
-              </div>
-              <button
-                onClick={handleReset}
-                className="btn-mission"
-                style={{ padding: '12px 22px', fontSize: 13, flexShrink: 0 }}
-              >
-                + Nuovo prodotto
-              </button>
-            </div>
-
-            {/* Agent recap */}
-            <div style={{ marginBottom: 28 }}>
-              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 600, color: 'var(--espresso-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Il team - {INITIAL_AGENTS.length}/{INITIAL_AGENTS.length} completati
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {agents.map((agent, i) => (
-                  <AgentCard key={agent.id} agent={agent} index={i} />
-                ))}
-              </div>
-            </div>
-
-            <div className="hr-warm" style={{ marginBottom: 28 }} />
-
-            {/* Results â€” download center */}
-            <ResultsPanel
-              results={results}
-              apiUrl={API_URL}
-              runId={typeof results.run_id === 'string' ? results.run_id : ''}
-            />
-          </div>
-        )}
-
-        {missionState !== 'running' && (
-          <div style={{ marginTop: 28 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 700, color: 'var(--espresso-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Cronologia lavori
-              </div>
-              <button onClick={fetchHistory} className="btn-secondary" style={{ padding: '6px 10px', fontSize: 11 }}>
-                Aggiorna
-              </button>
-            </div>
-
-            <div className="card" style={{ padding: 14 }}>
-              {historyLoading && (
-                <p style={{ margin: 0, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-dim)' }}>Caricamento cronologia...</p>
-              )}
-              {!historyLoading && historyError && (
-                <p style={{ margin: 0, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--rose-err)' }}>{historyError}</p>
-              )}
-              {!historyLoading && !historyError && historyItems.length === 0 && (
-                <p style={{ margin: 0, fontFamily: 'var(--bot-font-sans)', fontSize: 12, color: 'var(--espresso-dim)' }}>
-                  Nessuna missione salvata ancora.
-                </p>
-              )}
-              {!historyLoading && !historyError && historyItems.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {historyItems.map(item => (
-                    <div key={item.run_id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 700, color: 'var(--espresso)' }}>
-                          {item.title || item.brief || 'Pezzo senza nome'}
-                        </div>
-                        <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {formatHistoryDate(item.created_at)}
-                        </div>
-                        {item.title && item.brief && (
-                          <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-mid)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.brief}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => loadHistoryRun(item.run_id)}
-                        className="btn-secondary"
-                        style={{ padding: '6px 10px', fontSize: 11, flexShrink: 0 }}
-                      >
-                        Apri
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            {currentJobId && (
-              <p style={{ margin: '8px 2px 0', fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)' }}>
-                Missione attiva salvata nel browser: {currentJobId}
-              </p>
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* â”€â”€ FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <footer style={{ borderTop: '1px solid var(--border)', padding: '14px 24px', marginTop: 40 }}>
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <span style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)' }}>
-            I Monili Ravenna / Studio AI / Powered by OpenRouter
-          </span>
-          <span style={{ fontFamily: 'var(--bot-font-mono)', fontSize: 11, color: 'var(--cream-border)' }}>
-            P/E 2026
-          </span>
-        </div>
-      </footer>
+      <div className="cta-bar">
+        <button type="button" className="btn-mission" onClick={start} disabled={!photo}>
+          Crea la scheda
+        </button>
+        {!photo && <p className="page-lead" style={{ margin: 0, textAlign: 'center' }}>Carica una foto per cominciare.</p>}
+      </div>
     </div>
   );
 }
-
-
-
-

@@ -1,6 +1,6 @@
 # Piano — Studio AI v2: più bello, più semplice dal telefono, fino a Instagram
 
-> Creato il 30/10/2026 dopo il controllo dello Studio in formato iPhone. Stato: **Fase A fatta il 30/10/2026** (push da approvare); approvato da Matteo per la Fase A (le decisioni della sezione 0 sono ancora aperte).
+> Creato il 30/10/2026 dopo il controllo dello Studio in formato iPhone. Stato: **Fase A fatta e pubblicata il 30/10/2026; Fase B fatta il 30/10/2026** (da guardare con Matteo); approvato da Matteo per la Fase A (le decisioni della sezione 0 sono ancora aperte).
 > Strumenti di design: skill **Impeccable** (guide `shape` e `operate`; il suo programma di controllo resta non autorizzato) e **frontend-design**.
 > **Chi esegue questo piano legga prima la sezione 7.**
 
@@ -125,14 +125,14 @@ Riquadro di caricamento grande, nota facoltativa, un pulsante "Crea la scheda". 
 - [x] Test (63) + controllo dei tipi + giro di screenshot a 375 px (fatti il 30/10; cliccare davvero "Invia bozza" e creare un Reel vero dalla scheda NON è stato provato)
 
 ### Fase B — Restyling e pagina del pezzo (1½–2 giornate, dopo la prova)
-- [ ] Token comuni con il sito (font Cormorant + Outfit, colori del Design System v2) in `globals.css`; via i token dei bot non più usati
-- [ ] Barra in basso / colonna a sinistra comune a tutte le pagine
-- [ ] Pagina **Pezzi** con le tessere di stato (dati: missioni + bozze inviate + Reel collegati + post Instagram)
-- [ ] Pagina **del pezzo** (3.2): unisce risultati, pubblicazione sul sito, Reel e Instagram
-- [ ] Nuovo pezzo semplificato (3.3); motori in Impostazioni
-- [ ] Reel Studio: caricamento foto/clip con lo stesso riquadro della Home, ricette in una lista compatta
-- [ ] Stati vuoti, di attesa e di errore scritti bene ("Nessun pezzo ancora: fotografa il primo")
-- [ ] Revisione con `design:accessibility-review` e una critica finale (Impeccable `critique`/`polish`, solo guide)
+- [x] Token comuni con il sito (font Cormorant + Outfit, colori del Design System v2) in `globals.css`; via i token dei bot non più usati
+- [x] Barra in basso / colonna a sinistra comune a tutte le pagine
+- [x] Pagina **Pezzi** con le tessere di stato (dati: missioni + bozze inviate + Reel collegati + post Instagram)
+- [x] Pagina **del pezzo** (3.2): unisce risultati, pubblicazione sul sito, Reel e Instagram
+- [x] Nuovo pezzo semplificato (3.3); motori in Impostazioni
+- [x] Reel Studio: caricamento foto/clip con lo stesso riquadro della Home, ricette in una lista compatta
+- [x] Stati vuoti, di attesa e di errore scritti bene ("Nessun pezzo ancora: fotografa il primo")
+- [ ] (fatta a mano, non con la skill: contrasti AA calcolati, focus visibile, pulsanti ≥ 44 px, niente scroll orizzontale a 375 px; la critica finale con Impeccable resta da fare) Revisione con `design:accessibility-review` e una critica finale (Impeccable `critique`/`polish`, solo guide)
 
 ### Fase C — Instagram
 **C1. "Condividi su Instagram" (½ giornata, subito dopo la prova)**

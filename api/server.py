@@ -1124,6 +1124,121 @@ def active_jobs():
     return {"items": items}
 
 
+def _showcase_state(run_id: str) -> str:
+    """none | draft | published: quello che lo Studio ha davvero mandato al sito per questo pezzo."""
+    try:
+        audit = json.loads((SHOWCASE_DRAFTS_DIR / f"showcase-{run_id}.json").read_text(encoding="utf-8"))
+    except Exception:
+        return "none"
+    if not isinstance(audit, dict) or not audit.get("sent_at"):
+        return "none"
+    return "published" if audit.get("published") else "draft"
+
+
+_PALETTE_CACHE: dict[tuple[str, float], list[str]] = {}
+
+
+def _photo_palette(path: Path, count: int = 4) -> list[str]:
+    """I colori più vivi della foto del pezzo: servono alle tessere di mosaico."""
+    try:
+        key = (str(path), path.stat().st_mtime)
+    except OSError:
+        return []
+    if key in _PALETTE_CACHE:
+        return _PALETTE_CACHE[key]
+    colors: list[str] = []
+    try:
+        with Image.open(path) as image:
+            small = ImageOps.exif_transpose(image).convert("RGB")
+            small.thumbnail((96, 96))
+            quantized = small.quantize(colors=10, method=Image.Quantize.MEDIANCUT)
+            palette = quantized.getpalette() or []
+            counts = sorted(quantized.getcolors() or [], reverse=True)
+            vivid, muted = [], []
+            for freq, index in counts:
+                r, g, b = palette[index * 3 : index * 3 + 3]
+                high, low = max(r, g, b), min(r, g, b)
+                saturation = (high - low) / high if high else 0
+                if high < 50:
+                    continue
+                score = saturation * 0.7 + min(freq / 400, 0.3)
+                # Via fondo avorio e grigi: restano i colori del pezzo (se non c'è altro, anche i più tenui).
+                (muted if saturation < 0.18 else vivid).append((score, (r, g, b)))
+            for _, (r, g, b) in sorted(vivid, reverse=True) + sorted(muted, reverse=True):
+                taken = [tuple(int(h[i : i + 2], 16) for i in (1, 3, 5)) for h in colors]
+                if all(sum(abs(a - c) for a, c in zip((r, g, b), other)) > 60 for other in taken):
+                    colors.append(f"#{r:02x}{g:02x}{b:02x}")
+                if len(colors) == count:
+                    break
+    except Exception:
+        colors = []
+    _PALETTE_CACHE[key] = colors
+    return colors
+
+
+def _piece_cover(results: dict) -> str:
+    for key in ("image_site_3", "image_site_1", "image_site_2", "image_feed"):
+        value = str(results.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _reels_by_piece() -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = {}
+    for reel in reel_studio.list_reels(200):
+        if reel.get("scheda_run_id"):
+            grouped.setdefault(reel["scheda_run_id"], []).append(reel)
+    return grouped
+
+
+def _piece_summary(item: dict, reels_by_piece: dict[str, list[dict]]) -> dict:
+    run_id = item["run_id"]
+    payload = _find_mission_payload(run_id) or {}
+    results = payload.get("results") if isinstance(payload.get("results"), dict) else {}
+    cover = _piece_cover(results)
+    cover_path = _resolve_output_relative_path(cover) if cover else None
+    reels = reels_by_piece.get(run_id, [])
+    if any(r.get("status") == "done" for r in reels):
+        reel_state = "done"
+    elif reels:
+        reel_state = "working"
+    else:
+        reel_state = "none"
+    return {
+        "run_id": run_id,
+        "title": item.get("title") or item.get("brief") or "",
+        "created_at": item.get("created_at", ""),
+        "cover": cover,
+        "palette": _photo_palette(cover_path) if cover_path and cover_path.is_file() else [],
+        "steps": {
+            "scheda": True,
+            "sito": _showcase_state(run_id),
+            "reel": reel_state,
+            "instagram": "none",
+        },
+        "reels": [{"id": r["id"], "status": r.get("status"), "title": r.get("title")} for r in reels],
+    }
+
+
+def _collect_pieces(limit: int = 60) -> list[dict]:
+    grouped = _reels_by_piece()
+    return [_piece_summary(item, grouped) for item in _collect_history(limit)]
+
+
+@app.get("/pieces")
+def pieces_list(limit: int = 60):
+    return {"items": _collect_pieces(max(1, min(limit, 100)))}
+
+
+@app.get("/pieces/{run_id}")
+def piece_get(run_id: str):
+    item = next((row for row in _collect_history(100) if row["run_id"] == run_id.strip()), None)
+    if not item:
+        return JSONResponse({"error": "Pezzo non trovato"}, status_code=404)
+    return _piece_summary(item, _reels_by_piece())
+
+
 @app.get("/missions/{run_id}")
 def mission_by_run_id(run_id: str):
     run_id = run_id.strip()
@@ -1249,6 +1364,11 @@ async def showcase_publish(run_id: str, body: dict | None = None):
             },
             status_code=502 if ingest_result.get("status_code") is None else int(ingest_result.get("status_code") or 502),
         )
+
+    # Solo da qui il pezzo conta come "sul sito" (la tessera Sito nella pagina Pezzi).
+    audit_payload["sent_at"] = datetime.now().isoformat()
+    audit_payload["status"] = "sent"
+    audit_target.write_text(json.dumps(audit_payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
     site = _showcase_site_url()
     return {
