@@ -79,6 +79,15 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 
 - **Studio v2, Fase C1** (30/10): pulsante "Condividi su Instagram" nel risultato del Reel e nella pagina del pezzo (Reel pronto, altrimenti le foto come post): apre il menu di condivisione dell'iPhone coi file e copia la caption; promemoria "Info sull'AI" se c'è una donna AI. **Limite**: Safari dà il menu coi file solo su https; sull'indirizzo Tailscale http copia la caption e mostra i file da salvare. Per l'https: `tailscale serve` (docs/local-mode.md, da provare). Non provato su iPhone.
 
+## Analisi Google Business Profile (30/10/2026, statistiche mag-ott 2026 di Matteo)
+- Profilo unico per via Cavour 17 e 21: 4,7 stelle, 29 recensioni, 133 foto, apertura 14/03/1996 (trent'anni di negozio: da usare in descrizione e post).
+- 14.782 visualizzazioni (93% da telefono). 900 interazioni: **358 richieste di indicazioni** (circa 60 al mese, contro 1 tocco sull'indirizzo su Instagram), 435 clic sul sito, 107 chiamate. Google è il canale che porta in negozio.
+- Ricerche: "monili" 1.436, "negozio" 1.389, "via cavour ravenna negozi" 297. Ci trova chi già ci conosce; nessuna ricerca generica ("gioielli Ravenna") nelle prime 5.
+- Calo da settembre (probabile stagione turistica + profilo fermo; ottobre non ancora completo). Da rivedere a metà novembre.
+- Da sistemare a mano (nessun codice): orari speciali di Natale (8/12, 24-25/12, 31/12, 1/1, 6/1); **orari su Google (9:30-19:30 continuato, domenica 10:00) diversi da quelli del piano del sito (9:30-13:00 e 15:00-19:30): Matteo deve dire quali sono veri**; categoria secondaria "Gioielleria"; descrizione con "dal 1996"; un post a settimana (copia da "Testi pronti"); risposte alle recensioni e QR per recensire.
+- Il sito nel profilo è ancora `moniliravenna.shop`: passare alla vetrina solo quando ci sono 10-15 pezzi pubblicati.
+- Pubblicazione automatica via API (Fase C3): **rimandata**. Servono approvazione di Google (profilo verificato da 60+ giorni, sito, modulo; 14 giorni o più) e non è certo che i post via API funzionino ancora; a mano costa un minuto a settimana. Dati salvati in `memory/performance_log.json` (chiave `google_business`).
+
 ## Prossimi passi
 - **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, Fase A fatta; B–F dopo la prova del weekend e con l'ok di Matteo (prima le decisioni della sezione 0).
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.

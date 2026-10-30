@@ -149,6 +149,10 @@ Riquadro di caricamento grande, nota facoltativa, un pulsante "Crea la scheda". 
 - [ ] Limiti da rispettare: massimo di post al giorno fissato da Meta (verificare il numero sulla documentazione), formati video
 - Da verificare prima di costruire: se l'API permette l'etichetta "Info sull'AI" (se no, si pubblica da C1 per i contenuti con donne AI) e l'audio dei Reel con il login Instagram.
 
+**C3. Post su Google Business Profile (facoltativa, rimandata il 30/10/2026)**
+- Decisione: per ora i post si copiano a mano dai "Testi pronti" (un minuto a settimana). Dettagli e numeri in `docs/STATO_PROGETTO.md` ("Analisi Google Business Profile").
+- [ ] Riprendere solo se i post settimanali diventano un peso: richiesta di accesso alle API (progetto Google Cloud, profilo verificato da 60+ giorni, sito) e verifica che `localPosts` funzioni ancora nel 2026.
+
 ### Fase D — Motori per le immagini (decisione dopo la prova)
 Oggi: **OpenRouter con la tua chiave**. Foto della scheda e fotogrammi del Reel con **"Images 2"** (`openai/gpt-5.4-image-2`, predefinito); in alternativa **Gemini** (`google/gemini-3.1-flash-image`, `google/gemini-3-pro-image`, cioè Nano Banana). Se un giorno metti `OPENAI_API_KEY`, i fotogrammi possono usare GPT-Image-2.5 direttamente. **Higgsfield** oggi serve solo ai video (Kling, Seedance).
 - Higgsfield sa fare anche immagini (ospita Nano Banana Pro, GPT Image, Seedream e il suo Soul), ma a crediti con abbonamento mensile; OpenRouter si paga a immagine, senza abbonamento.

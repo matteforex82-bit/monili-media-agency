@@ -2,7 +2,7 @@
   "meta": {
     "negozio": "I Monili Ravenna",
     "versione": "1.0",
-    "ultimo_aggiornamento": "2026-10-23",
+    "ultimo_aggiornamento": "2026-10-30",
     "totale_sessioni": 0
   },
   "sessioni": [],
@@ -32,6 +32,41 @@
     "Post statici: poche visualizzazioni ma 59% delle interazioni (like dei follower fedeli)",
     "627 visite al profilo ma 1 solo tocco sull'indirizzo: ogni contenuto deve chiudere con invito al DM o al negozio",
     "1071 follower. Orari di attivita da verificare (grafico indica 18:00 come ora meno attiva)",
-    "Evitare: scritte stile fumetto/neon, modelle AI diverse ogni volta, difetti di generazione non controllati"
-  ]
+    "Evitare: scritte stile fumetto/neon, modelle AI diverse ogni volta, difetti di generazione non controllati",
+    "Google Business mag-ott 2026: 358 richieste di indicazioni (circa 60 al mese) contro 1 tocco sull'indirizzo su Instagram: Google e il canale che porta in negozio; si trova chi gia ci conosce ('monili', 'negozio'), non chi cerca 'gioielli Ravenna'"
+  ],
+  "google_business": {
+    "periodo": "mag-ott 2026 (ottobre ancora non completo: Google aggiorna con qualche giorno di ritardo)",
+    "profilo": "unico per via Cavour 17 e 21, 4,7 stelle, 29 recensioni, 133 foto, apertura 14/03/1996",
+    "visualizzazioni_profilo": 14782,
+    "da_dove": {
+      "ricerca_google_mobile": "67%",
+      "google_maps_mobile": "26%",
+      "ricerca_google_desktop": "5%",
+      "google_maps_desktop": "1%"
+    },
+    "ricerche_che_hanno_mostrato_il_profilo": 4481,
+    "ricerche_top": {
+      "monili": 1436,
+      "negozio": 1389,
+      "via cavour ravenna negozi": 297,
+      "ravenna store": 222,
+      "ravenna shop": 181
+    },
+    "interazioni": {
+      "totale": 900,
+      "indicazioni_stradali": 358,
+      "clic_sito": 435,
+      "chiamate": 107
+    },
+    "andamento": "picco a luglio, calo da settembre a ottobre (interazioni da circa 170 a circa 100); probabile stagionalita turistica e profilo fermo",
+    "da_sistemare": [
+      "sito nel profilo ancora moniliravenna.shop: cambiarlo alla vetrina quando ci sono 10-15 pezzi pubblicati",
+      "orari su Google (9:30-19:30 continuato, domenica dalle 10) diversi da quelli del piano del sito (9:30-13:00 e 15:00-19:30): decidere quale e vero",
+      "orari speciali vuoti: 8/12, 24-25/12, 31/12, 1/1, 6/1",
+      "categoria principale Bigiotteria: provare Gioielleria come secondaria",
+      "ultimo post del proprietario: 2 maggio 2026",
+      "risposte alle recensioni ferme"
+    ]
+  }
 }
