@@ -83,6 +83,6 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 6. Usare la pagina Risultati dopo ogni pubblicazione; più avanti lettura automatica dei numeri con l'API Meta.
 
 ## Aperti / da sapere
-- **Sito vetrina non online**: l'URL nel codice (`web-five-theta-58.vercel.app`) ora ospita un'altra app ("Alfred");
-  `/admin/review` → 404. `SHOWCASE_INGEST_URL` va impostata quando il sito vetrina sarà pubblicato.
-  Il codice del sito vetrina non è in nessun repo GitHub collegato.
+- **Sito vetrina online dal 30/10/2026**: https://monili-vetrina.vercel.app (repo `monili-vetrina`, progetto Vercel
+  `monili-vetrina`, piano Hobby per ora, database e foto nuovi e vuoti). Il `.env` dello Studio sul PC punta già lì.
+  Dettagli e prossimi passi in `PLAN_VETRINA.md`, Fase 5.

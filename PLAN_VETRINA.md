@@ -322,17 +322,21 @@ Fatta il 28/10/2026 e **unita in `master` di `monili-vetrina` (`b5cdabf`, fast-f
 
 ### Fase 5 — Messa online (½ giornata) ← **SIAMO QUI**
 Decisioni del 29/10/2026: progetto Vercel nuovo e separato da Alfred; database Neon nuovo e pulito (l'attuale ha solo pezzi venduti, resta come archivio); foto prodotto in un formato unico, Instagram solo come extra (`docs/foto-prodotti.md`); dominio da scegliere. Passi dettagliati in `docs/fase-5-messa-online.md`.
-- [ ] Nuovo progetto Vercel `monili-vetrina` collegato al nuovo repo, root `apps/web`
-- [ ] Variabili d'ambiente su Vercel (Neon, Blob, `ADMIN_*`), `NEXT_PUBLIC_SITE_URL` = dominio vero (oggi punta a `http://127.0.0.1:3100`)
-- [ ] Dominio personalizzato
-- [ ] Studio: `SHOWCASE_INGEST_URL=https://<dominio>/api/ingest/internal-webapp`, `NEXT_PUBLIC_SHOWCASE_REVIEW_URL=https://<dominio>/admin/review`, stesso token dei due lati
+**Online dal 30/10/2026: https://monili-vetrina.vercel.app** (piano Hobby per la prova: non ammette siti commerciali, prima del lancio pubblico decidere Pro 20 $/mese o altro)
+- [x] Progetto Vercel `monili-vetrina` (`prj_EGZePgAv8yAYaquYykg1nxlDov5Y`) collegato a GitHub, root `apps/web`, produzione da `master`: ogni push su `master` della vetrina va online
+- [x] Neon `monili-vetrina-db` (gratis, Francoforte, vuoto) e Blob `monili-vetrina-foto` (pubblico, Francoforte), collegati
+- [x] Variabili Production + Preview: `NEXT_PUBLIC_SITE_URL=https://monili-vetrina.vercel.app`, driver `postgres` / `vercel-blob`, `ADMIN_*` generati il 30/10. Password admin e token solo in `C:\Users\matte\MoniliStorage\vetrina-accesso-admin.txt` (da spostare in un gestore di password)
+- [x] Controllato online: Home, Negozi, robots, sitemap, llms.txt aprono; `/admin/*` chiede la password; ingest senza token → 401, con il token dello Studio → passa
+- [ ] Dominio personalizzato (poi cambiare `NEXT_PUBLIC_SITE_URL` e gli indirizzi nel `.env` dello Studio)
+- [x] Studio: `.env` del PC con `SHOWCASE_INGEST_URL`, `SHOWCASE_REEL_INGEST_URL`, `SHOWCASE_ADMIN_TOKEN` (= `ADMIN_API_TOKEN`); `frontend/.env.local` con `NEXT_PUBLIC_SHOWCASE_REVIEW_URL`
+- Attenzione: `vercel blob create-store` / `vercel env pull` riscrivono `apps/web/.env.local` della vetrina. Le vecchie impostazioni locali (database archivio, progetto `jarvis-web`) sono salvate in `apps/web/.env.local.prima-del-30-10`
 - [ ] Link nel profilo Google Business e nella bio Instagram
 - [ ] Fuori dal sito (conta per Google e per le AI): profilo Google Business completo per entrambi i negozi, richiesta recensioni ai clienti, stessi dati ovunque
 - [ ] Dopo 2–4 settimane: `ai-seo:ai-seo-audit` (ChatGPT/Gemini/Perplexity ci nominano per "bijoux Ravenna"?)
 
 **Prima prova del weekend (31/10–1/11/2026)**: cosa serve davvero, in ordine
-- [ ] Fase 5 minima: progetto Vercel `monili-vetrina` + Neon + Blob nuovi, variabili, indirizzo `.vercel.app` (il dominio può aspettare)
-- [ ] Studio `.env` sul PC: `SHOWCASE_INGEST_URL`, `SHOWCASE_REEL_INGEST_URL` (facoltativa, si deduce), `NEXT_PUBLIC_SHOWCASE_REVIEW_URL`, stesso token dei due lati
+- [x] Fase 5 minima: progetto Vercel `monili-vetrina` + Neon + Blob nuovi, variabili, indirizzo `.vercel.app` (il dominio può aspettare)
+- [x] Studio `.env` sul PC: `SHOWCASE_INGEST_URL`, `SHOWCASE_REEL_INGEST_URL` (facoltativa, si deduce), `NEXT_PUBLIC_SHOWCASE_REVIEW_URL`, stesso token dei due lati
 - [ ] Matteo: account e API key Higgsfield (`HF_API_KEY_ID` / `HF_API_KEY_SECRET`), senza i Reel restano anteprime
 - [ ] Riavviare lo Studio sul PC (codice del 30/10: pulizia foto e donne AI)
 - [ ] Prova completa con 1–2 pezzi veri: foto → Scheda pezzo → "Pubblica sul sito vetrina" → `/admin/review` Pubblica → "Fai il Reel di questo pezzo" → Reel sul sito → segnare Venduto
@@ -454,7 +458,7 @@ Si prendono i principi, non codice/logo/foto/layout identico:
 1. ~~Design System v2~~ ✅ 28/10/2026
 2. ~~Tavole delle 3 pagine~~ ✅ approvate (https://claude.ai/artifact/NNmcN1Y1goYwFfZHfDexjP)
 3. ~~Backend (Fase 3)~~ ✅ · ~~Frontend (Fase 4)~~ ✅ · ~~Ingest dei video Reel~~ ✅
-4. **Prima prova del weekend**: la lista in Fase 5 ("Prima prova del weekend"): deploy minimo su Vercel, `.env` dello Studio, key Higgsfield, prova completa con 1–2 pezzi veri
+4. **Prima prova del weekend**: la lista in Fase 5 ("Prima prova del weekend"). Sito online e Studio collegati il 30/10; restano key Higgsfield, riavvio dello Studio e prova completa con 1–2 pezzi veri
 5. Dopo la prova: controllare quanto costa davvero una Scheda pezzo e un Reel, e se donne e scene escono varie; completare "Mai nei contenuti" se serve
 6. **Bot Telegram "Venduto"** (Fase 3b)
 7. Dominio, Google Business, recensioni, controllo visibilità AI, contenuti dello Studio orientati alla ricerca (Fasi 5 e 6)
