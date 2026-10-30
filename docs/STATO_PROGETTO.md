@@ -74,6 +74,7 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - **"Pubblica subito"** nello Studio (30/10): casella spenta di default; accesa, il pezzo va online senza passare da `/admin/review`. Test: 60.
 
 ## Prossimi passi
+- **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, da approvare; Fase A prima della prova del weekend.
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.
 1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` del PC.
 2. Primo Reel vero con un prodotto reale: verificare fedeltà del gioiello e costo effettivo vs stima.
