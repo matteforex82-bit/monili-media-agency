@@ -6,10 +6,11 @@
 
 ## 0. Decisioni che spettano a Matteo
 
-1. **Ordine di lavoro**: Fase A (correzioni) prima della prova del weekend, tutto il resto dopo la prova? *Consiglio: sì.*
-2. **I "bot" con i nomi** (Anna, Dario, Vera, Carla, Paolo) nei risultati: li teniamo o li sostituiamo con i passaggi in chiaro (Analisi, Foto, Testi)? *Consiglio: passaggi in chiaro, meno rumore sul telefono.*
-3. **Instagram**: prima il pulsante "Condividi su Instagram" (funziona subito, nessuna configurazione), poi la pubblicazione automatica? *Consiglio: sì, in quest'ordine.*
-4. **Carosello di slide** come facevi su ChatGPT: lo vogliamo nello Studio? I numeri dicono che i post statici fanno il 3,7% delle visualizzazioni, ma servono per il feed e per chi ti segue già. *Consiglio: dopo Reel e Storie, come formato in più.*
+Prese il 30/10/2026:
+1. **Ordine di lavoro**: Fase A prima della prova del weekend. Matteo ha poi chiesto di fare subito anche la Fase B (fatta il 30/10).
+2. **I "bot" con i nomi**: sostituiti dai passaggi in chiaro (Analisi, Foto, Testi).
+3. **Instagram**: prima il pulsante "Condividi su Instagram" (C1), poi la pubblicazione automatica (C2).
+4. **Carosello di slide**: sì, dopo Reel e Storie, come formato in più (Fase F).
 
 ---
 
