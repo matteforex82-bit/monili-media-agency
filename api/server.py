@@ -173,17 +173,20 @@ def _history_item_from_payload(payload: dict) -> dict | None:
     source_photo = str(payload.get("source_photo", "")).strip()
     results = payload.get("results")
     selected_format = ""
+    title = ""
     if isinstance(results, dict):
         try:
             pack = json.loads(str(results.get("publish_pack_json", "{}")))
             if isinstance(pack, dict):
                 selected_format = str(pack.get("selected_format", "")).strip()
+                title = str(pack.get("product_name", "")).strip()
         except Exception:
             selected_format = ""
 
     return {
         "run_id": run_id,
         "created_at": created_at,
+        "title": title,
         "brief": brief,
         "source_photo": Path(source_photo).name if source_photo else "",
         "output_dir": Path(output_dir).name,
@@ -1443,9 +1446,31 @@ def _scheda_woman(run_id: str, input_dir: Path) -> tuple[str, Path | None]:
     return woman, reference
 
 
+def _scheda_source_photo(run_id: str, input_dir: Path) -> Path | None:
+    """La foto di origine della Scheda pezzo, copiata come prima foto del Reel (niente da ricaricare)."""
+    payload = _find_mission_payload(run_id) if run_id.strip() else None
+    source = str((payload or {}).get("source_photo") or "").strip()
+    if not source:
+        return None
+    path = Path(source)
+    if not path.is_file():
+        return None
+    ext = path.suffix.lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        ext = ".jpg"
+    target = input_dir / f"photo_1{ext}"
+    try:
+        target.write_bytes(path.read_bytes())
+        if target.suffix.lower() in HEIC_EXTENSIONS:
+            target = _convert_heic_to_jpeg(target)
+    except Exception:
+        return None
+    return target
+
+
 @app.post("/reel/create")
 async def reel_create(
-    photos: list[UploadFile] = File(...),
+    photos: list[UploadFile] = File(default=[]),
     clips: list[UploadFile] = File(default=[]),
     brief: str = Form(default=""),
     format: str = Form(default="reel"),
@@ -1462,13 +1487,19 @@ async def reel_create(
         return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend."}, status_code=400)
     photos = [p for p in photos if p and p.filename][:MAX_REEL_PHOTOS]
     clips = [c for c in clips if c and c.filename][:MAX_REEL_CLIPS]
-    if not photos:
+    if not photos and not scheda_run_id.strip():
         return JSONResponse({"error": "Carica almeno una foto del prodotto."}, status_code=400)
 
     reel_id = reel_studio.new_reel_id()
     input_dir = reel_studio.reel_dir(reel_id) / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
     photo_paths: list[Path] = []
+    if not photos:
+        # Reel partito dalla scheda senza foto nuove: si usa la foto della scheda.
+        source = _scheda_source_photo(scheda_run_id, input_dir)
+        if not source:
+            return JSONResponse({"error": "Non trovo la foto della scheda: carica una foto del prodotto."}, status_code=400)
+        photo_paths.append(source)
     clip_paths: list[Path] = []
     try:
         for index, upload in enumerate(photos):

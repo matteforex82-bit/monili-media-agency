@@ -365,7 +365,7 @@ export default function ReelStudioPage() {
       let saved = '';
       try { saved = localStorage.getItem(ACTIVE_REEL_KEY) || ''; } catch { /* storage non disponibile */ }
       if (saved) {
-        try { await loadReel(saved); } catch { /* reel non piu disponibile */ }
+        try { await loadReel(saved); } catch { /* reel non più disponibile */ }
       }
       loadHistory();
     })();
@@ -417,7 +417,7 @@ export default function ReelStudioPage() {
   };
 
   const createReel = async () => {
-    if (!photos.length) {
+    if (!photos.length && !piece) {
       setError('Carica almeno una foto del prodotto.');
       return;
     }
@@ -597,7 +597,7 @@ export default function ReelStudioPage() {
             {piece && <PieceBanner piece={piece} onClear={() => setPiece(null)} />}
 
             <div className="rs-grid-2">
-              <Field label={`Foto prodotto (${photos.length}/3)`}>
+              <Field label={piece && !photos.length ? 'Foto prodotto: usiamo quella della scheda' : `Foto prodotto (${photos.length}/3)`}>
                 <input
                   type="file"
                   accept="image/*,.heic,.heif"
@@ -708,7 +708,7 @@ export default function ReelStudioPage() {
               <span>Copertina poster in stile Monili (serif su fondo crema, ~0,12 €)</span>
             </label>
 
-            <button type="button" className="btn-mission rs-cta" disabled={busy || !photos.length || !config} onClick={createReel}>
+            <button type="button" className="btn-mission rs-cta" disabled={busy || (!photos.length && !piece) || !config} onClick={createReel}>
               {busy ? 'Caricamento...' : 'Crea storyboard'}
             </button>
             <p className="rs-hint">Prima vedi lo storyboard e il costo stimato: i crediti video si spendono solo quando approvi.</p>
@@ -1254,8 +1254,10 @@ function PieceBanner({ piece, onClear }: { piece: Piece; onClear: () => void }) 
         <strong>Reel di: {piece.title}</strong>
         <br />
         La donna è la stessa della foto indossata della scheda: sembrerà la modella scelta per questo pezzo.
-        Carica comunque la foto del prodotto.{' '}
-        <button type="button" className="btn-secondary rs-small-btn" onClick={onClear}>È un altro pezzo</button>
+        Usiamo la foto della scheda: se vuoi, ne puoi caricare altre.
+        <div className="rs-piece-action">
+          <button type="button" className="btn-secondary rs-small-btn" onClick={onClear}>È un altro pezzo</button>
+        </div>
       </div>
     </div>
   );

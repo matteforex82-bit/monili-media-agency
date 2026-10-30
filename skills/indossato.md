@@ -1,6 +1,6 @@
 ---
 label: Indossato
-description: Una donna vera, diversa in ogni Reel, indossa il prodotto - hook, dettaglio, look, chiusura.
+description: Una donna vera, una per pezzo, indossa il prodotto - hook, dettaglio, look, chiusura.
 formats: reel, story
 uses_model: true
 default_seconds: 12

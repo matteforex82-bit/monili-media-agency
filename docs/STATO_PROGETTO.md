@@ -2,7 +2,7 @@
 
 File di passaggio di consegne, condiviso con Hermes. Aggiornare a ogni sessione di lavoro.
 
-**Ultimo aggiornamento:** 2026-10-29 · branch `master`
+**Ultimo aggiornamento:** 2026-10-30 · branch `master`
 
 ## Cos'è
 App per creare contenuti social de I Monili Ravenna a partire dalle foto prodotto.
@@ -73,8 +73,10 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - **Libertà creativa + divieti** (30/10, scelta di Matteo: niente elenchi che rendono tutto uguale): l'AI inventa luoghi, donne e pose adatti allo stile del negozio e riceve donne e scene recenti da non ripetere. Unico limite: `skills/_base/divieti.md` (pagina Skill → "Mai nei contenuti"), in tutti i prompt di foto e Reel. Test: 59.
 - **"Pubblica subito"** nello Studio (30/10): casella spenta di default; accesa, il pezzo va online senza passare da `/admin/review`. Test: 60.
 
+- **Studio v2, Fase A** (30/10): "Invia bozza / Pubblica subito" sotto i campi; foto etichettate per tipo ("Catalogo (AI)", "Indossata (AI)", "Foto vera ripulita"), 2 per riga sul telefono; Reel dalla scheda usa la foto della scheda senza ricaricarla (backend copia `source_photo`); cronologia con nome del pezzo e data; testi e accenti sistemati. Test: 63. Non provato: invio vero al sito e Reel vero dalla scheda.
+
 ## Prossimi passi
-- **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, da approvare; Fase A prima della prova del weekend.
+- **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, Fase A fatta; B–F dopo la prova del weekend e con l'ok di Matteo (prima le decisioni della sezione 0).
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.
 1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` del PC.
 2. Primo Reel vero con un prodotto reale: verificare fedeltà del gioiello e costo effettivo vs stima.

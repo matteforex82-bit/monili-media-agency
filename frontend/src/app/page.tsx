@@ -35,6 +35,13 @@ interface HistoryItem {
   source_photo: string;
   output_dir: string;
   selected_format: string;
+  title?: string;
+}
+
+function formatHistoryDate(value: string) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('it-IT', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 }
 
 // â”€â”€ CONFIGURAZIONE AGENTI â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -371,7 +378,7 @@ export default function Home() {
       if (silentFor > 90000) {
         addLog(
           'SISTEMA',
-          'Sto ancora aspettando la risposta del modello immagini. Images 2 puo richiedere qualche minuto sulle foto piu pesanti.',
+          'Sto ancora aspettando la risposta del modello immagini. Images 2 può richiedere qualche minuto sulle foto più pesanti.',
           'info',
         );
         setLastProgressAt(Date.now());
@@ -554,7 +561,7 @@ export default function Home() {
                 maxWidth: 440,
                 margin: '0 auto',
               }}>
-                Usa questa schermata: carica la foto prodotto, aggiungi due note se servono, poi lascia scegliere al team AI il contenuto piu adatto.
+                Carica la foto del pezzo, aggiungi una nota se serve: lo Studio prepara la scheda per il sito, WhatsApp e Google.
               </p>
             </div>
 
@@ -711,7 +718,7 @@ export default function Home() {
               }}>AI</span>
               <div>
                 <div style={{ fontFamily: 'var(--bot-font-sans)', fontWeight: 600, fontSize: 13, color: 'var(--espresso)', marginBottom: 2 }}>
-                  Il flusso e semplice
+                  Il flusso è semplice
                 </div>
                 <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)' }}>
                   1. Carichi la foto  2. Aggiungi note opzionali  3. Generi la scheda  4. La pubblichi sul sito e la giri su WhatsApp
@@ -935,12 +942,12 @@ export default function Home() {
                     <div key={item.run_id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'center' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 12, fontWeight: 700, color: 'var(--espresso)' }}>
-                          {item.selected_format || 'formato dinamico'} · {item.source_photo || 'foto prodotto'}
+                          {item.title || item.brief || 'Pezzo senza nome'}
                         </div>
                         <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.created_at ? new Date(item.created_at).toLocaleString('it-IT') : '-'} · {item.run_id}
+                          {formatHistoryDate(item.created_at)}
                         </div>
-                        {item.brief && (
+                        {item.title && item.brief && (
                           <div style={{ fontFamily: 'var(--bot-font-sans)', fontSize: 11, color: 'var(--espresso-mid)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {item.brief}
                           </div>

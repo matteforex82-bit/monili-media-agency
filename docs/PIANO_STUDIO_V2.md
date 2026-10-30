@@ -1,6 +1,6 @@
 # Piano — Studio AI v2: più bello, più semplice dal telefono, fino a Instagram
 
-> Creato il 30/10/2026 dopo il controllo dello Studio in formato iPhone. Stato: **approvato da Matteo per la Fase A** (le decisioni della sezione 0 sono ancora aperte).
+> Creato il 30/10/2026 dopo il controllo dello Studio in formato iPhone. Stato: **Fase A fatta il 30/10/2026** (push da approvare); approvato da Matteo per la Fase A (le decisioni della sezione 0 sono ancora aperte).
 > Strumenti di design: skill **Impeccable** (guide `shape` e `operate`; il suo programma di controllo resta non autorizzato) e **frontend-design**.
 > **Chi esegue questo piano legga prima la sezione 7.**
 
@@ -115,14 +115,14 @@ Riquadro di caricamento grande, nota facoltativa, un pulsante "Crea la scheda". 
 ## 4. Fasi di lavoro
 
 ### Fase A — Correzioni prima della prova (½ giornata) ← **prima del weekend**
-- [ ] Pulsante "Invia bozza / Pubblica subito" sotto i campi (punto 1)
-- [ ] Etichette: "Catalogo (AI)", "Indossata (AI)", "Foto vera ripulita", anche nei download (punto 2)
-- [ ] Foto del pannello sito 2 per riga sul telefono (punto 3)
-- [ ] Testo di "Pubblica subito" allineato agli altri (punto 4)
-- [ ] Reel dalla scheda riusa la foto della scheda: la backend copia la foto di origine della missione se non ne carichi altre (punto 5)
-- [ ] Testi: Home, accenti, `/indossato` "una per pezzo", cronologia con nome del pezzo e data leggibile (punto 6)
-- [ ] "È un altro pezzo" su una riga sua (punto 7)
-- [ ] Test + controllo dei tipi + giro di screenshot a 375 px
+- [x] Pulsante "Invia bozza / Pubblica subito" sotto i campi (punto 1)
+- [x] Etichette: "Catalogo (AI)", "Indossata (AI)", "Foto vera ripulita", anche nei download (punto 2)
+- [x] Foto del pannello sito 2 per riga sul telefono (punto 3)
+- [x] Testo di "Pubblica subito" allineato agli altri (punto 4)
+- [x] Reel dalla scheda riusa la foto della scheda: la backend copia la foto di origine della missione se non ne carichi altre (punto 5)
+- [x] Testi: Home, accenti, `/indossato` "una per pezzo", cronologia con nome del pezzo e data leggibile (punto 6)
+- [x] "È un altro pezzo" su una riga sua (punto 7)
+- [x] Test (63) + controllo dei tipi + giro di screenshot a 375 px (fatti il 30/10; cliccare davvero "Invia bozza" e creare un Reel vero dalla scheda NON è stato provato)
 
 ### Fase B — Restyling e pagina del pezzo (1½–2 giornate, dopo la prova)
 - [ ] Token comuni con il sito (font Cormorant + Outfit, colori del Design System v2) in `globals.css`; via i token dei bot non più usati
@@ -217,8 +217,8 @@ Numeri di riga al 30/10/2026 (commit `08f9007`): verifica sempre con una ricerca
 | 7 | `frontend/src/app/reel/page.tsx`, `PieceBanner` (riga ~1248) | "È un altro pezzo" su una riga sua, sotto il testo, allineato a sinistra | Il riquadro si legge senza interruzioni a 375 px |
 
 Chiusura della Fase A:
-- [ ] `python -m pytest tests` e `npx tsc --noEmit` verdi
-- [ ] Giro di screenshot a 375 px con la missione simulata (poi `--pulisci`)
-- [ ] Caselle della Fase A spuntate in questo file, riga in `docs/STATO_PROGETTO.md`
-- [ ] Commit; push solo dopo l'ok di Matteo
+- [x] `python -m pytest tests` e `npx tsc --noEmit` verdi
+- [x] Giro di screenshot a 375 px con la missione simulata (poi `--pulisci`)
+- [x] Caselle della Fase A spuntate in questo file, riga in `docs/STATO_PROGETTO.md`
+- [x] Commit; push solo dopo l'ok di Matteo
 - [ ] Riassunto a Matteo: cosa è cambiato, cosa non è stato verificato

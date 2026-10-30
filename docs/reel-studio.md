@@ -30,7 +30,7 @@ pagina **Skill** (link in alto nel Reel Studio): le modifiche vanno nello storag
 | Skill | Cosa fa |
 |---|---|
 | `/libera` | il regista sceglie la struttura migliore |
-| `/indossato` | una donna vera, diversa in ogni Reel, indossa il prodotto: hook, dettaglio, look, chiusura (ex `/modella-monili`) |
+| `/indossato` | una donna vera, una per pezzo, indossa il prodotto: hook, dettaglio, look, chiusura (ex `/modella-monili`) |
 | `/mani-bancone` | mani che prendono e provano il gioiello al bancone (anelli, bracciali), niente volto |
 | `/pietra-settimana` | una pietra: significato e abbinamento |
 | `/tre-modi` | lo stesso pezzo in 3 look: giorno, ufficio, sera |

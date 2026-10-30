@@ -634,11 +634,22 @@ body > * { position: relative; z-index: 1; }
   gap: 10px;
   align-items: flex-start;
   margin: 12px 0;
+  min-height: 44px;
+  font-family: var(--bot-font-sans);
+  font-size: 13px;
   line-height: 1.45;
+  color: var(--espresso);
+}
+
+.showcase-publish-now + .result-button {
+  margin-bottom: 12px;
 }
 
 .showcase-publish-now input {
-  margin-top: 4px;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 0;
 }
 
 .result-empty {
@@ -697,9 +708,27 @@ body > * { position: relative; z-index: 1; }
   }
 
   .result-image-grid,
-  .result-image-grid.stories,
-  .result-image-grid.compact {
+  .result-image-grid.stories {
     grid-template-columns: 1fr;
+  }
+
+  /* Foto del pannello sito: due per riga, si spuntano col pollice. */
+  .result-image-grid.compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .showcase-pick input[type='checkbox'] {
+    width: 24px;
+    height: 24px;
+  }
+
+  .showcase-pick {
+    min-height: 44px;
+  }
+
+  .result-button.full {
+    min-height: 44px;
   }
 
   .results-tabs .result-tab {
@@ -1285,6 +1314,8 @@ h1, h2, h3, .display {
 .rs-check input { width: 16px; height: 16px; accent-color: var(--terracotta); }
 .rs-women { border: 1.5px dashed var(--terracotta-light); border-radius: 14px; padding: 12px; background: var(--bot-card-soft); line-height: 1.5; }
 .rs-piece { display: flex; gap: 12px; align-items: center; }
+.rs-piece-action { margin-top: 8px; }
+.rs-piece-action .rs-small-btn { min-height: 44px; }
 .rs-piece img { width: 64px; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 10px; flex-shrink: 0; }
 .rs-file-btn { cursor: pointer; }
 .rs-covers { display: flex; gap: 8px; flex-wrap: wrap; }

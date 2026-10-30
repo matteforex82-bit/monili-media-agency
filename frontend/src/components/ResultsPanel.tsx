@@ -177,6 +177,21 @@ function getResultImages(results: Record<string, string>, prefix: string) {
     .sort((a, b) => Number(a.replace(prefix, '')) - Number(b.replace(prefix, '')));
 }
 
+// The kind of photo is read from the file name, never from the position: the real photo can be missing.
+const SITE_IMAGE_KINDS: Array<{ match: string; label: string; slug: string }> = [
+  { match: 'site_01_product_clean', label: 'Catalogo (AI)', slug: 'catalogo-ai' },
+  { match: 'site_02_worn', label: 'Indossata (AI)', slug: 'indossata-ai' },
+  { match: 'site_03_real_photo', label: 'Foto vera ripulita', slug: 'foto-vera-ripulita' },
+];
+
+function siteImageLabel(src: string) {
+  return SITE_IMAGE_KINDS.find((kind) => src.includes(kind.match))?.label ?? 'Foto (vecchio kit)';
+}
+
+function siteImageSlug(src: string) {
+  return SITE_IMAGE_KINDS.find((kind) => src.includes(kind.match))?.slug ?? '';
+}
+
 function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string }) {
   const [candidates, setCandidates] = useState<ShowcaseCandidate[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -287,14 +302,6 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
           <button type="button" onClick={() => void loadCandidates()} className="btn-secondary result-button" disabled={loading || publishing}>
             {loading ? 'Analisi...' : 'Rianalizza'}
           </button>
-          <button
-            type="button"
-            onClick={() => void publish()}
-            className="btn-mission result-button"
-            disabled={publishing || !selected.length || missing.length > 0}
-          >
-            {publishNow ? 'Pubblica subito' : 'Invia bozza'}
-          </button>
         </div>
       </div>
       {error && <p className="result-error">{error}</p>}
@@ -346,6 +353,14 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
           vuoi controllare la bozza sul sito.
         </span>
       </label>
+      <button
+        type="button"
+        onClick={() => void publish()}
+        className="btn-mission result-button full"
+        disabled={publishing || !selected.length || missing.length > 0}
+      >
+        {publishing ? 'Invio...' : publishNow ? 'Pubblica subito' : 'Invia bozza'}
+      </button>
       <p className="result-image-note">
         Foto per il sito: {selected.length}/{SHOWCASE_MAX_IMAGES} selezionate.
       </p>
@@ -366,11 +381,11 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
               />
               {item.available ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`${apiUrl}/files/${item.src}`} alt={`Foto sito ${index + 1}`} />
+                  <img src={`${apiUrl}/files/${item.src}`} alt={siteImageLabel(item.src)} />
               ) : (
                 <span>{item.error || 'File non disponibile'}</span>
               )}
-              <small>{item.src.includes('real_photo') ? 'Foto reale ripulita 4:5' : item.kind?.startsWith('image_site_') ? 'Foto dedicata sito 4:5' : 'Adattabile al sito'}</small>
+              <small>{siteImageLabel(item.src)}</small>
               {item.note && <small className="showcase-pick-note">⚠ {item.note}</small>}
             </label>
           ))}
@@ -467,9 +482,9 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
                 {siteImageKeys.map((key, index) => (
                   <ImageCard
                     key={key}
-                    title={results[key].includes('real_photo') ? 'Foto reale' : `Foto sito ${index + 1}`}
+                    title={siteImageLabel(results[key])}
                     imageUrl={`${apiUrl}/files/${results[key]}`}
-                    filename={`foto-sito-${index + 1}.jpg`}
+                    filename={`${siteImageSlug(results[key]) || `foto-sito-${index + 1}`}.jpg`}
                   />
                 ))}
               </div>

@@ -187,6 +187,37 @@ def test_reel_without_a_piece_gets_a_new_woman(tmp_path):
     assert woman == "" and reference is None
 
 
+def test_reel_of_this_piece_reuses_the_scheda_photo(tmp_path, monkeypatch, capsys):
+    """Da "Fai il Reel di questo pezzo" non si ricarica nulla: la backend copia la foto di origine della scheda."""
+    from fastapi.testclient import TestClient
+
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    monkeypatch.setattr(server.reel_studio, "plan_reel", lambda reel_id, api_key: None)
+    client = TestClient(server.app)
+
+    reel = client.post("/reel/create", data={"scheda_run_id": results["run_id"], "recipe": "indossato"})
+    assert reel.status_code == 200, reel.text
+    state = reel.json()
+    assert state["scheda_run_id"] == results["run_id"] and len(state["photos"]) == 1
+    copied = server.reel_studio.reel_dir(state["id"]) / "input" / "photo_1.jpg"
+    assert copied.read_bytes() == (tmp_path / "anello.jpg").read_bytes()
+
+
+def test_reel_without_a_piece_still_needs_a_photo():
+    from fastapi.testclient import TestClient
+
+    client = TestClient(server.app)
+    assert client.post("/reel/create", data={"recipe": "libera"}).status_code == 400
+    # Scheda che non esiste: nessuna foto da riusare, errore chiaro.
+    assert client.post("/reel/create", data={"scheda_run_id": "non-esiste"}).status_code == 400
+
+
+def test_history_shows_the_piece_name(tmp_path, monkeypatch, capsys):
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    item = next(row for row in server._collect_history(50) if row["run_id"] == results["run_id"])
+    assert item["title"] == PACK["product_name"]
+
+
 def test_publish_now_goes_online_without_review(tmp_path, monkeypatch, capsys):
     from fastapi.testclient import TestClient
 
