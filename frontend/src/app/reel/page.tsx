@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FileDropzone from '@/components/FileDropzone';
+import InstagramShare from '@/components/InstagramShare';
 import { API_URL } from '@/lib/apiUrl';
 
 // ── CONFIG ──────────────────────────────────────────────────────────────────
@@ -1159,8 +1160,14 @@ function ResultView({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
       <div className="rs-result-grid">
         <div className="rs-video-wrap">
           <video src={fileUrl(results.final_video!)} poster={results.cover ? fileUrl(results.cover) : undefined} controls playsInline loop />
+          <InstagramShare
+            files={[{ url: fileUrl(results.final_video!), filename: `monili-${reel.format}.mp4` }]}
+            caption={fullCaption}
+            kind={reel.format === 'story' ? 'Storia' : 'Reel'}
+            hasAiWoman={Boolean(reel.storyboard?.shots.some((shot) => shot.use_model))}
+          />
           <div className="rs-actions">
-            <button type="button" className="btn-mission rs-small-btn" onClick={() => save(results.final_video!, `monili-${reel.format}.mp4`)}>
+            <button type="button" className="btn-secondary rs-small-btn" onClick={() => save(results.final_video!, `monili-${reel.format}.mp4`)}>
               {saving.endsWith('.mp4') ? 'Salvo...' : 'Salva video'}
             </button>
           </div>

@@ -137,8 +137,9 @@ Riquadro di caricamento grande, nota facoltativa, un pulsante "Crea la scheda". 
 
 ### Fase C — Instagram
 **C1. "Condividi su Instagram" (½ giornata, subito dopo la prova)**
-- [ ] Nel risultato del Reel e nella pagina del pezzo: un pulsante apre il menu di condivisione dell'iPhone con il video (o le foto) già pronti; la caption con gli hashtag viene copiata negli appunti. Scegli Instagram → Reel/Storia/Post e incolli la caption.
-- [ ] Promemoria "Attiva *Info sull'AI*" se ci sono donne generate.
+- [x] Nel risultato del Reel e nella pagina del pezzo: un pulsante apre il menu di condivisione dell'iPhone con il video (o le foto) già pronti; la caption con gli hashtag viene copiata negli appunti. Scegli Instagram → Reel/Storia/Post e incolli la caption.
+- [x] Promemoria "Attiva *Info sull'AI*" se ci sono donne generate.
+- Fatto il 30/10/2026. Da provare sull'iPhone vero: il menu coi file funziona solo su indirizzo https (vedi docs/local-mode.md, "Condividere su Instagram"); su http copia la caption e mostra i file da salvare.
 - Nessun account sviluppatore, nessun token. Limite: un tocco in più dentro Instagram.
 
 **C2. Pubblicazione automatica dallo Studio (1–1½ giornate, quando C1 è rodato)**

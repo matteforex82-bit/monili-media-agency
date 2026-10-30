@@ -77,6 +77,8 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 
 - **Studio v2, Fase B** (30/10): font e colori del sito (Cormorant + Outfit, avorio, terracotta); barra in basso su telefono / colonna a sinistra su computer (Nuovo pezzo · Pezzi · Reel · Altro); pagina **Pezzi** con le 4 tessere di stato (Scheda, Sito, Reel, Instagram) colorate dalla foto del pezzo; pagina **del pezzo** (`/pezzi/<id>`: foto, sito, testi da copiare, Reel); Nuovo pezzo semplificato (passaggi Analisi, Foto, Testi; a fine lavoro si apre il pezzo); motore delle foto in Altro → Impostazioni; Reel Studio con lo stesso riquadro di caricamento. Backend: `/pieces`, `/pieces/{id}`; il sito conta come "fatto" solo se l'invio è riuscito. Test: 65. Non provato: una missione vera dall'app nuova e l'invio vero al sito.
 
+- **Studio v2, Fase C1** (30/10): pulsante "Condividi su Instagram" nel risultato del Reel e nella pagina del pezzo (Reel pronto, altrimenti le foto come post): apre il menu di condivisione dell'iPhone coi file e copia la caption; promemoria "Info sull'AI" se c'è una donna AI. **Limite**: Safari dà il menu coi file solo su https; sull'indirizzo Tailscale http copia la caption e mostra i file da salvare. Per l'https: `tailscale serve` (docs/local-mode.md, da provare). Non provato su iPhone.
+
 ## Prossimi passi
 - **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, Fase A fatta; B–F dopo la prova del weekend e con l'ok di Matteo (prima le decisioni della sezione 0).
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import InstagramShare from '@/components/InstagramShare';
 import type { PieceSummary } from '@/lib/pieces';
 
 interface Props {
@@ -362,6 +363,81 @@ function ShowcaseSection({
   );
 }
 
+
+type ReelForShare = {
+  format?: string;
+  storyboard?: { shots?: Array<{ use_model?: boolean }> } | null;
+  results?: { final_video?: string; copy?: { caption?: string; hashtags?: string[] } };
+};
+
+// Se il pezzo ha un Reel pronto si condivide quello; altrimenti le foto, come post.
+function InstagramSection({
+  apiUrl,
+  reelId,
+  photos,
+  postCaption,
+}: {
+  apiUrl: string;
+  reelId: string;
+  photos: string[];
+  postCaption: string;
+}) {
+  const [reel, setReel] = useState<ReelForShare | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!reelId) return;
+    let alive = true;
+    setReel(null);
+    setFailed(false);
+    fetch(`${apiUrl}/reel/${encodeURIComponent(reelId)}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => alive && setReel(data))
+      .catch(() => alive && setFailed(true));
+    return () => {
+      alive = false;
+    };
+  }, [apiUrl, reelId]);
+
+  const video = reel?.results?.final_video;
+  const reelCaption = [reel?.results?.copy?.caption, (reel?.results?.copy?.hashtags || []).join(' ')].filter(Boolean).join('\n\n');
+  const reelFiles = useMemo(
+    () => (video ? [{ url: `${apiUrl}/files/${video}`, filename: `monili-${reel?.format === 'story' ? 'storia' : 'reel'}.mp4` }] : []),
+    [apiUrl, video, reel?.format],
+  );
+  const photoFiles = useMemo(
+    () => photos.map((src) => ({ url: `${apiUrl}/files/${src}`, filename: `${siteImageSlug(src)}.jpg` })),
+    [apiUrl, photos],
+  );
+
+  if (reelId && !failed && !reel) return <p className="step-hint">Preparo il Reel...</p>;
+  if (reelId && reel && reelFiles.length) {
+    return (
+      <>
+        <p className="step-hint">Condividi il Reel pronto di questo pezzo.</p>
+        <InstagramShare
+          files={reelFiles}
+          caption={reelCaption}
+          kind={reel.format === 'story' ? 'Storia' : 'Reel'}
+          hasAiWoman={Boolean(reel.storyboard?.shots?.some((shot) => shot.use_model))}
+        />
+      </>
+    );
+  }
+  if (!photoFiles.length) return <p className="step-hint">Non ci sono foto o Reel da condividere.</p>;
+  return (
+    <>
+      <p className="step-hint">Non c&apos;è ancora un Reel pronto: puoi condividere le foto come post. I Reel arrivano di più a chi non ti segue.</p>
+      <InstagramShare
+        files={photoFiles}
+        caption={postCaption}
+        kind="Post"
+        hasAiWoman={photos.some((src) => src.includes('site_02_worn'))}
+      />
+    </>
+  );
+}
+
 export default function PieceView({ results, apiUrl, runId, summary, onChanged }: Props) {
   const pack = parseJsonObject<PublishPack>(results.publish_pack_json, {});
   const hashtags = (pack.hashtags || pack.selected_hashtags || []).join(' ');
@@ -378,6 +454,15 @@ export default function PieceView({ results, apiUrl, runId, summary, onChanged }
     [results],
   );
   const reels = summary?.reels ?? [];
+  const doneReel = reels.find((reel) => reel.status === 'done');
+  const sitePhotos = useMemo(
+    () =>
+      ['image_site_1', 'image_site_2', 'image_site_3']
+        .map((key) => results[key])
+        .filter((src): src is string => Boolean(src) && !(src.includes('site_03_real_photo') && results.real_photo_check?.includes('"ok": false'))),
+    [results],
+  );
+  const postCaption = [caption, cta, hashtags].filter(Boolean).join('\n\n');
 
   return (
     <>
@@ -406,6 +491,11 @@ export default function PieceView({ results, apiUrl, runId, summary, onChanged }
             </Link>
           ))}
         </div>
+      </section>
+
+      <section className="step" aria-labelledby="step-ig">
+        <h2 className="step-title" id="step-ig">Instagram</h2>
+        <InstagramSection apiUrl={apiUrl} reelId={doneReel?.id || ''} photos={sitePhotos} postCaption={postCaption} />
       </section>
 
       <section className="step">

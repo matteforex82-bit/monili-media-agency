@@ -67,6 +67,22 @@ ipconfig
 
 Cerca l'indirizzo IPv4 della rete Wi-Fi, per esempio `192.168.1.20`.
 
+## Condividere su Instagram dall'iPhone (indirizzo sicuro, una tantum)
+
+Il pulsante "Condividi su Instagram" apre il menu di condivisione dell'iPhone con il video già pronto e copia la caption. Safari lo permette **solo su un indirizzo https**. Con l'indirizzo Tailscale normale (`http://100.x.y.z:3000`) il pulsante funziona a metà: copia la caption e ti mostra i file da salvare, poi in Instagram scegli il video dalla libreria.
+
+Per avere il menu vero, con Tailscale Serve (da provare, non ancora verificato su questo PC):
+
+1. Nel pannello di Tailscale (login.tailscale.com → DNS) attiva **MagicDNS** e **HTTPS Certificates**.
+2. Da PowerShell sul PC, una volta sola:
+
+```powershell
+tailscale serve --bg --https=443 http://127.0.0.1:3000
+tailscale serve --bg --https=8443 http://127.0.0.1:8000
+```
+
+3. Sull'iPhone apri `https://<nome-pc>.<tuo-tailnet>.ts.net` (lo mostra `tailscale serve status`). Lo Studio chiama il backend sulla porta 8443 quando la pagina è in https.
+
 ## Cosa viene salvato
 
 ```text

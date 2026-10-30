@@ -294,3 +294,10 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .rs-h1 { font-size: 30px; line-height: 1.1; margin: 4px 0 8px; }
 .rs-recipe:not(.rs-recipe-on) .rs-recipe-desc { display: none; }
 .rs-recipe { align-content: center; }
+
+/* Condividi su Instagram */
+.ig-share { display: grid; gap: 8px; margin: 12px 0; }
+.ig-share-btn { width: 100%; font-size: 16px; }
+.ig-note { margin: 0; font-size: 14px; line-height: 1.45; color: var(--bot-ink-2); }
+.ig-files { display: grid; gap: 8px; }
+.ig-files a { text-decoration: none; justify-content: center; overflow-wrap: anywhere; }

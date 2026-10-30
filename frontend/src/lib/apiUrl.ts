@@ -8,7 +8,9 @@ const DEFAULT_API_URL = 'http://localhost:8000';
 export function resolveApiUrl(): string {
   const localPort = process.env.NEXT_PUBLIC_API_PORT;
   if (localPort && typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:${localPort}`;
+    // Pagina in https (Tailscale Serve, vedi docs/local-mode.md): anche il backend deve essere in https.
+    const port = window.location.protocol === 'https:' ? process.env.NEXT_PUBLIC_API_HTTPS_PORT || '8443' : localPort;
+    return `${window.location.protocol}//${window.location.hostname}:${port}`;
   }
   return process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_URL;
 }
