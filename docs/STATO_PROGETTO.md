@@ -7,7 +7,7 @@ File di passaggio di consegne, condiviso con Hermes. Aggiornare a ogni sessione 
 ## Cos'è
 App per creare contenuti social de I Monili Ravenna a partire dalle foto prodotto.
 Backend FastAPI (`api/server.py`, `main.py`, `reel_studio.py`) + frontend Next.js (`frontend/`).
-Gira solo sul PC (`scripts/start-local.ps1`), usato anche dal telefono con Tailscale. Render è stato dismesso il 30/10/2026: `render.yaml` tolto, servizi da sospendere.
+Gira solo sul PC (`scripts/start-local.ps1`), usato anche dal telefono con Tailscale. Render è stato dismesso il 30/10/2026: `render.yaml` tolto, servizi `monili-media-agency`, `monili-backend` e `monili-frontend` sospesi (si riaccendono da Render con "Resume").
 
 ## Decisione strategica (ott 2026)
 Matteo: **le foto statiche su Instagram non rendono più → priorità a Reel e Story video.**
