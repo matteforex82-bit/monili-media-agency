@@ -629,6 +629,18 @@ body > * { position: relative; z-index: 1; }
   color: var(--terracotta-dark);
 }
 
+.showcase-publish-now {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 12px 0;
+  line-height: 1.45;
+}
+
+.showcase-publish-now input {
+  margin-top: 4px;
+}
+
 .result-empty {
   border: 1px dashed var(--border);
   border-radius: 14px;

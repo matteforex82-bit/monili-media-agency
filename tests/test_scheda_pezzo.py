@@ -185,3 +185,23 @@ def test_reel_of_this_piece_keeps_the_same_woman(tmp_path, monkeypatch, capsys):
 def test_reel_without_a_piece_gets_a_new_woman(tmp_path):
     woman, reference = server._scheda_woman("", tmp_path)
     assert woman == "" and reference is None
+
+
+def test_publish_now_goes_online_without_review(tmp_path, monkeypatch, capsys):
+    from fastapi.testclient import TestClient
+
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    monkeypatch.setenv("SHOWCASE_INGEST_URL", "https://sito.example/api/ingest/internal-webapp")
+    sent = []
+    monkeypatch.setattr(server, "_send_payload_to_showcase", lambda payload: sent.append(payload) or {"ok": True})
+    client = TestClient(server.app)
+    body = {"selected_images": [results["image_site_1"]], "price": "45", "location": "via-cavour-17"}
+
+    draft = client.post(f"/missions/{results['run_id']}/showcase/publish", json=body).json()
+    assert draft["published"] is False and draft["product_url"] is None
+    assert sent[-1]["product_fiche"]["publicationStatus"] == "draft"
+
+    live = client.post(f"/missions/{results['run_id']}/showcase/publish", json={**body, "publish_now": True}).json()
+    fiche = sent[-1]["product_fiche"]
+    assert live["published"] is True and fiche["publicationStatus"] == "published" and fiche["publishedAt"]
+    assert live["product_url"] == f"https://sito.example/p/{fiche['id']}"

@@ -1194,6 +1194,12 @@ async def showcase_publish(run_id: str, body: dict | None = None):
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
         return JSONResponse({"error": f"Errore preparazione payload sito: {exc}"}, status_code=500)
+    # "Pubblica subito": il pezzo va online senza passare dalla revisione sul sito.
+    publish_now = form.get("publish_now") is True
+    fiche = prepared["payload"]["product_fiche"]
+    if publish_now:
+        fiche["publicationStatus"] = "published"
+        fiche["publishedAt"] = datetime.now().isoformat()
 
     audit_id = f"showcase-{run_id}"
     audit_payload = {
@@ -1204,6 +1210,7 @@ async def showcase_publish(run_id: str, body: dict | None = None):
         "product_title": prepared["payload"]["product_fiche"]["title"],
         "created_at": datetime.now().isoformat(),
         "selected_images": selected,
+        "published": publish_now,
         "prepared_images": prepared["prepared_images"],
         "quality_report": prepared["quality_report"],
         "rejected_sources": prepared["rejected_sources"],
@@ -1240,10 +1247,13 @@ async def showcase_publish(run_id: str, body: dict | None = None):
             status_code=502 if ingest_result.get("status_code") is None else int(ingest_result.get("status_code") or 502),
         )
 
+    site = _showcase_site_url()
     return {
         "ok": True,
         "mode": "publish",
         "run_id": run_id,
+        "published": publish_now,
+        "product_url": f"{site}/p/{fiche['id']}" if publish_now and site else None,
         "ingest": ingest_result,
         "prepared_images": prepared["prepared_images"],
         "quality_report": prepared["quality_report"],
@@ -1553,6 +1563,12 @@ async def reel_render(reel_id: str, body: dict | None = None):
 
 
 # ── REEL → SITO VETRINA ──────────────────────────────────────────────────────
+def _showcase_site_url() -> str:
+    """Indirizzo del sito, dedotto dall'ingest delle schede (https://sito/api/ingest/... -> https://sito)."""
+    fiche_url = os.environ.get("SHOWCASE_INGEST_URL", "").strip()
+    return re.sub(r"/api/ingest/.*$", "", fiche_url) if fiche_url else ""
+
+
 def _reel_ingest_url() -> str:
     """Indirizzo dell'ingest dei Reel: quello delle schede con /reel al posto del finale."""
     explicit = os.environ.get("SHOWCASE_REEL_INGEST_URL", "").strip()

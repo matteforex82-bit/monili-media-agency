@@ -188,6 +188,8 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
   const [size, setSize] = useState('');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
+  // Spenta di default: nelle prime settimane si controlla la bozza sul sito prima di pubblicarla.
+  const [publishNow, setPublishNow] = useState(false);
   // Must match the checks in api/server.py: no piece reaches the site without
   // a price and a shop, nor clothing without a size.
   const sizeRequired = category === 'abbigliamento';
@@ -262,6 +264,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
           size: size.trim(),
           category,
           location,
+          publish_now: publishNow,
         }),
       });
       const data = await res.json();
@@ -290,7 +293,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
             className="btn-mission result-button"
             disabled={publishing || !selected.length || missing.length > 0}
           >
-            Invia draft
+            {publishNow ? 'Pubblica subito' : 'Invia bozza'}
           </button>
         </div>
       </div>
@@ -336,6 +339,13 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
         </label>
         {missing.length > 0 && <small>Per pubblicare manca {missing.join(', ')}.</small>}
       </div>
+      <label className="showcase-publish-now">
+        <input type="checkbox" checked={publishNow} onChange={(e) => setPublishNow(e.target.checked)} />
+        <span>
+          <strong>Pubblica subito</strong>: il pezzo va online senza passare dalla revisione sul sito. Lascialo spento finché
+          vuoi controllare la bozza sul sito.
+        </span>
+      </label>
       <p className="result-image-note">
         Foto per il sito: {selected.length}/{SHOWCASE_MAX_IMAGES} selezionate.
       </p>
@@ -366,8 +376,16 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
           ))}
         </div>
       )}
-      {result && <p className="result-ok">Draft creato: {result.ingest?.created_id || 'invio completato'}</p>}
-      {SHOWCASE_REVIEW_URL && (
+      {result?.published && (
+        <p className="result-ok">
+          Pubblicato sul sito.{' '}
+          {result.product_url && (
+            <a href={result.product_url} target="_blank" rel="noreferrer">Apri la pagina del pezzo</a>
+          )}
+        </p>
+      )}
+      {result && !result.published && <p className="result-ok">Bozza creata: pubblicala dalla revisione sul sito.</p>}
+      {SHOWCASE_REVIEW_URL && !result?.published && (
         <a href={SHOWCASE_REVIEW_URL} target="_blank" rel="noreferrer" className="result-link">
           Apri review admin
         </a>

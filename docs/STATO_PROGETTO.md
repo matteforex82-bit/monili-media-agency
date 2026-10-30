@@ -71,6 +71,7 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - **Foto vera ripulita senza AI sul pezzo** (`photo_cleanup.py`): scontorno BiRefNet sul PC, fondo avorio, luce e colore. Lo Studio la spunta solo se lo scontorno è pulito, altrimenti scrive il motivo. Provata su 4 foto vere: 3 buone, 1 scartata giustamente (scopa attaccata alla giacca). Test: 52.
 - **Niente modella fissa, una donna per pezzo** (scelta di Matteo, precisata il 30/10): la Scheda pezzo sceglie la donna e il Reel fatto con "Fai il Reel di questo pezzo" usa la stessa (descrizione + foto indossata come riferimento del viso); da un pezzo all'altro cambia. Belle ed eleganti ma reali; la donna la **inventa l'AI** (linea guida in `skills/_base/donne.md`), dentro un Reel resta la stessa. Tolti il pannello "Modella Monili" e la foto di riferimento; la skill `/modella-monili` ora si chiama `/indossato` (il vecchio nome funziona ancora).
 - **Libertà creativa + divieti** (30/10, scelta di Matteo: niente elenchi che rendono tutto uguale): l'AI inventa luoghi, donne e pose adatti allo stile del negozio e riceve donne e scene recenti da non ripetere. Unico limite: `skills/_base/divieti.md` (pagina Skill → "Mai nei contenuti"), in tutti i prompt di foto e Reel. Test: 59.
+- **"Pubblica subito"** nello Studio (30/10): casella spenta di default; accesa, il pezzo va online senza passare da `/admin/review`. Test: 60.
 
 ## Prossimi passi
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.

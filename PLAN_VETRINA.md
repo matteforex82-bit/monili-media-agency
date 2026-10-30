@@ -348,6 +348,7 @@ Decisioni del 29/10/2026: progetto Vercel nuovo e separato da Alfred; database N
 - **Niente modella fissa, una donna per pezzo**: la inventa l'AI nella Scheda pezzo (reale ed elegante, non una modella perfetta) e i Reel fatti con "Fai il Reel di questo pezzo" usano lei, con la foto indossata come riferimento del viso. Mai lo stesso pezzo con due donne diverse; il pezzo dopo ne ha un'altra
 - **Libertà creativa + divieti**: l'AI inventa luoghi, donne, pose e abiti e riceve donne e scene recenti da non ripetere. L'unico limite fisso è "Mai nei contenuti" (`skills/_base/divieti.md`, pagina Skill): eleganza come linea guida, no sesso, violenza, bambini, cose illegali, uomini, animali, kitsch, marchi, luoghi fuori dalla Romagna. Niente elenchi che rendono i contenuti tutti uguali
 - Skill `/modella-monili` → `/indossato` (il vecchio nome funziona ancora)
+- **Revisione: prima sul sito, poi direttamente dallo Studio** (30/10): nello Studio c'è la casella "Pubblica subito", spenta di default. Spenta = bozza da pubblicare in `/admin/review` (prime settimane, per vedere le pagine vere); accesa = il pezzo va online subito (`publicationStatus: published`, il sito lo accetta già) e lo Studio dà il link alla pagina. L'admin del sito resta per Venduto, modifiche e pezzi da nascondere
 
 ### Fase 6 — Contenuti che spingono la ricerca (continuo, nello Studio)
 - [ ] Caption e Reel con le parole che la gente cerca (pietra, tipo di pezzo, "Ravenna"): regola da aggiungere in `skills/*.md`, non nel codice
