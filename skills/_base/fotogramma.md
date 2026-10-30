@@ -9,8 +9,8 @@ CAMERA ANGLE: {angle}
 LIGHT: {lighting}. Warm natural light plus a small hard highlight so the stones sparkle.
 {model_line}
 COMPOSITION: the jewelry is clearly visible and in focus; keep the top 15% and bottom 20% calm for Instagram text.
-BRAND LOOK: cream and warm neutral backgrounds that make the product colors stand out, terracotta and gold accents,
-authentic, natural, not over-retouched.
+BRAND LOOK: authentic and elegant, with the colorful, artisanal taste of the shop; the place, colors and light of the
+scene make the product colors stand out. Natural, not over-retouched.
 PRESERVE (Image 1 is the truth): same shape, same stones with their exact cut, color and count, same metal finish,
 same proportions. Change only the scene around the product. Do not redesign, simplify or add details.
 {skill_notes}

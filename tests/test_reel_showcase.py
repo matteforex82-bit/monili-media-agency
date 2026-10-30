@@ -112,10 +112,10 @@ def test_publish_is_off_without_site_url(monkeypatch):
 def test_showcase_products_lists_pieces_sent_from_the_studio(storage_root):
     audit = server.SHOWCASE_DRAFTS_DIR / "showcase-run-test-reel.json"
     audit.write_text(
-        json.dumps({"product_id": "anello-x-run1", "product_title": "Anello X", "created_at": "2026-10-28T10:00:00"}),
+        json.dumps({"run_id": "run1", "product_id": "anello-x-run1", "product_title": "Anello X", "created_at": "2026-10-28T10:00:00"}),
         encoding="utf-8",
     )
     (server.SHOWCASE_DRAFTS_DIR / "showcase-vecchio.json").write_text(json.dumps({"run_id": "v"}), encoding="utf-8")
     items = client.get("/showcase/products").json()["items"]
-    assert {"product_id": "anello-x-run1", "title": "Anello X", "created_at": "2026-10-28T10:00:00"} in items
+    assert {"product_id": "anello-x-run1", "title": "Anello X", "created_at": "2026-10-28T10:00:00", "run_id": "run1"} in items
     assert all(item["product_id"] for item in items)

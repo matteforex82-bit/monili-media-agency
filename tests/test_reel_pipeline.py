@@ -13,6 +13,7 @@ def reel(product_photo):
     input_dir.mkdir(parents=True)
     photo = input_dir / "photo_1.jpg"
     photo.write_bytes(product_photo.read_bytes())
+    # vecchio nome della skill "indossato": i Reel creati prima continuano a funzionare
     state = rs.create_reel(reel_id, [photo], [], "brief", "reel", 12, "kling-3-std", "", "gpt", recipe="modella_monili")
     return state
 
@@ -42,7 +43,7 @@ def test_montage_durations(tmp_path, product_photo):
 
 
 def test_coherent_keyframes_and_product_protection(reel, monkeypatch):
-    rs.save_state({**rs.load_state(reel["id"]), "storyboard": rs.normalize_storyboard(reel, {
+    rs.save_state({**rs.load_state(reel["id"]), "woman": "Donna di prova", "storyboard": rs.normalize_storyboard(reel, {
         "scene_bible": "warm cream counter, window light",
         "shots": [
             {"purpose": "hook", "keyframe_mode": "ai", "duration": 3},
@@ -70,8 +71,10 @@ def test_coherent_keyframes_and_product_protection(reel, monkeypatch):
     out.mkdir(parents=True, exist_ok=True)
     frames = rs._make_keyframes(state, "k", out)
 
-    # la scena con la modella fa da guida e viene generata per prima
+    # la scena con la donna fa da guida e viene generata per prima, ed è l'unica che la descrive
     assert calls[0][0].startswith("shot_2")
+    assert state["woman"] in calls[0][2]
+    assert all(state["woman"] not in prompt for name, _, prompt in calls[1:])
     assert all("shot_2_keyframe.jpg" in images for name, images, _ in calls[1:])
     assert all(anchor == "shot_2_keyframe.jpg" for name, anchor in qa_calls[1:])
     # la scena mai fedele viene ritentata e poi sostituita con la foto reale
@@ -97,4 +100,23 @@ def _abs_photo(state):
 
 def test_state_file_is_valid_json(reel):
     data = json.loads((rs.reel_dir(reel["id"]) / "reel.json").read_text(encoding="utf-8"))
-    assert data["recipe"] == "modella-monili" and data["status"] == "planning"
+    assert data["recipe"] == "indossato" and data["status"] == "planning"
+    assert data["woman"] is None  # senza Scheda pezzo la inventa il regista nello storyboard
+
+
+def test_director_invents_the_woman_once(reel, monkeypatch):
+    prompts = []
+
+    def fake_storyboard(state, photo):
+        prompts.append(rs._woman_block(state))
+        return {"woman": "Donna inventata dal regista", "shots": [{"keyframe_mode": "ai", "use_model": True, "duration": 3}]}
+
+    monkeypatch.setattr(rs, "agent_analisi", lambda *a, **k: "analisi")
+    monkeypatch.setattr(rs, "agent_storyboard", fake_storyboard)
+    rs.plan_reel(reel["id"], "k")
+    assert "la inventi tu" in prompts[0]
+    assert rs.load_state(reel["id"])["woman"] == "Donna inventata dal regista"
+    # Ripianificando, la donna resta quella: il regista la riceve già scelta.
+    rs.plan_reel(reel["id"], "k")
+    assert "gia scelta" in prompts[1]
+    assert rs.load_state(reel["id"])["woman"] == "Donna inventata dal regista"

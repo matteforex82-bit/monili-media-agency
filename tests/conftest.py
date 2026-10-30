@@ -8,8 +8,10 @@ from pathlib import Path
 _STORAGE = Path(tempfile.mkdtemp(prefix="monili-test-"))
 os.environ["MONILI_STORAGE_DIR"] = str(_STORAGE)
 os.environ.setdefault("OPENROUTER_API_KEY", "test-key")
-for key in ("HF_API_KEY_ID", "HF_API_KEY_SECRET", "HIGGSFIELD_API_KEY", "OPENAI_API_KEY"):
+for key in ("HF_API_KEY_ID", "HF_API_KEY_SECRET", "HIGGSFIELD_API_KEY", "OPENAI_API_KEY", "CUTOUT_MODEL_PATH"):
     os.environ.pop(key, None)
+# Niente download del modello di scontorno (~1 GB) durante i test.
+os.environ["CUTOUT_MODEL_AUTO_DOWNLOAD"] = "0"
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.argv = sys.argv[:1]
 

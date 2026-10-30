@@ -27,6 +27,8 @@ const BASE_LABELS: Record<string, string> = {
   movimento: 'Base · movimento video',
   copertina: 'Base · copertina poster',
   testi: 'Base · regole dei testi',
+  donne: 'Base · donne (la inventa l’AI, una per pezzo)',
+  divieti: 'Mai nei contenuti (cose da non mostrare mai)',
 };
 
 const NEW_SKILL_TEMPLATE = `---

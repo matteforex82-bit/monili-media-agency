@@ -30,7 +30,7 @@ pagina **Skill** (link in alto nel Reel Studio): le modifiche vanno nello storag
 | Skill | Cosa fa |
 |---|---|
 | `/libera` | il regista sceglie la struttura migliore |
-| `/modella-monili` | la Modella Monili indossa il prodotto: hook, dettaglio, look, chiusura |
+| `/indossato` | una donna vera, diversa in ogni Reel, indossa il prodotto: hook, dettaglio, look, chiusura (ex `/modella-monili`) |
 | `/mani-bancone` | mani che prendono e provano il gioiello al bancone (anelli, bracciali), niente volto |
 | `/pietra-settimana` | una pietra: significato e abbinamento |
 | `/tre-modi` | lo stesso pezzo in 3 look: giorno, ufficio, sera |
@@ -42,13 +42,13 @@ pagina **Skill** (link in alto nel Reel Studio): le modifiche vanno nello storag
 
 Il calendario fino a Natale con skill, date verificate e brief pronti è in `docs/piano-natale-2026.md`.
 
-Basi comuni in `skills/_base/`: `fotogramma.md`, `movimento.md`, `copertina.md`, `testi.md`.
+Basi comuni in `skills/_base/`: `fotogramma.md`, `movimento.md`, `copertina.md`, `testi.md`, `donne.md`.
 
 ## Coerenza prodotto e scena
 
-1. **Scena unica**: lo storyboard contiene una `scene_bible` (luogo, luce, palette, abiti della modella) che
+1. **Scena unica**: lo storyboard contiene una `scene_bible` (luogo, luce, palette, abiti della donna) che
    entra in ogni fotogramma ed è modificabile nello storyboard.
-2. **Fotogramma guida**: i fotogrammi si creano in sequenza; il primo riuscito (di preferenza con la modella)
+2. **Fotogramma guida**: i fotogrammi si creano in sequenza; il primo riuscito (di preferenza con la donna)
    diventa il riferimento di scena per tutti gli altri.
 3. **Controllo severo** (soglia `REEL_QA_MIN_SCORE`, default 8/10): prodotto identico + scena coerente + nessun
    difetto. Fino a `REEL_KEYFRAME_ATTEMPTS` tentativi (default 3), ognuno con il motivo dello scarto precedente.
@@ -76,12 +76,27 @@ DM, visite in negozio...). La pagina mostra cosa funziona per skill, formato, gi
 2 contenuti per gruppo questi dati entrano nei prompt di regista e copywriter. File:
 `<storage>/memory/risultati_contenuti.json`.
 
-## Modella Monili
+## Chi indossa i pezzi
 
-Un solo volto AI ricorrente, sempre la stessa donna. Si imposta una volta: descrizione (in inglese rende meglio) +
-foto di riferimento. Il modo più semplice: fai un primo Reel con `/modella-monili`, poi nel risultato tocca
-**"Usa come Modella Monili"** sul fotogramma che ti piace. Da lì ogni scena con la modella usa quella foto come
-riferimento. Dati in `memory/modella_monili.json`, foto in `output/brand/modella_monili.jpg`.
+Niente modella fissa, ma **una donna per pezzo** (scelta del 29-30/10/2026): bella ed elegante ma reale, con età,
+corpo e viso da persona normale, come se per quel pezzo avessimo ingaggiato una modella. Mai lo stesso pezzo con
+due donne diverse; da un pezzo all'altro cambia.
+
+- La inventa la **Scheda pezzo** per la foto indossata (campo `woman` del piano, linea guida in
+  `skills/_base/donne.md`) e la salva nei risultati (`woman`).
+- **"Fai il Reel di questo pezzo"** apre `/reel?pezzo=<run_id>`: il Reel prende la stessa descrizione e copia la
+  foto indossata in `input/donna.jpg`, usata come riferimento del viso nelle scene con la donna. Anche il pezzo
+  del sito viene già scelto quando si pubblica il Reel.
+- Un Reel creato senza scheda: la inventa il regista nello storyboard e resta salvata in `woman` di `reel.json`.
+- Dentro il Reel resta la stessa in tutte le scene (fotogramma guida).
+
+## Libertà creativa e divieti
+
+Scelta del 30/10/2026: per non diventare monotoni l'AI inventa luoghi, donne, pose e abiti adatti al pezzo e allo
+stile del negozio. Due cose aiutano la varietà: regista e piano della scheda ricevono le **donne e le scene usate
+di recente** da non ripetere (`casting.recent_women` / `recent_scenes`, lette da schede e Reel salvati). L'unico
+limite fisso è l'elenco **"Mai nei contenuti"** (`skills/_base/divieti.md`, modificabile dalla pagina Skill), che
+entra nel piano della scheda, nelle sue foto, nello storyboard e in ogni fotogramma.
 
 Su Instagram, per contenuti AI realistici, attiva l'etichetta **"Info sull'AI"** quando pubblichi.
 
@@ -164,8 +179,6 @@ I lavori falliti o bloccati dalla moderazione non vengono addebitati da Higgsfie
 | PUT/DELETE | `/results/{id}` | salva / elimina i numeri di un contenuto (`id` del reel o `manuale-...`) |
 | GET | `/skills` | elenco skill e basi |
 | GET/PUT/DELETE | `/skills/{id}` (`?base=true` per le basi) | leggi / salva / ripristina originale |
-| GET/POST | `/reel/persona` | leggi / salva la Modella Monili (descrizione + foto) |
-| POST | `/reel/persona/from-keyframe` | usa un fotogramma (`reel_id`, `shot_id`) come Modella Monili |
 
 ## Test
 

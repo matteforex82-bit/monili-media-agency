@@ -727,6 +727,8 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
     candidate_keys.extend(sorted(key for key in results if key.startswith("image_ai_")))
     candidate_keys.extend(sorted(key for key in results if key.startswith("image_carousel_")))
 
+    # The real photo is suggested only when its cutout looks clean (missions before the cleanup: always).
+    real_photo_check = _parse_json_loose(results.get("real_photo_check"))
     seen: set[str] = set()
     items: list[dict] = []
     for key in candidate_keys:
@@ -734,6 +736,7 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
         if not src or src in seen:
             continue
         seen.add(src)
+        is_real_photo = "real_photo" in src
         file_path = _resolve_output_relative_path(src) or (OUTPUT_DIR / src)
         available = file_path.exists() and file_path.is_file()
         quality = None
@@ -742,13 +745,19 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
                 quality = _image_quality_report(file_path)
             except Exception:
                 quality = None
+        recommended = key.startswith("image_site_") or (key in {"image_feed", "image_story_1"} and (not quality or bool(quality.get("passes_source_gate"))))
+        note = None
+        if is_real_photo and real_photo_check:
+            recommended = bool(real_photo_check.get("ok"))
+            note = "; ".join(str(issue) for issue in real_photo_check.get("issues") or []) or None
         items.append(
             {
                 "src": _relative_to_output(file_path) if available else src,
                 "available": available,
-                "recommended": key.startswith("image_site_") or (key in {"image_feed", "image_story_1"} and (not quality or bool(quality.get("passes_source_gate")))),
+                "recommended": recommended,
                 "kind": key,
                 "quality": quality,
+                "note": note,
                 "error": None if available else "File non trovato nello storage locale.",
             }
         )
@@ -1251,6 +1260,7 @@ import reel_kit  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import results_log  # noqa: E402
+from main import WORN_PHOTO_NAME  # noqa: E402
 
 MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
 MAX_REEL_PHOTOS = 3
@@ -1320,7 +1330,6 @@ def reel_config():
             for skill in skills_loader.list_skills()
         ],
         "default_recipe": reel_kit.DEFAULT_RECIPE,
-        "persona": reel_kit.load_persona(),
     }
 
 
@@ -1400,50 +1409,28 @@ def skills_reset(skill_id: str, base: bool = False):
     return item or {"id": skills_loader.normalize_id(skill_id), "deleted": True}
 
 
-@app.get("/reel/persona")
-def reel_persona_get():
-    return reel_kit.load_persona()
-
-
-@app.post("/reel/persona")
-async def reel_persona_set(description: str = Form(default=""), photo: UploadFile | None = File(default=None)):
-    reference: Path | None = None
-    if photo is not None and photo.filename:
-        content_type = (photo.content_type or "").lower().strip()
-        ext = Path(photo.filename).suffix.lower()
-        if not _is_supported_upload(content_type, ext):
-            return JSONResponse({"error": "Foto non supportata. Usa JPG, PNG, WEBP o HEIC."}, status_code=400)
-        reference = reel_kit.BRAND_ASSETS_DIR / f"persona_upload{ext if ext in ALLOWED_IMAGE_EXTENSIONS else '.jpg'}"
-        reference.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            await _save_upload(photo, reference, MAX_UPLOAD_BYTES)
-            if reference.suffix.lower() in HEIC_EXTENSIONS:
-                reference = _convert_heic_to_jpeg(reference)
-        except (ValueError, RuntimeError) as exc:
-            return JSONResponse({"error": str(exc)}, status_code=400)
-    persona = await asyncio.to_thread(reel_kit.save_persona, description or None, reference)
-    if reference is not None:
-        reference.unlink(missing_ok=True)
-    return persona
-
-
-@app.post("/reel/persona/from-keyframe")
-async def reel_persona_from_keyframe(body: dict):
-    reel_id = str(body.get("reel_id") or "")
-    shot_id = str(body.get("shot_id") or "")
-    state = reel_studio.load_state(reel_id)
-    if not state:
-        return JSONResponse({"error": "Reel non trovato"}, status_code=404)
-    shot = next((s for s in (state.get("results") or {}).get("shots", []) if s.get("id") == shot_id), None)
-    if not shot or not shot.get("keyframe"):
-        return JSONResponse({"error": "Fotogramma non trovato"}, status_code=404)
-    persona = await asyncio.to_thread(reel_kit.save_persona, None, OUTPUT_DIR / shot["keyframe"])
-    return persona
-
-
 @app.get("/reels")
 def reels_list(limit: int = 20):
     return {"items": reel_studio.list_reels(limit)}
+
+
+def _scheda_woman(run_id: str, input_dir: Path) -> tuple[str, Path | None]:
+    """La donna della Scheda pezzo dello stesso pezzo, con la sua foto indossata copiata nel Reel.
+
+    Un pezzo, una donna: come se per quel pezzo avessimo ingaggiato una modella."""
+    payload = _find_mission_payload(run_id) if run_id.strip() else None
+    results = (payload or {}).get("results") or {}
+    worn = next(
+        (OUTPUT_DIR / str(v) for k, v in results.items() if k.startswith("image_site_") and str(v).endswith(WORN_PHOTO_NAME)),
+        None,
+    )
+    reference = None
+    if worn and worn.is_file():
+        reference = input_dir / "donna.jpg"
+        reference.write_bytes(worn.read_bytes())
+    # Schede vecchie senza descrizione: basta la foto.
+    woman = str(results.get("woman") or "") or ("the woman in the reference photo, exactly as she is" if reference else "")
+    return woman, reference
 
 
 @app.post("/reel/create")
@@ -1458,6 +1445,7 @@ async def reel_create(
     text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
     recipe: str = Form(default=""),
     poster_cover: bool = Form(default=True),
+    scheda_run_id: str = Form(default=""),
 ):
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
@@ -1495,6 +1483,7 @@ async def reel_create(
             clip_paths.append(target)
     except (ValueError, RuntimeError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
+    woman, woman_reference = _scheda_woman(scheda_run_id, input_dir)
 
     state = await asyncio.to_thread(
         reel_studio.create_reel,
@@ -1509,6 +1498,9 @@ async def reel_create(
         text_model,
         recipe,
         poster_cover,
+        woman,
+        woman_reference,
+        scheda_run_id.strip() if woman or woman_reference else "",
     )
     asyncio.create_task(asyncio.to_thread(reel_studio.plan_reel, reel_id, api_key))
     return _public_reel(state)
@@ -1618,6 +1610,7 @@ def showcase_products(limit: int = 30):
                 {
                     "product_id": data["product_id"],
                     "title": data.get("product_title") or data["product_id"],
+                    "run_id": data.get("run_id", ""),
                     "created_at": data.get("created_at", ""),
                 }
             )

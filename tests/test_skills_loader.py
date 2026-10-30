@@ -7,7 +7,7 @@ def test_repo_skills_are_valid():
     skills = sk.list_skills()
     ids = [s["id"] for s in skills]
     assert ids[0] == "libera"
-    for expected in ("modella-monili", "mani-bancone", "idea-regalo", "countdown-natale"):
+    for expected in ("indossato", "mani-bancone", "idea-regalo", "countdown-natale"):
         assert expected in ids
     for skill in skills:
         assert skill["sections"].get("structure"), f"{skill['id']} senza ## Struttura"
@@ -19,10 +19,12 @@ def test_base_templates_have_placeholders():
     assert "{camera}" in sk.base_template("movimento")
     assert "{cover_text}" in sk.base_template("copertina")
     assert sk.base_template("testi")
+    assert "## Linee guida" in sk.base_template("donne")
+    assert "## Mai" in sk.base_template("divieti")
 
 
 def test_select_skill_normalizes_ids():
-    assert sk.select_skill("modella_monili") == "modella-monili"
+    assert sk.select_skill("modella_monili") == "indossato"  # vecchio nome
     assert sk.select_skill("/Tre-Modi") == "tre-modi"
     assert sk.select_skill("non-esiste") == "libera"
 

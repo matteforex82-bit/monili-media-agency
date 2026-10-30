@@ -21,8 +21,10 @@ _override = STORAGE_ROOT / "skills"
 OVERRIDE_SKILLS_DIR = (
     STORAGE_ROOT / "skills_custom" if _override.resolve() == REPO_SKILLS_DIR.resolve() else _override
 )
-BASE_NAMES = ("fotogramma", "movimento", "copertina", "testi")
+BASE_NAMES = ("fotogramma", "movimento", "copertina", "testi", "donne", "divieti")
 DEFAULT_SKILL = "libera"
+# Skill rinominate: i Reel già creati con il vecchio nome continuano a funzionare.
+RENAMED = {"modella-monili": "indossato"}
 SECTION_KEYS = {
     "struttura": "structure",
     "fotogramma": "keyframe",
@@ -38,7 +40,8 @@ class SkillError(ValueError):
 
 
 def normalize_id(skill_id: str) -> str:
-    return (skill_id or "").strip().lower().lstrip("/").replace("_", "-")
+    skill_id = (skill_id or "").strip().lower().lstrip("/").replace("_", "-")
+    return RENAMED.get(skill_id, skill_id)
 
 
 def parse_skill(text: str) -> dict:

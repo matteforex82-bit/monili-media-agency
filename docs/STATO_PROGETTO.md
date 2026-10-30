@@ -2,7 +2,7 @@
 
 File di passaggio di consegne, condiviso con Hermes. Aggiornare a ogni sessione di lavoro.
 
-**Ultimo aggiornamento:** 2026-10-27 · branch `master`
+**Ultimo aggiornamento:** 2026-10-29 · branch `master`
 
 ## Cos'è
 App per creare contenuti social de I Monili Ravenna a partire dalle foto prodotto.
@@ -29,15 +29,15 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - 40% visualizzazioni da non follower (Reel). 1.071 follower. 298 interazioni (59% sui post, da follower fedeli).
 - 627 visite profilo ma **1 tocco sull'indirizzo** → ogni contenuto chiude con invito al DM.
 - Più visti: Reel in negozio con Anastasia (690, 661), bracciale su ardesia (716), poster orecchini (627).
-- Problemi del feed: troppa AI generica (modelle diverse ogni volta), stili misti (scritte fumetto/neon),
+- Problemi del feed: troppa AI generica (modelle diverse ogni volta, troppo perfette), stili misti (scritte fumetto/neon),
   un difetto pubblicato (rettangolo nero sull'anello rubini), highlight ancora "Saldi/Vestiti estate".
-- Anastasia costava 150 €/giorno: Matteo non ha budget → **Modella Monili AI ricorrente** + mani/negozio veri.
+- Anastasia costava 150 €/giorno: Matteo non ha budget → donne AI + mani/negozio veri. Prima idea: una Modella Monili fissa; il 29/10 Matteo ha scelto invece donne diverse ma reali.
 - Orari: il grafico indica le 18 come ora meno attiva, ma ha picchi alle 3 → da verificare (fuso orario?).
 
 ## Fatto il 2026-10-23 (seconda parte)
 - Memoria brand aggiornata con l'identità reale (colorata, artigianale, boho-etnica) in `CLAUDE.md` e `main.BRAND`;
   Insights salvati in `memory/performance_log.json` (li leggono gli agenti).
-- Reel Studio: 6 ricette (`/libera`, `/modella-monili`, `/mani-bancone`, `/pietra-settimana`, `/tre-modi`,
+- Reel Studio: 6 ricette (`/libera`, `/modella-monili` (oggi `/indossato`), `/mani-bancone`, `/pietra-settimana`, `/tre-modi`,
   `/colori-ravenna`), Modella Monili persistente, copertina poster serif/crema, controllo qualità AI
   fotogramma vs foto reale con 1 rigenerazione. Testato con AI simulata.
 
@@ -65,6 +65,12 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
   Il flusso è: analisi → piano (styling + prompt) → 2 foto AI (catalogo, indossato) + foto reale ritagliata gratis → testi (SEO, WhatsApp, Google Business, caption, 3+2 hashtag).
   Si passa **da 7 a 3 chiamate di testo e da 5 a 2 immagini**; niente più post, story e carosello statici (Instagram passa dal Reel Studio). `main.py` scende da circa 1980 a circa 830 righe.
   Le missioni vecchie si aprono ancora, con la scheda "Instagram (vecchio kit)". Test: 33.
+
+## Fatto il 2026-10-29
+- **Foto del sito decise** (`docs/foto-prodotti.md`): 2 o 3 per pezzo, sempre 4:5 su fondo avorio. Pulita AI (copertina), indossata da una donna AI, foto vera ripulita solo se viene bene.
+- **Foto vera ripulita senza AI sul pezzo** (`photo_cleanup.py`): scontorno BiRefNet sul PC, fondo avorio, luce e colore. Lo Studio la spunta solo se lo scontorno è pulito, altrimenti scrive il motivo. Provata su 4 foto vere: 3 buone, 1 scartata giustamente (scopa attaccata alla giacca). Test: 52.
+- **Niente modella fissa, una donna per pezzo** (scelta di Matteo, precisata il 30/10): la Scheda pezzo sceglie la donna e il Reel fatto con "Fai il Reel di questo pezzo" usa la stessa (descrizione + foto indossata come riferimento del viso); da un pezzo all'altro cambia. Belle ed eleganti ma reali; la donna la **inventa l'AI** (linea guida in `skills/_base/donne.md`), dentro un Reel resta la stessa. Tolti il pannello "Modella Monili" e la foto di riferimento; la skill `/modella-monili` ora si chiama `/indossato` (il vecchio nome funziona ancora).
+- **Libertà creativa + divieti** (30/10, scelta di Matteo: niente elenchi che rendono tutto uguale): l'AI inventa luoghi, donne e pose adatti allo stile del negozio e riceve donne e scene recenti da non ripetere. Unico limite: `skills/_base/divieti.md` (pagina Skill → "Mai nei contenuti"), in tutti i prompt di foto e Reel. Test: 59.
 
 ## Prossimi passi
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.

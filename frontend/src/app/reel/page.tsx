@@ -79,13 +79,6 @@ interface QaResult {
   checked?: boolean;
 }
 
-interface Persona {
-  name: string;
-  description: string;
-  reference_image: string | null;
-  updated_at: string | null;
-}
-
 interface Recipe {
   id: string;
   label: string;
@@ -112,6 +105,7 @@ interface ReelState {
   logs: ReelLog[];
   error: string | null;
   showcase?: { reel_id: string; product_id?: string | null; sent_at: string };
+  scheda_run_id?: string | null;
   results: {
     final_video?: string;
     cover?: string;
@@ -140,7 +134,6 @@ interface ReelConfig {
   keyframe_models: string[];
   default_keyframe_model: string;
   openai_direct_configured?: boolean;
-  persona: Persona;
 }
 
 interface ReelListItem {
@@ -311,7 +304,8 @@ export default function ReelStudioPage() {
   const [recipe, setRecipe] = useState('libera');
   const [keyframeModel, setKeyframeModel] = useState('');
   const [posterCover, setPosterCover] = useState(true);
-  const [persona, setPersona] = useState<Persona | null>(null);
+  // Il pezzo della Scheda da cui parte il Reel (/reel?pezzo=<run_id>): stessa donna della foto indossata.
+  const [piece, setPiece] = useState<Piece | null>(null);
 
   const photoPreviews = useMemo(() => photos.map((file) => URL.createObjectURL(file)), [photos]);
   useEffect(() => () => photoPreviews.forEach((url) => URL.revokeObjectURL(url)), [photoPreviews]);
@@ -342,6 +336,15 @@ export default function ReelStudioPage() {
     return data;
   }, []);
 
+  useEffect(() => {
+    const runId = new URLSearchParams(window.location.search).get('pezzo');
+    if (!runId) return;
+    fetch(`${API_URL}/missions/${encodeURIComponent(runId)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setPiece(pieceFromMission(runId, data.results || {})))
+      .catch(() => setPiece(null));
+  }, []);
+
   // avvio: config + recupero reel attivo
   useEffect(() => {
     (async () => {
@@ -353,7 +356,6 @@ export default function ReelStudioPage() {
           setVideoModel(cfg.default_video_model);
           setRecipe(cfg.default_recipe || 'libera');
           setKeyframeModel(cfg.default_keyframe_model || '');
-          setPersona(cfg.persona || null);
         } else {
           setError('Backend raggiungibile ma Reel Studio non attivo: aggiorna il backend.');
         }
@@ -432,6 +434,7 @@ export default function ReelStudioPage() {
       form.append('recipe', recipe);
       if (keyframeModel) form.append('keyframe_model', keyframeModel);
       form.append('poster_cover', posterCover ? 'true' : 'false');
+      if (piece) form.append('scheda_run_id', piece.runId);
       const res = await fetch(`${API_URL}/reel/create`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(await readError(res));
       const data: ReelState = await res.json();
@@ -591,6 +594,8 @@ export default function ReelStudioPage() {
               mescola con le scene generate. Senza clip, fa tutto l&apos;AI.
             </p>
 
+            {piece && <PieceBanner piece={piece} onClear={() => setPiece(null)} />}
+
             <div className="rs-grid-2">
               <Field label={`Foto prodotto (${photos.length}/3)`}>
                 <input
@@ -654,8 +659,8 @@ export default function ReelStudioPage() {
               </div>
             </Field>
 
-            {config?.recipes.find((item) => item.id === recipe)?.uses_model && (
-              <PersonaPanel persona={persona} onSaved={setPersona} />
+            {!piece && config?.recipes.find((item) => item.id === recipe)?.uses_model && (
+              <WomanNote />
             )}
 
             <div className="rs-grid-3">
@@ -738,7 +743,7 @@ export default function ReelStudioPage() {
 
             {/* risultato */}
             {reel.status === 'done' && reel.results.final_video && (
-              <ResultView reel={reel} onPersona={setPersona} onSent={() => void loadReel(reel.id)} />
+              <ResultView reel={reel} onSent={() => void loadReel(reel.id)} />
             )}
 
             {/* storyboard */}
@@ -915,7 +920,7 @@ function ShotEditor({
           {shot.source === 'ai' && shot.keyframe_mode === 'ai' && (
             <label className="rs-check">
               <input type="checkbox" checked={!!shot.use_model} onChange={(e) => onChange({ use_model: e.target.checked })} />
-              <span>Con la Modella Monili</span>
+              <span>Con la donna del Reel</span>
             </label>
           )}
           {shot.source === 'ai' && (
@@ -1035,7 +1040,7 @@ function EstimatePanel({
 const SHOWCASE_REVIEW_URL = process.env.NEXT_PUBLIC_SHOWCASE_REVIEW_URL || '';
 
 function ShowcaseReelPanel({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
-  const [products, setProducts] = useState<{ product_id: string; title: string }[]>([]);
+  const [products, setProducts] = useState<{ product_id: string; title: string; run_id?: string }[]>([]);
   const [productId, setProductId] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -1044,9 +1049,15 @@ function ShowcaseReelPanel({ reel, onSent }: { reel: ReelState; onSent: () => vo
   useEffect(() => {
     fetch(`${API_URL}/showcase/products`)
       .then((res) => (res.ok ? res.json() : { items: [] }))
-      .then((data) => setProducts(Array.isArray(data.items) ? data.items : []))
+      .then((data) => {
+        const items = Array.isArray(data.items) ? data.items : [];
+        setProducts(items);
+        // Reel partito da una Scheda pezzo: il pezzo è già quello.
+        const own = items.find((item: { run_id?: string }) => reel.scheda_run_id && item.run_id === reel.scheda_run_id);
+        if (own) setProductId(own.product_id);
+      })
       .catch(() => setProducts([]));
-  }, []);
+  }, [reel.scheda_run_id]);
 
   const send = async () => {
     setSending(true);
@@ -1102,7 +1113,7 @@ function ShowcaseReelPanel({ reel, onSent }: { reel: ReelState; onSent: () => vo
 }
 
 // ── RISULTATO ───────────────────────────────────────────────────────────────
-function ResultView({ reel, onPersona, onSent }: { reel: ReelState; onPersona: (p: Persona) => void; onSent: () => void }) {
+function ResultView({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
   const results = reel.results;
   const copy = results.copy || {};
   const [saving, setSaving] = useState('');
@@ -1163,7 +1174,6 @@ function ResultView({ reel, onPersona, onSent }: { reel: ReelState; onPersona: (
               </button>
             ))}
           </div>
-          <ModelPicker reel={reel} onPersona={onPersona} />
         </div>
 
         <div className="rs-copy">
@@ -1209,87 +1219,43 @@ function ResultView({ reel, onPersona, onSent }: { reel: ReelState; onPersona: (
   );
 }
 
-// ── MODELLA MONILI ──────────────────────────────────────────────────────────
-function PersonaPanel({ persona, onSaved }: { persona: Persona | null; onSaved: (p: Persona) => void }) {
-  const [description, setDescription] = useState(persona?.description || '');
-  const [file, setFile] = useState<File | null>(null);
-  const [state, setState] = useState('');
-  useEffect(() => setDescription(persona?.description || ''), [persona?.description]);
-
-  const save = async () => {
-    setState('Salvo...');
-    try {
-      const form = new FormData();
-      form.append('description', description);
-      if (file) form.append('photo', file);
-      const res = await fetch(`${API_URL}/reel/persona`, { method: 'POST', body: form });
-      if (!res.ok) throw new Error(await readError(res));
-      onSaved(await res.json());
-      setFile(null);
-      setState('Salvata ✓');
-    } catch (exc) {
-      setState(exc instanceof Error ? exc.message : String(exc));
-    }
-  };
-
+// ── DONNE ───────────────────────────────────────────────────────────────────
+function WomanNote() {
   return (
-    <div className="rs-persona">
-      <div className="rs-persona-head">
-        {persona?.reference_image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={`${fileUrl(persona.reference_image)}?v=${encodeURIComponent(persona.updated_at || '')}`} alt="Modella Monili" />
-        ) : (
-          <div className="rs-persona-empty">Nessuna foto</div>
-        )}
-        <div>
-          <div className="rs-persona-title">La Modella Monili</div>
-          <p className="rs-muted rs-small">
-            Sempre la stessa donna in ogni video. Descrivila una volta (in inglese funziona meglio) e, appena hai un
-            fotogramma che ti piace, usalo come foto di riferimento.
-          </p>
-        </div>
-      </div>
-      <textarea className="brief-area" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-      <div className="rs-actions">
-        <label className="btn-secondary rs-small-btn rs-file-btn">
-          {file ? file.name : persona?.reference_image ? 'Cambia foto di riferimento' : 'Carica foto di riferimento'}
-          <input type="file" accept="image/*,.heic,.heif" hidden onChange={(e) => setFile(e.target.files?.[0] || null)} />
-        </label>
-        <button type="button" className="btn-secondary rs-small-btn" onClick={save}>Salva modella</button>
-        {state && <span className="rs-muted rs-small">{state}</span>}
-      </div>
+    <div className="rs-women rs-small">
+      <strong>Chi lo indossa:</strong> la inventa l&apos;AI per questo pezzo, reale ed elegante, e resta lei in tutto il Reel.
+      Se il pezzo ha già la Scheda, parti da lì (&quot;Fai il Reel di questo pezzo&quot;): così è la stessa donna della foto
+      indossata. Le cose da non mostrare mai le scrivi in <a href="/skills">Skill → Mai nei contenuti</a>.
     </div>
   );
 }
 
-function ModelPicker({ reel, onPersona }: { reel: ReelState; onPersona: (p: Persona) => void }) {
-  const [saved, setSaved] = useState('');
-  const modelShots = (reel.results.shots || []).filter(
-    (item) => item.keyframe && reel.storyboard?.shots.find((s) => s.id === item.id)?.use_model,
-  );
-  if (!modelShots.length) return null;
-  const choose = async (shotId: string) => {
-    const res = await fetch(`${API_URL}/reel/persona/from-keyframe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reel_id: reel.id, shot_id: shotId }),
-    });
-    if (res.ok) {
-      onPersona(await res.json());
-      setSaved(shotId);
-    }
-  };
+interface Piece {
+  runId: string;
+  title: string;
+  worn?: string;
+}
+
+function pieceFromMission(runId: string, results: Record<string, unknown>): Piece {
+  let title = 'il pezzo della scheda';
+  try {
+    title = JSON.parse(String(results.publish_pack_json || '{}')).product_name || title;
+  } catch { /* scheda vecchia */ }
+  const worn = Object.entries(results).find(([key, value]) => key.startsWith('image_site_') && String(value).endsWith('site_02_worn.jpg'));
+  return { runId, title, worn: worn ? String(worn[1]) : undefined };
+}
+
+function PieceBanner({ piece, onClear }: { piece: Piece; onClear: () => void }) {
   return (
-    <div className="rs-copy-block">
-      <div className="rs-copy-head"><span>Ti piace questa modella? Rendila ufficiale</span></div>
-      <div className="rs-covers">
-        {modelShots.map((item) => (
-          <button key={item.id} type="button" className="rs-cover" onClick={() => choose(item.id)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={fileUrl(item.keyframe!)} alt={item.id} />
-            <span>{saved === item.id ? 'Modella Monili ✓' : 'Usa come Modella Monili'}</span>
-          </button>
-        ))}
+    <div className="rs-women rs-small rs-piece">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {piece.worn && <img src={fileUrl(piece.worn)} alt="la donna di questo pezzo" />}
+      <div>
+        <strong>Reel di: {piece.title}</strong>
+        <br />
+        La donna è la stessa della foto indossata della scheda: sembrerà la modella scelta per questo pezzo.
+        Carica comunque la foto del prodotto.{' '}
+        <button type="button" className="btn-secondary rs-small-btn" onClick={onClear}>È un altro pezzo</button>
       </div>
     </div>
   );

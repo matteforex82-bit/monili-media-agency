@@ -1,16 +1,14 @@
 """
-reel_kit.py - ricette, Modella Monili, copertina poster e controllo qualita per Reel Studio.
+reel_kit.py - ricette, copertina poster e controllo qualita per Reel Studio.
 
 - Skill: ricette editoriali modificabili in skills/*.md (vedi skills_loader.py).
-- Modella Monili: un solo personaggio AI ricorrente (descrizione + foto di riferimento).
+- Donne: una diversa in ogni Reel, vedi casting.py e skills/_base/donne.md.
 - Copertina poster: stile editoriale serif su fondo crema, il piu riuscito del feed.
 - QA: confronto visivo fotogramma AI vs foto reale prima di animarlo.
 """
 
-import json
 import os
 import shutil
-from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -18,8 +16,6 @@ import requests
 import skills_loader as skills
 
 from main import (
-    MEMORY_ROOT,
-    OUTPUT_ROOT,
     encode_image,
     extract_data_urls_from_response,
     extract_json_object,
@@ -27,23 +23,9 @@ from main import (
     save_data_url_image,
 )
 
-BRAND_ASSETS_DIR = OUTPUT_ROOT / "brand"
-PERSONA_FILE = MEMORY_ROOT / "modella_monili.json"
-PERSONA_IMAGE = BRAND_ASSETS_DIR / "modella_monili.jpg"
 QA_MIN_SCORE = int(os.environ.get("REEL_QA_MIN_SCORE", "8"))
 POSTER_USD = 0.12
 QA_USD = 0.02
-
-DEFAULT_PERSONA = {
-    "name": "Modella Monili",
-    "description": (
-        "Italian woman around 35 years old, dark brown shoulder-length wavy hair, warm brown eyes, "
-        "natural olive skin with real texture, light natural makeup, warm genuine smile, "
-        "elegant boho style, natural not over-retouched look"
-    ),
-    "reference_image": None,
-    "updated_at": None,
-}
 
 # Le ricette ("skill") sono file Markdown modificabili in skills/: vedi skills_loader.py.
 DEFAULT_RECIPE = skills.DEFAULT_SKILL
@@ -59,41 +41,6 @@ def recipe_prompt_block(recipe_id: str) -> str:
     if not skill or not structure:
         return "RICETTA: regia libera - scegli tu la struttura migliore."
     return f"RICETTA OBBLIGATORIA \"{skill['label']}\" - segui questa struttura:\n{structure}"
-
-
-# ── MODELLA MONILI ───────────────────────────────────────────────────────────
-
-def load_persona() -> dict:
-    try:
-        data = json.loads(PERSONA_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        data = {}
-    persona = {**DEFAULT_PERSONA, **{k: v for k, v in data.items() if v is not None}}
-    if persona.get("reference_image") and not (OUTPUT_ROOT / persona["reference_image"]).exists():
-        persona["reference_image"] = None
-    return persona
-
-
-def save_persona(description: str | None = None, reference_source: Path | None = None) -> dict:
-    persona = load_persona()
-    if description is not None and description.strip():
-        persona["description"] = description.strip()[:800]
-    if reference_source is not None:
-        from PIL import Image, ImageOps
-
-        BRAND_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-        with Image.open(reference_source) as img:
-            ImageOps.exif_transpose(img).convert("RGB").save(PERSONA_IMAGE, "JPEG", quality=90)
-        persona["reference_image"] = PERSONA_IMAGE.relative_to(OUTPUT_ROOT).as_posix()
-    persona["updated_at"] = datetime.now().isoformat()
-    MEMORY_ROOT.mkdir(parents=True, exist_ok=True)
-    PERSONA_FILE.write_text(json.dumps(persona, indent=2, ensure_ascii=False), encoding="utf-8")
-    return persona
-
-
-def persona_reference_path() -> Path | None:
-    ref = load_persona().get("reference_image")
-    return OUTPUT_ROOT / ref if ref else None
 
 
 # ── OPENROUTER MULTI-IMMAGINE ────────────────────────────────────────────────

@@ -10,7 +10,7 @@ Ogni file `.md` in questa cartella è una **skill**: una ricetta che l'app usa p
 label: Nome mostrato nell'app
 description: una riga che spiega a cosa serve
 formats: reel, story          # formati in cui si può usare
-uses_model: true              # true = compare la Modella Monili
+uses_model: true              # true = compare una donna (una per pezzo, vedi _base/donne.md)
 default_seconds: 12           # durata suggerita
 ---
 ## Struttura        → la scaletta che il regista AI deve seguire (inquadratura per inquadratura)
@@ -29,6 +29,10 @@ Le sezioni sono tutte facoltative tranne **Struttura**. Il nome del file diventa
 - `movimento.md` — il modello di prompt per l'animazione Higgsfield
 - `copertina.md` — il modello della copertina poster
 - `testi.md` — le regole per caption, hashtag e chiusure
+- `donne.md` — la linea guida per la donna che indossa i pezzi: la inventa l'AI, una per pezzo, reale ed elegante.
+  Vale per i Reel e per la foto indossata della Scheda pezzo
+- `divieti.md` — "Mai nei contenuti": le cose da non mostrare mai, in foto e Reel. È l'unico posto dove si mettono
+  limiti; luoghi, donne e pose restano liberi, per non diventare monotoni
 
 Nei modelli le parole tra graffe (es. `{scene}`) vengono riempite dall'app: non cancellarle.
 

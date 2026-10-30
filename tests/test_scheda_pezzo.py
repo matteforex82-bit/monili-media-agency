@@ -18,6 +18,7 @@ Anello in metallo argentato con pietra cabochon viola, da I Monili Ravenna.
 
 PLAN = {
     "styling": "Con un maglione color cammello.",
+    "woman": "A woman in her fifties with short grey hair and a linen dress.",
     "site_prompts": {"clean": "Ring on warm ivory background.", "worn": "Ring worn on a hand."},
 }
 
@@ -82,6 +83,11 @@ def test_mission_makes_only_what_the_site_needs(tmp_path, monkeypatch, capsys):
     pack = json.loads(results["publish_pack_json"])
     assert pack["hashtags"] == ["#imoniliravenna", "#ravenna", "#romagnastyle", "#anello", "#bijoux"]
     assert pack["selected_whatsapp"] == PACK["whatsapp_share"]
+    clean, worn = (next(p for p in image_calls if PLAN["site_prompts"][k] in p) for k in ("clean", "worn"))
+    assert "WOMAN" in worn and "WOMAN" not in clean
+    assert results["woman"] == PLAN["woman"] and PLAN["woman"] in worn  # la donna la inventa il piano, una per pezzo
+    assert "NEVER SHOW" in worn and "NEVER SHOW" in clean
+    assert "LA DONNA DI QUESTO PEZZO: la inventi tu" in text_calls[1]
 
 
 def test_new_mission_builds_the_site_card(tmp_path, monkeypatch, capsys):
@@ -97,6 +103,34 @@ def test_new_mission_builds_the_site_card(tmp_path, monkeypatch, capsys):
     assert len(fiche["images"]) == 2 and fiche["state"] == "disp"
 
 
+def _real_photo_candidate(results: dict) -> dict:
+    return next(item for item in server._showcase_image_candidates(results) if "real_photo" in item["src"])
+
+
+def test_real_photo_without_cutout_is_cropped_but_not_suggested(tmp_path, monkeypatch, capsys):
+    # Nei test il modello di scontorno non c'è: resta il ritaglio, non spuntato, con il motivo.
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    check = json.loads(results["real_photo_check"])
+    assert check["cleaned"] is False and check["ok"] is False
+    real = _real_photo_candidate(results)
+    assert real["recommended"] is False and "solo il ritaglio" in real["note"]
+    ai = [item for item in server._showcase_image_candidates(results) if "real_photo" not in item["src"]]
+    assert len(ai) == 2 and all(item["recommended"] for item in ai)
+    assert "Foto reale non spuntata" in results["decision_summary"]
+
+
+def test_clean_real_photo_is_suggested(tmp_path, monkeypatch, capsys):
+    import photo_cleanup
+
+    monkeypatch.setattr(
+        photo_cleanup, "clean_photo", lambda photo, model_path, notify=None: (Image.new("RGB", (1200, 1500), (250, 247, 240)), [])
+    )
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    assert json.loads(results["real_photo_check"]) == {"cleaned": True, "ok": True, "issues": []}
+    real = _real_photo_candidate(results)
+    assert real["recommended"] is True and real["note"] is None
+
+
 def test_scheda_plan_falls_back_on_bad_json(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "generate_text_with_openrouter", lambda *a, **k: "[Errore API: timeout]")
     plan = main.agent_scheda_plan("m", "k", tmp_path / "x.jpg", ANALISI, "")
@@ -107,3 +141,47 @@ def test_publish_pack_fallback_keeps_legacy_keys():
     pack = main.normalize_publish_pack({})
     assert pack["hashtags"] == main.FIXED_HASHTAGS
     assert pack["selected_caption"] == pack["caption"] and pack["selected_gmb_text"] == pack["gmb_text"]
+
+
+def test_reel_of_this_piece_keeps_the_same_woman(tmp_path, monkeypatch, capsys):
+    """Un pezzo, una donna: il Reel fatto dalla scheda usa la stessa donna e la sua foto indossata."""
+    import reel_kit as kit
+    import reel_studio as rs
+
+    results, _, image_calls = _run(tmp_path, monkeypatch, capsys)
+    assert results["woman"] in next(p for p in image_calls if "WOMAN" in p)
+    worn = next(v for k, v in results.items() if k.startswith("image_site_") and v.endswith(main.WORN_PHOTO_NAME))
+
+    reel_id = rs.new_reel_id()
+    input_dir = rs.reel_dir(reel_id) / "input"
+    input_dir.mkdir(parents=True)
+    photo = input_dir / "photo_1.jpg"
+    _striped_image(1200, 1500).save(photo, "JPEG")
+    woman, reference = server._scheda_woman(results["run_id"], input_dir)
+    assert woman == results["woman"]
+    assert reference.read_bytes() == (main.OUTPUT_ROOT / worn).read_bytes()
+
+    state = rs.create_reel(
+        reel_id, [photo], [], "", "reel", 12, "kling-3-std", "", "gpt",
+        recipe="indossato", woman=woman, woman_reference=reference, scheda_run_id=results["run_id"],
+    )
+    state["storyboard"] = rs.normalize_storyboard(state, {"shots": [{"keyframe_mode": "ai", "use_model": True, "duration": 3}]})
+    seen = []
+
+    def fake_img(api_key, model, prompt, images, destination, aspect_ratio="9:16"):
+        seen.append((prompt, [p.name for p in images]))
+        destination.write_bytes(photo.read_bytes())
+        return destination
+
+    monkeypatch.setattr(kit, "generate_image_multi", fake_img)
+    monkeypatch.setattr(kit, "check_keyframe", lambda *a, **k: {"ok": True, "score": 9, "issues": "", "checked": True})
+    out = rs.reel_dir(reel_id) / "shots"
+    out.mkdir(parents=True, exist_ok=True)
+    rs._make_keyframes(state, "k", out)
+    prompt, images = seen[0]
+    assert woman in prompt and "donna.jpg" in images
+
+
+def test_reel_without_a_piece_gets_a_new_woman(tmp_path):
+    woman, reference = server._scheda_woman("", tmp_path)
+    assert woman == "" and reference is None

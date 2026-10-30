@@ -6,7 +6,7 @@ uses_model: true
 default_seconds: 10
 ---
 ## Struttura
-1. PRIMA (2-3s): Modella Monili con look semplice e neutro (maglia, jeans), testo "Prima..." (use_model true).
+1. PRIMA (2-3s): la donna del Reel con look semplice e neutro (maglia, jeans), testo "Prima..." (use_model true).
 2. DOPO (3-4s): stessa inquadratura, stessa posa, ma con il gioiello/accessorio Monili (use_model true),
    transizione zoom o stacco netto sul movimento.
 3. DETTAGLIO (2s): macro dalla foto reale (keyframe_mode original_photo, end_on_product true).

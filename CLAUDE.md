@@ -22,7 +22,8 @@ qualsiasi file in questa directory senza chiedere conferma.
 - **Priorità**: Story video e Reel → `Reel Studio` (`/reel`). Insights ago-ott 2026: Storie 62% delle visualizzazioni, Reel 34%, post statici 3,7%
 - **Reel** = canale per gente nuova (40% visualizzazioni da non follower); **Storie** = clienti che già ci seguono
 - **Ogni contenuto chiude con un invito concreto**: DM ("scrivici, te lo mettiamo da parte") o passare in negozio. Oggi: 627 visite profilo ma 1 solo tocco sull'indirizzo
-- **Volto**: modella AI ricorrente ("Modella Monili", sempre la stessa) + mani e negozio veri. Il gioiello parte sempre dalla foto reale. Etichetta "Info sull'AI" su Instagram per contenuti AI realistici
+- **Volto**: niente modella fissa, ma **una donna per pezzo** (stessa nella Scheda e nei Reel di quel pezzo, mai due donne con lo stesso pezzo; cambia da un pezzo all'altro). La donna la inventa l'AI per il pezzo: bella ed elegante ma reale, non una modella perfetta. Più mani e negozio veri. Il gioiello parte sempre dalla foto reale. Etichetta "Info sull'AI" su Instagram per contenuti AI realistici
+- **Creatività**: l'AI resta libera su luoghi, donne, pose e abiti adatti allo stile del negozio, e non ripete donne e scene recenti. Si fissano solo i divieti, in `skills/_base/divieti.md` (pagina Skill → "Mai nei contenuti"): niente elenchi che rendono i contenuti tutti uguali
 - **Frequenza**: 1-2 post/settimana — qualità > quantità
 - **Orari**: Martedì / Giovedì / Sabato — fascia oraria DA VERIFICARE (il grafico Insights indica le 18 come ora meno attiva, possibile fuso orario diverso)
 - **Hashtag fissi** (sempre presenti): #imoniliravenna #ravenna #romagnastyle
@@ -30,9 +31,9 @@ qualsiasi file in questa directory senza chiedere conferma.
 ## Visual Identity
 - Sfondi: crema/neutri caldi che fanno risaltare i colori dei prodotti; accenti terracotta e oro
 - Testi grafici: stile editoriale (serif elegante su fondo crema, es. "Non sono semplici orecchini.") — sono i post più belli del feed. Mai scritte fumetto/neon
-- Stile foto/video: luce naturale calda, autentico — no filtri esagerati, no modelle diverse ogni volta
+- Stile foto/video: luce naturale calda, autentico — no filtri esagerati, no faccia "perfetta" da AI
 - Stile Reel: dinamico ma elegante, no effetti pacchiani
-- Rubriche: Modella Monili, Mani al bancone, Pietra della settimana, 3 modi di indossarlo, I colori di Ravenna (mosaico)
+- Rubriche: Indossato, Mani al bancone, Pietra della settimana, 3 modi di indossarlo, I colori di Ravenna (mosaico)
 
 ## Categorie Prodotto
 - **Bijoux**: anelli, orecchini (cerchio, pendente, lobo), collane, bracciali, cavigliere

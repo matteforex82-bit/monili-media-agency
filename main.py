@@ -57,6 +57,9 @@ def resolve_storage_root() -> Path:
 STORAGE_ROOT = resolve_storage_root()
 OUTPUT_ROOT = STORAGE_ROOT / "output"
 MEMORY_ROOT = STORAGE_ROOT / "memory"
+CUTOUT_MODEL_PATH = Path(
+    os.environ.get("CUTOUT_MODEL_PATH", "").strip() or STORAGE_ROOT / "models" / "birefnet-general.onnx"
+)
 
 
 def log(agent: str, msg: str, kind: str = "info"):
@@ -410,13 +413,14 @@ Rispondi in italiano, formato markdown."""
 def scheda_plan_defaults() -> dict:
     return {
         "styling": "",
+        "woman": "",
         "site_prompts": {
             "clean": (
                 "Clean premium catalog photo of the product, centered on a warm ivory background, "
                 "soft natural light, generous negative space, no model."
             ),
             "worn": (
-                "The product worn naturally by a realistic adult woman, warm natural boutique light, "
+                "The product worn naturally by the woman described below, warm natural boutique light, "
                 "correct scale and fit, product in sharp focus."
             ),
         },
@@ -426,6 +430,8 @@ def scheda_plan_defaults() -> dict:
 def agent_scheda_plan(text_model: str, api_key: str, foto: Path, analisi: str, brief: str) -> dict:
     """One call for styling notes and the two site photo prompts (it replaces four agents)."""
     log("PIANO SCHEDA", "Styling e prompt delle foto sito (catalogo + indossato)...")
+    import casting
+
     prompt = f"""Sei l'art director del sito vetrina di I Monili Ravenna. Devi restituire SOLO un JSON valido.
 {BRAND}
 Knowledge prompt immagine:
@@ -434,16 +440,23 @@ Knowledge prompt immagine:
 Analisi prodotto: {analisi[:1400]}
 Brief utente: {brief if brief else "Nessun brief"}
 
+LA DONNA DI QUESTO PEZZO: la inventi tu. {casting.woman_guide()}
+Sara lei anche nei Reel di questo pezzo, come una modella ingaggiata per lui.
+{casting.avoid_block("DONNE GIA USATE DI RECENTE", casting.recent_women())}
+COSE DA NON MOSTRARE MAI: {"; ".join(casting.never_show()) or "nessuna"}
+
 JSON esatto:
 {{
   "styling": "2-3 frasi in italiano: come si indossa e con cosa abbinarlo",
+  "woman": "in inglese, 1-2 frasi: eta, corporatura, viso, capelli e stile della donna che inventi per questo pezzo",
   "site_prompts": {{
     "clean": "prompt in inglese: clean product catalog photo, warm ivory background, no model, product centered, generous negative space",
-    "worn": "prompt in inglese: product worn naturally by a realistic adult woman (hand/ear/neck/body depending on the product), correct scale and fit, warm natural boutique light"
+    "worn": "prompt in inglese: product worn naturally by the woman (hand/ear/neck/body depending on the product), correct scale and fit; luogo, posa, luce e abiti li inventi tu, adatti al pezzo e allo stile del negozio"
   }}
 }}
 
 Regole per i prompt:
+- Nel prompt "worn" sii creativo su luogo e posa, ma la donna descrivila solo nel campo "woman": lo Studio la aggiunge al prompt.
 - La foto caricata e la fonte di verita: forma, colore, materiale, proporzioni, pietre e dettagli identici.
 - Fotorealistico, pulito, nitido, composizione sicura per card 4:5.
 - Niente testo leggibile, loghi, watermark, telefoni, UI, collage o pannelli multipli.
@@ -455,6 +468,7 @@ Regole per i prompt:
         log("PIANO SCHEDA", "JSON non valido, uso prompt standard", "warn")
         return plan
     plan["styling"] = str(parsed.get("styling", "")).strip()
+    plan["woman"] = " ".join(str(parsed.get("woman", "")).split())[:600]
     prompts = parsed.get("site_prompts") if isinstance(parsed.get("site_prompts"), dict) else {}
     for key in ("clean", "worn"):
         value = str(prompts.get(key, "")).strip()
@@ -464,9 +478,10 @@ Regole per i prompt:
     return plan
 
 
+WORN_PHOTO_NAME = "site_02_worn.jpg"
 SITE_IMAGE_SPECS = [
     ("clean", "site_product_clean_source.png", "site_01_product_clean.jpg"),
-    ("worn", "site_worn_source.png", "site_02_worn.jpg"),
+    ("worn", "site_worn_source.png", WORN_PHOTO_NAME),
 ]
 REAL_PHOTO_NAME = "site_03_real_photo.jpg"
 
@@ -477,12 +492,16 @@ def generate_showcase_images(
     selected_model: str,
     foto: Path,
     site_prompts: dict,
+    woman: str = "",
 ) -> list[str]:
     if not api_key:
         log("SITO VISUAL", "OPENROUTER_API_KEY mancante - salto immagini sito dedicate", "warn")
         return []
 
+    import casting
+
     model = select_openrouter_image_model(selected_model)
+    never = casting.never_line()
     source_dir = output_dir / "07_SHOWCASE" / "sources"
     final_dir = output_dir / "07_SHOWCASE"
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -494,6 +513,8 @@ def generate_showcase_images(
         if not prompt:
             log("SITO VISUAL", f"Prompt mancante: {key}", "warn")
             continue
+        if key == "worn" and woman:
+            prompt = f"{prompt}\nWOMAN (this replaces any other description of her): {woman}"
         try:
             log("SITO VISUAL", f"Generazione foto sito {index}/{len(SITE_IMAGE_SPECS)}", "data")
             controlled = f"""{prompt}
@@ -501,7 +522,8 @@ def generate_showcase_images(
 Use the uploaded reference photo as source-of-truth for the product.
 Preserve exact product shape, color, material, proportions, stones and distinctive details.
 Create a single website-ready product photograph, composed safely for 4:5 product cards.
-No text, no logos, no watermark, no phone screens, no fake UI."""
+No text, no logos, no watermark, no phone screens, no fake UI.
+{never}"""
             data_urls = generate_image_with_openrouter(
                 api_key,
                 model,
@@ -527,13 +549,33 @@ No text, no logos, no watermark, no phone screens, no fake UI."""
     return generated
 
 
-def create_real_photo_image(output_dir: Path, source_path: Path) -> str:
-    """The real photo, cropped 4:5 locally: free, and the piece always starts from it."""
+def create_real_photo_image(output_dir: Path, source_path: Path) -> tuple[str, dict]:
+    """The real photo cut out, with light fixed, on the ivory 4:5 background (free, done on the PC).
+
+    The piece is never redrawn by AI. If the cleanup fails, the plain 4:5 crop is kept,
+    and in both cases the photo is suggested for the site only when the cutout looks clean."""
     final_dir = output_dir / "07_SHOWCASE"
     final_dir.mkdir(parents=True, exist_ok=True)
-    export_ratio_jpeg(source_path, final_dir / REAL_PHOTO_NAME, (1200, 1500), mode="fit", target_kb=420)
-    log("SITO VISUAL", "Foto reale pronta per il sito (4:5)", "success")
-    return f"{output_dir.name}/07_SHOWCASE/{REAL_PHOTO_NAME}"
+    destination = final_dir / REAL_PHOTO_NAME
+    try:
+        import photo_cleanup
+
+        with Image.open(source_path) as source:
+            photo = ImageOps.exif_transpose(source).convert("RGB")
+        cleaned, issues = photo_cleanup.clean_photo(
+            photo, CUTOUT_MODEL_PATH, notify=lambda msg: log("SITO VISUAL", msg, "data")
+        )
+        save_jpeg_budget(cleaned, destination, target_kb=420)
+        check = {"cleaned": True, "ok": not issues, "issues": issues}
+        if issues:
+            log("SITO VISUAL", f"Foto reale ripulita ma non suggerita: {issues[0]}", "warn")
+        else:
+            log("SITO VISUAL", "Foto reale ripulita: fondo avorio, luce e colore sistemati", "success")
+    except Exception as e:
+        export_ratio_jpeg(source_path, destination, (1200, 1500), mode="fit", target_kb=420)
+        check = {"cleaned": False, "ok": False, "issues": [f"Foto reale non ripulita ({e}): c'è solo il ritaglio"]}
+        log("SITO VISUAL", check["issues"][0], "warn")
+    return f"{output_dir.name}/07_SHOWCASE/{REAL_PHOTO_NAME}", check
 
 
 def image_file_report(relative_path: str) -> dict:
@@ -555,7 +597,7 @@ def image_file_report(relative_path: str) -> dict:
         return {"src": relative_path, "ok": False, "reason": str(exc)}
 
 
-def build_decision_summary(publish_pack: dict, ai_site_images: list[str]) -> str:
+def build_decision_summary(publish_pack: dict, ai_site_images: list[str], real_photo_check: dict | None = None) -> str:
     lines = [
         "COSA FARE ORA",
         "1. Scegli le foto, metti il prezzo e premi \"Pubblica sul sito vetrina\".",
@@ -564,7 +606,10 @@ def build_decision_summary(publish_pack: dict, ai_site_images: list[str]) -> str
         "4. Per Instagram fai il Reel o la Storia di questo pezzo nel Reel Studio.",
     ]
     if not ai_site_images:
-        lines.append("Foto AI non riuscite: per il sito c'è la foto reale ritagliata.")
+        lines.append("Foto AI non riuscite: per il sito c'è solo la foto reale.")
+    if real_photo_check and not real_photo_check.get("ok"):
+        issue = (real_photo_check.get("issues") or ["da controllare"])[0]
+        lines.append(f"Foto reale non spuntata: {issue}. Guardala prima di aggiungerla.")
     whatsapp = str(publish_pack.get("whatsapp_share", "")).strip()
     if whatsapp:
         lines.append(f"WhatsApp: {whatsapp[:180]}")
@@ -698,6 +743,7 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     analisi = ""
     plan = scheda_plan_defaults()
     ai_site_images: list[str] = []
+    woman = ""
     publish_pack: dict = {}
     publish_pack_md = ""
 
@@ -721,12 +767,18 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         log("PIANO SCHEDA", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
     try:
-        ai_site_images = generate_showcase_images(output_dir, api_key, selected_image_model, foto, plan["site_prompts"])
+        import casting
+
+        woman = plan.get("woman") or casting.FALLBACK_WOMAN
+        log("SITO VISUAL", f"La donna di questo pezzo: {woman}", "data")
+        ai_site_images = generate_showcase_images(output_dir, api_key, selected_image_model, foto, plan["site_prompts"], woman)
     except Exception as e:
         log("SITO VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
     site_images = list(ai_site_images)
+    real_photo_check: dict = {}
     try:
-        site_images.append(create_real_photo_image(output_dir, foto))
+        real_photo, real_photo_check = create_real_photo_image(output_dir, foto)
+        site_images.append(real_photo)
     except Exception as e:
         log("SITO VISUAL", f"Foto reale non preparata: {e}", "warn")
 
@@ -781,8 +833,13 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     }
     for idx, image_path in enumerate(site_images, start=1):
         results[f"image_site_{idx}"] = image_path
+    if woman:
+        # La donna di questo pezzo: i Reel fatti partendo da questa scheda usano lei.
+        results["woman"] = woman
+    if real_photo_check:
+        results["real_photo_check"] = json.dumps(real_photo_check, ensure_ascii=False)
 
-    results["decision_summary"] = build_decision_summary(publish_pack, ai_site_images)
+    results["decision_summary"] = build_decision_summary(publish_pack, ai_site_images, real_photo_check)
     results["asset_report_json"] = json.dumps(
         [image_file_report(value) for key, value in results.items() if key.startswith("image_")],
         ensure_ascii=False,

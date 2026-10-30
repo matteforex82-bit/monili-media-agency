@@ -33,6 +33,7 @@ type ShowcaseCandidate = {
   available: boolean;
   recommended?: boolean;
   kind?: string;
+  note?: string;
   error?: string;
 };
 
@@ -217,6 +218,7 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
             recommended: Boolean(obj.recommended),
             error: typeof obj.error === 'string' ? obj.error : undefined,
             kind: typeof obj.kind === 'string' ? obj.kind : undefined,
+            note: typeof obj.note === 'string' ? obj.note : undefined,
           };
         })
         .filter((item: ShowcaseCandidate | null): item is ShowcaseCandidate => Boolean(item));
@@ -358,7 +360,8 @@ function ShowcasePublishPanel({ apiUrl, runId }: { apiUrl: string; runId: string
               ) : (
                 <span>{item.error || 'File non disponibile'}</span>
               )}
-              <small>{item.src.includes('real_photo') ? 'Foto reale 4:5' : item.kind?.startsWith('image_site_') ? 'Foto dedicata sito 4:5' : 'Adattabile al sito'}</small>
+              <small>{item.src.includes('real_photo') ? 'Foto reale ripulita 4:5' : item.kind?.startsWith('image_site_') ? 'Foto dedicata sito 4:5' : 'Adattabile al sito'}</small>
+              {item.note && <small className="showcase-pick-note">⚠ {item.note}</small>}
             </label>
           ))}
         </div>
@@ -417,7 +420,9 @@ export default function ResultsPanel({ results, apiUrl, runId }: Props) {
           <div className="label-eyebrow">Scheda pezzo pronta</div>
           <h2>{publishPack.product_name || 'La scheda del pezzo è pronta.'}</h2>
           <p>Foto per il sito, messaggio WhatsApp e post Google. Per Instagram fai il Reel di questo pezzo.</p>
-          <a href="/reel" className="result-link">Fai il Reel di questo pezzo →</a>
+          <a href={runId ? `/reel?pezzo=${encodeURIComponent(runId)}` : '/reel'} className="result-link">
+            Fai il Reel di questo pezzo (stessa donna) →
+          </a>
         </div>
       </div>
       <nav className="results-tabs" aria-label="Risultati scheda pezzo">

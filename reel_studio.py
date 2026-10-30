@@ -20,6 +20,7 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
+import casting
 import higgsfield_client as hf
 import reel_kit as kit
 import results_log
@@ -226,7 +227,12 @@ def create_reel(
     text_model: str,
     recipe: str = "",
     poster_cover: bool = True,
+    woman: str = "",
+    woman_reference: Path | None = None,
+    scheda_run_id: str = "",
 ) -> dict:
+    """woman / woman_reference: la donna della Scheda pezzo dello stesso pezzo (descrizione e foto indossata).
+    Senza, la inventa il regista nello storyboard: una per pezzo, mai due donne diverse con lo stesso pezzo."""
     fmt = fmt if fmt in FORMATS else "reel"
     spec = FORMATS[fmt]
     target_seconds = max(spec["min_seconds"], min(spec["max_seconds"], int(target_seconds or spec["default_seconds"])))
@@ -245,6 +251,9 @@ def create_reel(
         "brief": brief,
         "format": fmt,
         "recipe": kit.select_recipe(recipe),
+        "woman": woman or None,
+        "woman_reference": rel(woman_reference) if woman_reference else None,
+        "scheda_run_id": scheda_run_id or None,
         "poster_cover": bool(poster_cover),
         "target_seconds": target_seconds,
         "video_model": hf.select_video_model(video_model),
@@ -442,12 +451,28 @@ def _performance_hints() -> str:
     return "\n".join(hints)
 
 
+def _woman(state: dict) -> str:
+    """La donna di questo Reel: quella della Scheda pezzo o quella inventata dal regista, uguale in ogni scena."""
+    return state.get("woman") or casting.FALLBACK_WOMAN
+
+
+def _woman_block(state: dict) -> str:
+    same_woman = "Usa use_model true nelle inquadrature dove compare lei: in tutto il Reel e sempre la stessa donna."
+    if state.get("woman"):
+        return f"DONNA DI QUESTO PEZZO (gia scelta nella Scheda pezzo, non cambiarla): {state['woman']}\n{same_woman}"
+    lines = (
+        f"LA DONNA DI QUESTO REEL: la inventi tu e la descrivi nel campo \"woman\". {casting.woman_guide()}",
+        same_woman,
+        casting.avoid_block("DONNE GIA USATE DI RECENTE", casting.recent_women()),
+    )
+    return "\n".join(line for line in lines if line)
+
+
 def agent_storyboard(state: dict, photo: Path) -> dict:
     fmt = FORMATS[state["format"]]
     clips = state.get("clips") or []
     clip_lines = "\n".join(f"- clip_index {i}: durata {c['duration']}s" for i, c in enumerate(clips)) or "- nessuna clip reale caricata"
     n_photos = len(state.get("photos") or [])
-    persona = kit.load_persona()
     hints = _performance_hints()
     prompt = f"""Sei il direttore creativo video di I Monili Ravenna: crei Reel e Story video Instagram che fermano lo scroll.
 {BRAND}
@@ -464,22 +489,26 @@ CLIP REALI CARICATE DALL'UTENTE:
 
 {kit.recipe_prompt_block(state.get('recipe', ''))}
 
-MODELLA MONILI (volto ricorrente del brand, sempre la stessa donna): {persona['description']}
-Usa use_model true nelle inquadrature dove compare una donna: sara sempre la Modella Monili.
+{_woman_block(state)}
+
+LIBERTA CREATIVA: luogo, persone, pose, abiti e accessori li inventi tu, adatti al pezzo e allo stile colorato,
+artigianale e boho del negozio. Sorprendi: non ripartire sempre dal solito bancone con luce calda.
+{casting.avoid_block("SCENE DEGLI ULTIMI REEL", casting.recent_scenes(exclude_reel=state.get("id", "")))}
+COSE DA NON MOSTRARE MAI: {"; ".join(casting.never_show()) or "nessuna"}
 
 REGOLE:
 - I primi 1.5 secondi sono un HOOK visivo forte (movimento, luce che colpisce le pietre, gesto).
 - Se ci sono clip reali usale (source "clip") dove rendono di piu: l'autenticita del negozio vende.
 - Le inquadrature AI partono da un fotogramma chiave generato dalla foto reale: il prodotto deve restare identico.
 - Gioielli piccoli: preferisci movimenti lenti (slow push-in, orbit leggero, rack focus), evita rotazioni veloci.
-- Luce coerente col brand: calda, naturale, golden hour Ravenna o interno caldo del negozio.
+- Luce naturale e bella, adatta alla scena che inventi.
 - Ogni inquadratura AI dura 3-6 secondi; l'ultima chiude SEMPRE con invito concreto: "Scrivici, te lo mettiamo da parte" o "Ti aspettiamo in centro a Ravenna".
-- Stile: luce naturale calda, sfondi crema/neutri che fanno risaltare i colori del prodotto. Mai effetti pacchiani.
+- Stile: autentico ed elegante, colori e sfondi che fanno risaltare il prodotto. Mai effetti pacchiani.
 - on_screen_text in italiano, max 6 parole, tono da amica.
 - keyframe_prompt_en e motion_prompt_en in inglese, concreti e visivi.
 - keyframe_mode "original_photo" = usa la foto reale cosi com'e (massima fedelta, utile per il dettaglio prodotto).
 - COERENZA AL 100%: tutte le inquadrature AI avvengono nella STESSA scena descritta in scene_bible (stesso luogo,
-  stessa luce, stessa palette, stessa modella con gli stessi abiti). Cambiano solo inquadratura, distanza e azione.
+  stessa luce, stessa palette, stessa donna con gli stessi abiti). Cambiano solo inquadratura, distanza e azione.
 - end_on_product true = la scena si chiude sulla foto vera del prodotto (usalo per dettaglio e chiusura).
 
 Rispondi SOLO con JSON valido:
@@ -489,7 +518,8 @@ Rispondi SOLO con JSON valido:
   "hook": "cosa succede nei primi 1.5s",
   "music_mood": "mood musicale da cercare tra gli audio di tendenza Instagram",
   "cover_text": "testo copertina max 5 parole",
-  "scene_bible": "UNA sola scena coerente per tutto il video, in inglese: luogo preciso, superficie, sfondo, luce (direzione, colore, ora), palette colori, e se c'e la modella: capelli, trucco e abiti esatti",
+  "woman": "solo se la donna la inventi tu: in inglese, eta, corporatura, viso, capelli e stile; altrimenti vuoto",
+  "scene_bible": "UNA sola scena coerente per tutto il video, in inglese: luogo preciso, superficie, sfondo, luce (direzione, colore, ora), palette colori, e se c'e la donna: capelli, trucco e abiti esatti",
   "shots": [
     {{
       "purpose": "hook|dettaglio|indossato|lifestyle|outfit|cta",
@@ -609,7 +639,7 @@ def estimate_reel(state: dict) -> dict:
             continue
         if shot["keyframe_mode"] == "ai":
             keyframe_usd = KEYFRAME_USD.get(state.get("keyframe_model", ""), KEYFRAME_USD_DEFAULT) + kit.QA_USD
-            label = "Fotogramma AI" + (" con Modella Monili" if shot.get("use_model") else "") + " + controllo qualita"
+            label = "Fotogramma AI" + (" con la donna del Reel" if shot.get("use_model") else "") + " + controllo qualita"
             lines.append({"shot": shot["id"], "label": label, "usd": keyframe_usd})
             total_usd += keyframe_usd
         video_usd = None
@@ -670,8 +700,11 @@ def plan_reel(reel_id: str, api_key: str) -> None:
         log(reel_id, "REGISTA", "Creo lo storyboard: hook, inquadrature, luce, transizioni...")
         state = load_state(reel_id)
         state["api_key"] = api_key
-        storyboard = normalize_storyboard(state, agent_storyboard(state, photo))
+        raw_storyboard = agent_storyboard(state, photo)
+        storyboard = normalize_storyboard(state, raw_storyboard)
         state.pop("api_key", None)
+        # La donna inventata dal regista (se il pezzo non ne aveva già una): da qui in poi è lei.
+        woman = state.get("woman") or " ".join(str(raw_storyboard.get("woman") or "").split())[:600] or None
         state["storyboard"] = storyboard
         state["estimate"] = estimate_reel(state)
         log(reel_id, "REGISTA", f"Storyboard pronto: {len(storyboard['shots'])} inquadrature", "success")
@@ -685,6 +718,7 @@ def plan_reel(reel_id: str, api_key: str) -> None:
 
         def _ready(s: dict):
             s["storyboard"] = storyboard
+            s["woman"] = woman
             s["estimate"] = state["estimate"]
             s["status"] = "storyboard_ready"
 
@@ -727,8 +761,9 @@ def _keyframe(
 ) -> tuple[Path, dict | None]:
     """
     Fotogramma chiave 9:16 coerente con prodotto e scena.
-    Image 1 = foto reale (verita sul prodotto), Image 2 = Modella Monili (se serve), Image 3 = fotogramma guida
-    della scena. Ogni tentativo passa dal controllo qualita; se nessuno passa si usa la foto reale.
+    Image 1 = foto reale (verita sul prodotto), Image 2 = la donna gia fotografata con questo pezzo (se il Reel
+    parte da una Scheda pezzo), Image 3 = fotogramma guida della scena. Ogni tentativo passa dal controllo
+    qualita; se nessuno passa si usa la foto reale.
     """
     reel_id = state["id"]
     photo = _abs(state["photos"][shot["photo_index"]])
@@ -743,12 +778,14 @@ def _keyframe(
     image_lines = ["IMAGE 1: the real product photo - the exact piece, it is the truth for shape, stones, colors and metal."]
     model_line = ""
     if shot.get("use_model"):
-        persona = kit.load_persona()
-        reference = kit.persona_reference_path()
-        model_line = f"WOMAN: the brand's recurring model - {persona['description']}. Do not redesign her."
-        if reference:
+        model_line = f"WOMAN (the same in the whole Reel, do not change her age, body or face): {_woman(state)}"
+        reference = _abs(state["woman_reference"]) if state.get("woman_reference") else None
+        if reference and reference.exists():
             images.append(reference)
-            image_lines.append(f"IMAGE {len(images)}: the brand model reference - same face, hair and skin tone.")
+            image_lines.append(
+                f"IMAGE {len(images)}: the same woman, already photographed wearing this piece - she is the model "
+                "of this product: keep exactly her face, hair, skin tone and body. Ignore that photo's background."
+            )
     if anchor and anchor.exists():
         images.append(anchor)
         image_lines.append(
@@ -766,7 +803,7 @@ def _keyframe(
         angle=shot["angle"] or "eye level",
         lighting=shot["lighting"] or "warm natural window light",
         model_line=model_line,
-        skill_notes=skills.section(state.get("recipe", ""), "keyframe"),
+        skill_notes="\n".join(filter(None, (skills.section(state.get("recipe", ""), "keyframe"), casting.never_line()))),
     )
     qa = None
     for attempt in range(1, KEYFRAME_ATTEMPTS + 1):
@@ -868,7 +905,7 @@ def _produce_clip_shot(state: dict, shot: dict, out_dir: Path) -> dict:
 
 
 def _anchor_order(shots: list[dict]) -> list[dict]:
-    """Prima l'inquadratura che fa da guida alla scena (preferibilmente con la modella), poi le altre."""
+    """Prima l'inquadratura che fa da guida alla scena (preferibilmente con la donna), poi le altre."""
     ai_shots = [s for s in shots if s["source"] == "ai" and s["keyframe_mode"] == "ai"]
     if not ai_shots:
         return ai_shots

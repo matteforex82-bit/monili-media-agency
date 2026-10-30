@@ -10,7 +10,7 @@ Tutto si crea dal Reel Studio con le skill indicate. Le date sono verificate sul
 - Mettere il **prezzo** nel brief: "Regali sotto i 30/50/80 €" è il contenuto più utile per chi cerca un regalo.
 - Atmosfera natalizia **elegante**: luci calde sfocate, carta crema e nastro terracotta, rametto di pino vero.
   Niente Babbo Natale, renne o glitter (stonano con lo stile del feed).
-- Contenuti con la Modella Monili → etichetta **"Info sull'AI"** quando si pubblica.
+- Contenuti con donne generate dall'AI → etichetta **"Info sull'AI"** quando si pubblica.
 - 2-3 giorni dopo ogni pubblicazione: numeri nella pagina **Risultati**.
 
 ## Calendario
@@ -18,11 +18,11 @@ Tutto si crea dal Reel Studio con le skill indicate. Le date sono verificate sul
 | Settimana | Reel (2) | Storie | Obiettivo |
 |---|---|---|---|
 | 26 ott – 1 nov | `/nuovo-arrivo` collezione autunno · `/pietra-settimana` (ametista) | aggiornare le **storie in evidenza** (via "Saldi Estate"), 2-3 Storie `/mani-bancone` | rimettere in ordine il profilo |
-| 2 – 8 nov | `/modella-monili` look autunno · `/tre-modi` (pezzo più versatile) | `/mani-bancone` × 3 | creare la modella ufficiale |
+| 2 – 8 nov | `/indossato` look autunno · `/tre-modi` (pezzo più versatile) | `/mani-bancone` × 3 | far vedere i pezzi addosso |
 | 9 – 15 nov | `/prima-dopo` · `/colori-ravenna` | Storia "Sondaggio: argento o oro?" | far conoscere lo stile |
 | 16 – 22 nov | `/idea-regalo` "per la mamma" · `/idea-regalo` "regali sotto i 50€" | prime Storie "idee regalo" | aprire la stagione regali |
 | 23 – 29 nov | `/idea-regalo` "per l'amica" · Reel **Black Friday** (ven 27/11, se fate promozioni) | Storie giornaliere 26-29 nov | Black Friday (ven 27) |
-| 30 nov – 6 dic | `/modella-monili` look feste · `/pietra-settimana` (granato/rubino, rosso natalizio) | **`/countdown-natale` ogni giorno** dal 1° dicembre | abitudine quotidiana |
+| 30 nov – 6 dic | `/indossato` look feste · `/pietra-settimana` (granato/rubino, rosso natalizio) | **`/countdown-natale` ogni giorno** dal 1° dicembre | abitudine quotidiana |
 | 7 – 13 dic | `/idea-regalo` "per lei" (Immacolata mar 8/12) · `/tre-modi` versione feste | countdown | ponte dell'Immacolata = gente in centro |
 | 14 – 20 dic | `/idea-regalo` "ultimi regali" · `/mani-bancone` "te lo incartiamo noi" | countdown + "ancora disponibili" | ultimi giorni utili |
 | 21 – 27 dic | Reel "ultimo giorno per i regali" (mer 23) · Reel auguri dal negozio (gio 24) | orari di apertura festivi | auguri e orari |
