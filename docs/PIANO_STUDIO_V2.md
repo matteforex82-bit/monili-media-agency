@@ -1,7 +1,8 @@
 # Piano — Studio AI v2: più bello, più semplice dal telefono, fino a Instagram
 
-> Creato il 30/10/2026 dopo il controllo dello Studio in formato iPhone. Stato: **da approvare** (Matteo).
+> Creato il 30/10/2026 dopo il controllo dello Studio in formato iPhone. Stato: **approvato da Matteo per la Fase A** (le decisioni della sezione 0 sono ancora aperte).
 > Strumenti di design: skill **Impeccable** (guide `shape` e `operate`; il suo programma di controllo resta non autorizzato) e **frontend-design**.
+> **Chi esegue questo piano legga prima la sezione 7.**
 
 ## 0. Decisioni che spettano a Matteo
 
@@ -175,3 +176,49 @@ Il PDF di John Savage contiene 163 idee di video pubblicitari per **Gemini/Veo**
 - **Restyling durante la prova**: per questo la Fase B parte dopo il weekend, la Fase A tocca solo testi e posizioni.
 - **Instagram API**: Meta cambia spesso regole e limiti; per questo prima C1 (non dipende da Meta).
 - **Piano Hobby di Vercel**: la pubblicazione automatica su Instagram usa l'archivio Blob del sito; prima del lancio pubblico serve la decisione su Vercel Pro (vedi `PLAN_VETRINA.md`, Fase 5).
+
+---
+
+## 7. Istruzioni per chi esegue (qualunque modello, anche in una sessione nuova)
+
+### 7.1 Prima di cominciare
+1. Leggi `CLAUDE.md`, questo file per intero e `docs/STATO_PROGETTO.md`. Il contesto del sito è in `PLAN_VETRINA.md` (Fase 5).
+2. Lavora sul repo `monili-media-agency`, branch `master`, cartella sul PC `C:\Users\matte\Desktop\PROGETTI AI\monili-deploy-temp`. `git pull` prima di toccare qualcosa.
+3. **Una fase per volta**, nell'ordine. Ora tocca alla **Fase A**. Le Fasi B–F partono solo dopo la prova del weekend e con l'ok di Matteo.
+4. **Decisioni della sezione 0**: non deciderle da solo. Per la Fase A non servono. Prima della Fase B chiedile a Matteo, una alla volta, con il consiglio già scritto.
+5. Matteo vuole risposte in italiano, brevi, dirette e sincere.
+
+### 7.2 Regole che non si discutono
+- **Lo Studio è collegato al sito vero** (`https://monili-vetrina.vercel.app`, impostato nel `.env`). Durante le prove **non premere mai "Invia bozza" o "Pubblica subito"** e non chiamare `/missions/{id}/showcase/publish` né `/reel/{id}/showcase/publish`: un pezzo finto andrebbe online. Per provare l'invio servono Matteo e un pezzo vero.
+- **Non spendere**: niente missioni vere (costano OpenRouter) senza ok. Per vedere i risultati usa la missione simulata (7.3).
+- **Push su `master` solo con l'ok esplicito di Matteo.** Commit con messaggio chiaro e la riga `Co-Authored-By` del modello.
+- Prima di ogni commit: `python -m pytest tests` (senza rete né chiavi) e `npx tsc --noEmit` in `frontend/`. Il lint del frontend non esiste.
+- Segreti (chiavi, token, password admin): mai nel codice, nei documenti o in chat. Stanno nel `.env` e in `C:\Users\matte\MoniliStorage\vetrina-accesso-admin.txt`.
+- **Impeccable**: le guide sono in `C:\Users\matte\Desktop\PROGETTI AI\Ecosistema Monili\.claude\skills\impeccable\reference\` (per la Fase A bastano `craft-floor.md`, `clarify.md`, `adapt.md`). Il programma `scripts/impeccable` **non** va lanciato.
+- Le regole dei contenuti si cambiano in `skills/*.md`, non nel codice.
+
+### 7.3 Come vedere lo Studio senza spendere
+1. Avvia backend e frontend: `.claude/launch.json` ha `studio-backend` (porta 8000) e `studio-frontend` (porta 3000). Con l'anteprima del browser: `preview_start` con quei nomi. A mano: `python -m uvicorn api.server:app --port 8000` dalla cartella del progetto e `npm --prefix frontend run dev:local`. Il primo caricamento di ogni pagina richiede 20–30 secondi (modalità sviluppo).
+2. Guarda le pagine a **375 px** (iPhone) e a computer: `/` (Nuovo pezzo), risultati di una missione, `/reel`, `/reel?pezzo=<run_id>`, `/skills`, `/risultati`.
+3. Missione di prova gratuita: `python scripts/prova_scheda_simulata.py --foto C:/Users/matte/MoniliStorage/input/2026-05-17_083526_4a89af2a.jpeg`. Compare in cronologia come "Prova con AI simulata (PROVA)"; si apre con "Apri". **Alla fine**: `python scripts/prova_scheda_simulata.py --pulisci` (cancella la prova e rimette la memoria com'era).
+4. Spegni i server di prova quando hai finito: Matteo avvia lo Studio con l'icona "Avvia Studio Monili" sul Desktop.
+
+### 7.4 Fase A, punto per punto (dove e quando è fatto)
+Numeri di riga al 30/10/2026 (commit `08f9007`): verifica sempre con una ricerca prima di modificare.
+
+| # | Dove | Cosa cambiare | Fatto quando |
+|---|---|---|---|
+| 1 | `frontend/src/components/ResultsPanel.tsx`, `ShowcasePublishPanel` (riga ~180): pulsante alle righe ~287–297 dentro `.result-actions` | Il pulsante "Invia bozza / Pubblica subito" va **sotto** la casella "Pubblica subito" (riga ~342) e sopra le foto; "Rianalizza" può restare in alto | A 375 px compili categoria, negozio, prezzo, casella e premi il pulsante senza risalire |
+| 2 | Stesso file: etichetta riga ~373, `alt` riga ~369, titoli dei download riga ~470 (`Foto sito ${index + 1}`) | Etichette per tipo di foto: `site_01_product_clean` → "Catalogo (AI)", `site_02_worn` → "Indossata (AI)", `site_03_real_photo` → "Foto vera ripulita"; foto delle missioni vecchie → "Foto (vecchio kit)". Riconoscile dal nome del file, non dall'ordine | Ogni foto dice cos'è, uguale nel pannello sito e nei download |
+| 3 | `frontend/src/app/globals.css`: media query a riga ~699 forza `.result-image-grid.compact` a una colonna | Sul telefono `.compact` a **2 colonne**, spunta grande e facile da toccare (≥ 44 px) | A 375 px le 3 foto stanno in 2 righe e si spuntano col pollice |
+| 4 | `globals.css`, `.showcase-publish-now` (cercalo) | Stessa dimensione di testo delle altre etichette del pannello | Il testo non è più grande del resto |
+| 5 | `api/server.py`, `reel_create` (riga ~1447: `photos: list[UploadFile] = File(...)`) e `_scheda_woman` (riga ~1427); `frontend/src/app/reel/page.tsx`, `createReel` (riga ~405) e `PieceBanner` (riga ~1248) | Se il Reel parte da una scheda (`scheda_run_id`) e non carichi foto, la backend copia in `input/photo_1.jpg` la foto di origine della missione (`run_manifest.json` → `source_photo`, percorso completo nel manifest). Nel frontend, con un pezzo collegato, il caricamento foto diventa facoltativo e il riquadro dice "Usiamo la foto della scheda" | Da "Fai il Reel di questo pezzo" si crea il Reel senza caricare nulla; senza scheda resta obbligatorio caricare una foto. Test nuovo in `tests/test_scheda_pezzo.py` (sul modello di `test_reel_of_this_piece_keeps_the_same_woman`) |
+| 6 | `frontend/src/app/page.tsx`: riga ~557 (testo Home), ~714 ("Il flusso e semplice"), ~374 ("puo", "piu"); cronologia righe ~938–941; `skills/indossato.md` riga 3; `api/server.py` `_history_item_from_payload` (riga ~165) | Home: "Carica la foto del pezzo, aggiungi una nota se serve: lo Studio prepara la scheda per il sito, WhatsApp e Google." Accenti corretti in tutto il file. `/indossato`: "Una donna vera, una per pezzo, indossa il prodotto - hook, dettaglio, look, chiusura." Cronologia: la backend aggiunge `title` (= `product_name` del pacchetto testi) e il frontend mostra titolo (o il brief) + data leggibile, senza `single_post`/`scheda_pezzo`/nome file | Nessun testo senza accento, nessun nome tecnico visibile a Matteo |
+| 7 | `frontend/src/app/reel/page.tsx`, `PieceBanner` (riga ~1248) | "È un altro pezzo" su una riga sua, sotto il testo, allineato a sinistra | Il riquadro si legge senza interruzioni a 375 px |
+
+Chiusura della Fase A:
+- [ ] `python -m pytest tests` e `npx tsc --noEmit` verdi
+- [ ] Giro di screenshot a 375 px con la missione simulata (poi `--pulisci`)
+- [ ] Caselle della Fase A spuntate in questo file, riga in `docs/STATO_PROGETTO.md`
+- [ ] Commit; push solo dopo l'ok di Matteo
+- [ ] Riassunto a Matteo: cosa è cambiato, cosa non è stato verificato
