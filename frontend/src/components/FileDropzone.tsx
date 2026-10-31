@@ -56,7 +56,9 @@ export default function FileDropzone({ files, onFiles, accept, max, kind, title,
         />
         <div className="bot-upload-title">{files.length ? `${title}: ${files.length} su ${max}` : title}</div>
         <div className="bot-upload-sub">{note && !files.length ? note : hint}</div>
-        <div className="bot-upload-button">{files.length ? 'Cambia' : kind === 'photo' ? 'Scegli le foto' : 'Scegli le clip'}</div>
+        <div className="bot-upload-button">
+          {files.length ? 'Cambia' : kind === 'photo' ? 'Scegli le foto' : max === 1 ? 'Scegli il video' : 'Scegli le clip'}
+        </div>
       </label>
       {files.length > 0 && (
         <div className="file-previews">

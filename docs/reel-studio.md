@@ -57,6 +57,22 @@ Basi comuni in `skills/_base/`: `fotogramma.md`, `movimento.md`, `copertina.md`,
 5. **Chiusura sulla foto vera**: con "Finisci la scena sulla foto vera" la foto reale diventa il fotogramma
    finale del video Higgsfield (`last_image_url` / `end_image_url`).
 
+## Video esterno (Gemini/Veo, telefono)
+
+Nel Reel Studio, sotto "Dalla foto al Reel", il riquadro **"Carica un video esterno"** prende un video già pronto,
+fatto con Gemini (Veo) o girato col telefono, e lo trasforma in un Reel finito senza crediti video:
+
+- deve essere **verticale** (un 16:9 viene rifiutato con il consiglio di rigenerarlo in 9:16) e durare al massimo 57 s;
+- viene portato a 1080×1920, 30 fps, senza audio (l'audio si sceglie su Instagram);
+- con la casella attiva (default) si aggiunge la **chiusura** di 2,5 s su fondo crema: logo, "Ti piace? Scrivici, te lo
+  mettiamo da parte." e "via Cavour 17 e 21 · Ravenna" (`reel_studio.make_closing_card`, logo in `assets/logo-monili.png`,
+  font Garamond di Windows);
+- copertina da un fotogramma verso la fine; caption e hashtag scritti dall'AI dalla descrizione (se manca la chiave
+  OpenRouter, la descrizione con i 3 hashtag fissi);
+- poi si usano i pulsanti di sempre: "Condividi su Instagram", "Salva video", "Pubblica sul sito".
+
+Lo stato del Reel ha `source: "esterno"` e nessuno storyboard da rigenerare.
+
 ## Motore immagini
 
 | Motore | Quando |
@@ -170,6 +186,7 @@ I lavori falliti o bloccati dalla moderazione non vengono addebitati da Higgsfie
 |---|---|---|
 | GET | `/reel/config` | stato Higgsfield, modelli, budget |
 | POST | `/reel/create` | multipart `photos[]`, `clips[]`, `brief`, `format` (reel/story), `target_seconds`, `video_model` |
+| POST | `/reel/import` | multipart `video`, `title`, `note`, `add_closing`: video esterno verticale → Reel finito |
 | GET | `/reel/{id}` | stato, storyboard, stima, log, risultati |
 | PUT | `/reel/{id}/storyboard` | salva le modifiche e ricalcola la stima |
 | POST | `/reel/{id}/render` | avvia la produzione (`confirm_over_budget` se sopra budget) |

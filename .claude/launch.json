@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend", "run", "dev:local"],
       "port": 3000
+    },
+    {
+      "name": "vetrina-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "../Ecosistema Monili/apps/web", "run", "dev", "--", "-p", "3100"],
+      "port": 3100
     }
   ]
 }

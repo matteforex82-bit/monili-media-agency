@@ -8,6 +8,7 @@ import base64
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import uuid
@@ -1664,6 +1665,41 @@ async def reel_create(
         scheda_run_id.strip() if woman or woman_reference else "",
     )
     asyncio.create_task(asyncio.to_thread(reel_studio.plan_reel, reel_id, api_key))
+    return _public_reel(state)
+
+
+@app.post("/reel/import")
+async def reel_import(
+    video: UploadFile = File(...),
+    title: str = Form(default=""),
+    note: str = Form(default=""),
+    add_closing: bool = Form(default=True),
+    text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
+):
+    """Video già pronto (Gemini/Veo, telefono): diventa un Reel finito, con chiusura, copertina e testi."""
+    content_type = (video.content_type or "").lower().strip()
+    ext = Path(video.filename or "").suffix.lower()
+    if ext not in ALLOWED_CLIP_EXTENSIONS and content_type not in ALLOWED_CLIP_CONTENT_TYPES:
+        return JSONResponse({"error": f"Video non supportato: {video.filename}. Usa MP4 o MOV."}, status_code=400)
+    reel_id = reel_studio.new_reel_id()
+    target = reel_studio.reel_dir(reel_id) / "input" / f"video{ext if ext in ALLOWED_CLIP_EXTENSIONS else '.mp4'}"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        await _save_upload(video, target, MAX_CLIP_BYTES)
+        state = await asyncio.to_thread(
+            reel_studio.import_external_video,
+            reel_id,
+            target,
+            title,
+            note,
+            add_closing,
+            os.environ.get("OPENROUTER_API_KEY", "").strip(),
+            text_model,
+        )
+    except (ValueError, RuntimeError) as exc:
+        if not reel_studio.load_state(reel_id):
+            shutil.rmtree(reel_studio.reel_dir(reel_id), ignore_errors=True)
+        return JSONResponse({"error": str(exc)}, status_code=400)
     return _public_reel(state)
 
 

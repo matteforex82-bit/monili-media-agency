@@ -108,6 +108,8 @@ interface ReelState {
   error: string | null;
   showcase?: { reel_id: string; product_id?: string | null; sent_at: string };
   scheda_run_id?: string | null;
+  /** "esterno" = video già pronto importato (Gemini/Veo, telefono): niente storyboard da rigenerare. */
+  source?: string;
   results: {
     final_video?: string;
     cover?: string;
@@ -306,6 +308,11 @@ export default function ReelStudioPage() {
   const [recipe, setRecipe] = useState('libera');
   const [keyframeModel, setKeyframeModel] = useState('');
   const [posterCover, setPosterCover] = useState(true);
+  // Video già pronto (Gemini/Veo, telefono)
+  const [importFiles, setImportFiles] = useState<File[]>([]);
+  const [importTitle, setImportTitle] = useState('');
+  const [importNote, setImportNote] = useState('');
+  const [importClosing, setImportClosing] = useState(true);
   // Il pezzo della Scheda da cui parte il Reel (/reel?pezzo=<run_id>): stessa donna della foto indossata.
   const [piece, setPiece] = useState<Piece | null>(null);
 
@@ -456,6 +463,37 @@ export default function ReelStudioPage() {
     }
   };
 
+  const importVideo = async () => {
+    if (!importFiles.length) {
+      setError('Carica il video.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const form = new FormData();
+      form.append('video', importFiles[0]);
+      form.append('title', importTitle);
+      form.append('note', importNote);
+      form.append('add_closing', importClosing ? 'true' : 'false');
+      const res = await fetch(`${API_URL}/reel/import`, { method: 'POST', body: form });
+      if (!res.ok) throw new Error(await readError(res));
+      const data: ReelState = await res.json();
+      try { localStorage.setItem(ACTIVE_REEL_KEY, data.id); } catch { /* storage non disponibile */ }
+      setImportFiles([]);
+      setImportTitle('');
+      setImportNote('');
+      setDirty(false);
+      setReel(data);
+      loadHistory();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (exc) {
+      setError(exc instanceof Error ? exc.message : String(exc));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveDraft = async (): Promise<ReelState | null> => {
     if (!reel || !draft) return null;
     const res = await fetch(`${API_URL}/reel/${reel.id}/storyboard`, {
@@ -561,7 +599,8 @@ export default function ReelStudioPage() {
 
   const totalSeconds = draft?.shots.reduce((sum, shot) => sum + Number(shot.duration || 0), 0) ?? 0;
   const hfReady = reel ? reel.higgsfield_configured : config?.higgsfield_configured;
-  const editable = reel && (reel.status === 'storyboard_ready' || reel.status === 'error' || reel.status === 'done') && draft;
+  const editable =
+    reel && reel.source !== 'esterno' && (reel.status === 'storyboard_ready' || reel.status === 'error' || reel.status === 'done') && draft;
 
   return (
     <div className="rs-page">
@@ -712,6 +751,52 @@ export default function ReelStudioPage() {
               {busy ? 'Caricamento...' : 'Crea storyboard'}
             </button>
             <p className="rs-hint">Prima vedi lo storyboard e il costo stimato: i crediti video si spendono solo quando approvi.</p>
+          </section>
+        )}
+
+        {/* ── VIDEO GIÀ PRONTO ───────────────────────────────────────── */}
+        {!reel && (
+          <section className="card rs-card">
+            <div className="label-eyebrow">Hai già un video?</div>
+            <h2 className="rs-h1">Carica un video esterno</h2>
+            <p className="rs-muted">
+              Fatto con Gemini (Veo) o girato col telefono, in verticale 9:16. Lo Studio aggiunge la chiusura, la
+              copertina e i testi: poi lo mandi sul sito e su Instagram come gli altri Reel. Non costa crediti video.
+            </p>
+            <FileDropzone
+              files={importFiles}
+              onFiles={setImportFiles}
+              accept="video/mp4,video/quicktime,.mov,.mp4,.m4v"
+              max={1}
+              kind="video"
+              title="Video verticale"
+              hint="MP4 o MOV, fino a 57 secondi."
+            />
+            <div className="rs-grid-2">
+              <Field label="Titolo">
+                <input
+                  className="rs-input"
+                  value={importTitle}
+                  onChange={(e) => setImportTitle(e.target.value)}
+                  placeholder="Es. Il bomber ricamato sotto i portici"
+                />
+              </Field>
+              <Field label="Di cosa parla (per i testi)">
+                <input
+                  className="rs-input"
+                  value={importNote}
+                  onChange={(e) => setImportNote(e.target.value)}
+                  placeholder="Es. bomber tortora con ricami a fiore, foulard arancio"
+                />
+              </Field>
+            </div>
+            <label className="rs-check">
+              <input type="checkbox" checked={importClosing} onChange={(e) => setImportClosing(e.target.checked)} />
+              <span>Aggiungi la chiusura &quot;Ti piace? Scrivici, te lo mettiamo da parte.&quot; (2,5 s su fondo crema)</span>
+            </label>
+            <button type="button" className="btn-mission rs-cta" disabled={busy || !importFiles.length} onClick={importVideo}>
+              {busy ? 'Preparazione...' : 'Importa video'}
+            </button>
           </section>
         )}
 

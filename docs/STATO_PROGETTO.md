@@ -93,6 +93,9 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - Client Higgsfield verificato sulla documentazione: campi giusti, audio spento. Da decidere prima del test: modifiche A-D della sezione 4 della guida (soprattutto "Finisci sulla foto vera" solo dopo un primo piano del gioiello).
 - **Kling 4.0 collegato** come motore video `kling-4` (Image to Video, 720p, fotogramma finale); stime di riserva aggiornate al listino della console (Kling 3.0 0,071, Kling 4.0 0,134, Seedance 2.5 0,175 $/s). Predefinito resta Kling 3.0 Standard. Test: 65.
 - Decisi con Matteo: solo crediti API (console.higgsfield.ai, 10 $), immagini restano nello Studio (Unlimited solo a mano sul sito), niente OpenArt né abbonamento. Chiave Higgsfield ancora assente nel `.env`.
+- **Primo Reel vero** fatto da Matteo con Gemini (Veo) in 9:16: bomber ricamato sotto i portici. Aggiunta la chiusura crema, pubblicato nella sala Reel del sito (non collegato a una scheda: il bomber sul sito non c'è ancora). Da verificare che il bomber sia quello vero del negozio.
+- **"Carica un video esterno"** nel Reel Studio (`POST /reel/import`, `reel_studio.import_external_video`): video verticale di Gemini o del telefono → 1080×1920 con chiusura "Ti piace? Scrivici, te lo mettiamo da parte.", copertina e testi AI, poi Instagram e sito come gli altri Reel. Provato con il video del bomber (12,2 s, testi AI ok). Test: 70. **Serve riavviare lo Studio** per avere l'endpoint nuovo.
+- Sito vetrina (repo `monili-vetrina`, tutto online): hero della Home col video Veo del gilet da tablet in su (foto sul telefono), foto vera del civico 17 in Negozi, Laboratorio e riquadro Bijoux, barra in alto del colore dello sfondo.
 
 ## Prossimi passi
 - **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, Fase A fatta; B–F dopo la prova del weekend e con l'ok di Matteo (prima le decisioni della sezione 0).

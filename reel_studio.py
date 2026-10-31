@@ -9,6 +9,7 @@ Ogni reel vive in OUTPUT_ROOT/reels/<id>/ con reel.json come unica fonte di veri
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -18,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import casting
 import higgsfield_client as hf
@@ -428,6 +429,186 @@ def make_web_poster(source: Path, destination: Path, max_bytes: int = WEB_REEL_M
         if destination.stat().st_size <= max_bytes:
             return destination
     raise RuntimeError("Copertina troppo pesante per il sito.")
+
+
+# ── VIDEO ESTERNO (Gemini/Veo, telefono) ─────────────────────────────────────
+# Un video già fatto altrove entra nello Studio come un Reel finito: chiusura con l'invito,
+# copertina e testi, poi "Pubblica sul sito vetrina" e "Condividi su Instagram" come gli altri.
+LOGO_PATH = Path(__file__).resolve().parent / "assets" / "logo-monili.png"
+CLOSING_SECONDS = 2.5
+CLOSING_FADE = "dissolve"
+EXTERNAL_MAX_SECONDS = WEB_REEL_MAX_SECONDS - CLOSING_SECONDS
+FONT_DIR = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
+FIXED_HASHTAGS = ["#imoniliravenna", "#ravenna", "#romagnastyle"]
+
+
+def probe_size(path: Path) -> tuple[int, int]:
+    """Larghezza e altezza come si vedono (tiene conto della rotazione dei video del telefono)."""
+    proc = subprocess.run(
+        [ffmpeg_exe(), "-hide_banner", "-i", str(path)], capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
+    match = re.search(r"Video: .*?(\d{2,5})x(\d{2,5})", proc.stderr)
+    if not match:
+        raise RuntimeError("Non riesco a leggere il video: usa un MP4 o un MOV.")
+    width, height = int(match.group(1)), int(match.group(2))
+    rotation = re.search(r"rotat(?:e|ion of)\s*:?\s*(-?\d+)", proc.stderr)
+    if rotation and abs(int(rotation.group(1))) % 180 == 90:
+        width, height = height, width
+    return width, height
+
+
+def _font(name: str, size: int):
+    try:
+        return ImageFont.truetype(str(FONT_DIR / name), size)
+    except OSError:
+        return ImageFont.load_default(size)
+
+
+def make_closing_card(destination: Path) -> Path:
+    """Chiusura 1080x1920 su fondo crema: logo, "Ti piace? Scrivici, te lo mettiamo da parte." e indirizzo.
+    Colori del sito vetrina; il testo resta sopra il 20% basso che Instagram copre con la caption."""
+    width, height = FRAME_SIZE
+    paper, ink, soft, terracotta = (246, 241, 230), (26, 26, 26), (90, 84, 76), (200, 89, 58)
+    card = Image.new("RGB", FRAME_SIZE, paper)
+    draw = ImageDraw.Draw(card)
+    if LOGO_PATH.exists():
+        with Image.open(LOGO_PATH) as logo:
+            logo = logo.convert("RGBA")
+            logo_width = 570
+            logo = logo.resize((logo_width, round(logo.height * logo_width / logo.width)), Image.LANCZOS)
+            card.paste(logo, ((width - logo_width) // 2, 300), logo)
+
+    def centered(text: str, font, y: float, fill, spacing: int = 0) -> None:
+        if not spacing:
+            draw.text(((width - draw.textlength(text, font=font)) / 2, y), text, font=font, fill=fill)
+            return
+        total = sum(draw.textlength(c, font=font) for c in text) + spacing * (len(text) - 1)
+        x = (width - total) / 2
+        for char in text:
+            draw.text((x, y), char, font=font, fill=fill)
+            x += draw.textlength(char, font=font) + spacing
+
+    serif, italic, small = _font("GARA.TTF", 96), _font("GARAIT.TTF", 96), _font("GARA.TTF", 39)
+    centered("Ti piace?", italic, 765, terracotta)
+    centered("Scrivici,", serif, 915, ink)
+    centered("te lo mettiamo", serif, 1027, ink)
+    centered("da parte.", serif, 1140, ink)
+    draw.line([(width / 2 - 36, 1312), (width / 2 + 36, 1312)], fill=terracotta, width=3)
+    centered("VIA CAVOUR 17 E 21", small, 1365, soft, spacing=6)
+    centered("RAVENNA", small, 1425, soft, spacing=6)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    card.save(destination)
+    return destination
+
+
+def _still_clip(image: Path, destination: Path, seconds: float) -> Path:
+    _run_ffmpeg(["-loop", "1", "-framerate", str(FPS), "-i", str(image), "-t", f"{seconds:.2f}", "-vf", VERTICAL_FILTER, "-an", *X264_ARGS, str(destination)])
+    return destination
+
+
+def _frame_at(video: Path, seconds: float, destination: Path) -> Path:
+    _run_ffmpeg(["-ss", f"{max(0.0, seconds):.2f}", "-i", str(video), "-frames:v", "1", "-q:v", "3", str(destination)])
+    return destination
+
+
+def _external_copy(state: dict, api_key: str) -> dict:
+    """Testi del regista se c'è la chiave OpenRouter, altrimenti quelli scritti a mano (con gli hashtag fissi)."""
+    note = state.get("brief", "")
+    if api_key:
+        try:
+            return agent_copy(state, api_key)
+        except Exception as exc:
+            log(state["id"], "COPY", f"Testi AI non riusciti ({exc}): uso la descrizione", "warn")
+    return {"caption": note, "caption_short": note[:300], "hashtags": list(FIXED_HASHTAGS)}
+
+
+def import_external_video(
+    reel_id: str,
+    source: Path,
+    title: str,
+    note: str = "",
+    add_closing: bool = True,
+    api_key: str = "",
+    text_model: str = "",
+) -> dict:
+    """Importa un video verticale fatto fuori dallo Studio (Gemini/Veo, telefono) come Reel finito."""
+    width, height = probe_size(source)
+    if width > height:
+        raise ValueError("Serve un video verticale 9:16: questo è orizzontale. Rigeneralo in verticale (in Gemini: formato 9:16).")
+    seconds = probe_duration(source)
+    if seconds > EXTERNAL_MAX_SECONDS:
+        raise ValueError(f"Video troppo lungo: massimo {EXTERNAL_MAX_SECONDS:.0f} secondi.")
+    title = (title or "").strip()[:120] or "Reel I Monili"
+    note = (note or "").strip()[:1500]
+    state = {
+        "id": reel_id,
+        "status": "rendering",
+        "source": "esterno",
+        "created_at": datetime.now().isoformat(),
+        "brief": note,
+        "format": "reel",
+        "recipe": "",
+        "poster_cover": False,
+        "target_seconds": round(seconds + (CLOSING_SECONDS if add_closing else 0)),
+        "text_model": select_openrouter_text_model(text_model),
+        "higgsfield_configured": hf.is_configured(),
+        "photos": [],
+        "clips": [],
+        "analysis": note,
+        "storyboard": {"title": title, "concept": note, "hook": "", "cover_text": "", "shots": []},
+        "estimate": None,
+        "results": {},
+        "logs": [],
+        "error": None,
+    }
+    reel_dir(reel_id).mkdir(parents=True, exist_ok=True)
+    with _lock(reel_id):
+        save_state(state)
+    log(reel_id, "IMPORT", f"Video esterno {width}x{height}, {seconds:.1f}s")
+    try:
+        return _finish_external(state, source, seconds, add_closing, api_key)
+    except Exception as exc:
+        _fail(reel_id, "IMPORT", exc)
+        raise RuntimeError(str(exc)) from exc
+
+
+def _finish_external(state: dict, source: Path, seconds: float, add_closing: bool, api_key: str) -> dict:
+    reel_id = state["id"]
+    out_dir = reel_dir(reel_id)
+    body = normalize_clip(source, out_dir / "shots" / "esterno.mp4", seconds)
+    final_video = out_dir / f"monili_reel_{reel_id}.mp4"
+    if add_closing:
+        card = make_closing_card(out_dir / "chiusura.png")
+        closing = _still_clip(card, out_dir / "shots" / "chiusura.mp4", CLOSING_SECONDS)
+        assemble([(body, seconds), (closing, CLOSING_SECONDS)], [CLOSING_FADE], final_video)
+        log(reel_id, "MONTAGGIO", "Chiusura \"Scrivici, te lo mettiamo da parte\" aggiunta", "success")
+    else:
+        shutil.copyfile(body, final_video)
+    # Copertina: un fotogramma verso la fine del video, quando di solito si vede la persona.
+    frame = _frame_at(body, seconds * 0.85, out_dir / "cover_frame.jpg")
+    cover = make_cover(frame, out_dir / "cover_foto.jpg")
+
+    log(reel_id, "COPY", "Caption, hashtag e testi...")
+    copy = _external_copy(state, api_key)
+    (out_dir / "testi.md").write_text(_copy_markdown(state, copy), encoding="utf-8")
+
+    def _done(s: dict):
+        s["status"] = "done"
+        s["results"] = {
+            "final_video": rel(final_video),
+            "cover": rel(cover),
+            "cover_plain": rel(cover),
+            "copy_markdown": rel(out_dir / "testi.md"),
+            "copy": copy,
+            "shots": [],
+            "preview_only": False,
+            "external": True,
+            "completed_at": datetime.now().isoformat(),
+        }
+
+    state = _mutate(reel_id, _done)
+    log(reel_id, "IMPORT", f"Reel pronto ({probe_duration(final_video):.1f}s)", "success")
+    return load_state(reel_id) or state
 
 
 # ── STORYBOARD ───────────────────────────────────────────────────────────────
