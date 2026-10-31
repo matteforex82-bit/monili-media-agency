@@ -49,6 +49,6 @@ qualsiasi file in questa directory senza chiedere conferma.
 
 ## Sviluppo
 - Skill dei contenuti: `skills/*.md` (guida in `skills/README.md`) — si aggiustano lì, non nel codice
-- Ricerca tecniche AI/Instagram: `knowledge/ricerca_marketing_ai_2026.md`; piano Natale: `docs/piano-natale-2026.md`
+- Ricerca tecniche AI/Instagram: `knowledge/ricerca_marketing_ai_2026.md`; video Higgsfield (modelli API, costi, regole gioielli, protocollo test): `knowledge/higgsfield_video_guida.md`; piano Natale: `docs/piano-natale-2026.md`
 - Stato e prossimi passi (condiviso con Hermes): `docs/STATO_PROGETTO.md`
 - Test: `python -m pytest tests` (senza chiavi né rete) — da far passare prima di ogni push

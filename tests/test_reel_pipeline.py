@@ -91,7 +91,8 @@ def test_estimate_has_poster_and_budget(reel):
     est = rs.estimate_reel(state)
     labels = [line["label"] for line in est["lines"]]
     assert "Copertina poster" in labels and est["preview_mode"] is True
-    assert est["total_eur"] == round(est["total_usd"] * rs.EUR_PER_USD, 2)
+    # total_usd e arrotondato prima del cambio: tra i due puo esserci un centesimo di differenza.
+    assert abs(est["total_eur"] - est["total_usd"] * rs.EUR_PER_USD) <= 0.011
 
 
 def _abs_photo(state):

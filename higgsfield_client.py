@@ -34,6 +34,12 @@ VIDEO_MODELS: dict[str, dict] = {
         "min_duration": 3,
         "max_duration": 15,
     },
+    "kling-4": {
+        "label": "Kling 4.0",
+        "endpoint": "kling-video/v4.0/image-to-video",
+        "min_duration": 3,
+        "max_duration": 30,
+    },
     "seedance-2.5": {
         "label": "Seedance 2.5",
         "endpoint": "bytedance/seedance-2.5/image-to-video",
@@ -93,6 +99,17 @@ def build_video_body(
     model_key = select_video_model(model_key)
     duration = clamp_duration(model_key, duration)
     prompt = (prompt or "Slow elegant camera movement, natural light.").strip()[:2400]
+    if model_key == "kling-4":
+        # Kling 4.0: niente campo audio ne formato (segue l'immagine); il server usa 1080p se non lo diciamo.
+        body = {
+            "image_url": image_url,
+            "prompt": prompt,
+            "duration": duration,
+            "resolution": os.environ.get("HIGGSFIELD_RESOLUTION", "720p"),
+        }
+        if last_image_url:
+            body["end_image_url"] = last_image_url
+        return body
     if model_key.startswith("kling"):
         body = {
             "image_url": image_url,

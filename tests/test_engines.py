@@ -14,6 +14,9 @@ def test_build_video_body_end_frame_per_model():
     seed = hf.build_video_body("seedance-2.5", "https://a/start.jpg", "move", 2, last_image_url="https://a/end.jpg")
     assert seed["duration"] == 4 and seed["end_image_url"] == "https://a/end.jpg" and seed["generate_audio"] is False
     assert "last_image_url" not in hf.build_video_body("kling-3-std", "https://a/s.jpg", "m", 5)
+    kling4 = hf.build_video_body("kling-4", "https://a/start.jpg", "move", 40, last_image_url="https://a/end.jpg")
+    assert kling4["duration"] == 30 and kling4["end_image_url"] == "https://a/end.jpg" and kling4["resolution"] == "720p"
+    assert "sound" not in kling4 and "cfg_scale" not in kling4 and "last_image_url" not in kling4
 
 
 def test_credentials(monkeypatch):

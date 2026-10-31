@@ -2,7 +2,7 @@
 
 File di passaggio di consegne, condiviso con Hermes. Aggiornare a ogni sessione di lavoro.
 
-**Ultimo aggiornamento:** 2026-10-30 · branch `master`
+**Ultimo aggiornamento:** 2026-10-31 · branch `master`
 
 ## Cos'è
 App per creare contenuti social de I Monili Ravenna a partire dalle foto prodotto.
@@ -87,6 +87,12 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - Da sistemare a mano (nessun codice): orari speciali di Natale (8/12, 24-25/12, 31/12, 1/1, 6/1); **orari** (Matteo, 30/10, uguali nei due negozi): lun-sab 9:30-13:00 e 14:00-19:30 fino al 30/11, continuato 9:30-19:30 dal 1/12; domenica 10:00-13:00 e 15:00-19:00. Sito: fatto nel repo `monili-vetrina` (commit `83f3473`, `shop-hours.ts`, cambio automatico al 1/12), **in attesa di push** perché va online subito. Su Google vanno corretti a mano; categoria secondaria "Gioielleria"; descrizione con "dal 1996"; un post a settimana (copia da "Testi pronti"); risposte alle recensioni e QR per recensire.
 - Il sito nel profilo è ancora `moniliravenna.shop`: passare alla vetrina solo quando ci sono 10-15 pezzi pubblicati.
 - Pubblicazione automatica via API (Fase C3): **rimandata**. Servono approvazione di Google (profilo verificato da 60+ giorni, sito, modulo; 14 giorni o più) e non è certo che i post via API funzionino ancora; a mano costa un minuto a settimana. Dati salvati in `memory/performance_log.json` (chiave `google_business`).
+
+## Fatto il 2026-10-31 (giorno del test in negozio)
+- **Ricerca Higgsfield** in `knowledge/higgsfield_video_guida.md`: modelli davvero disponibili via API (Kling 3.0 Std/Pro, Seedance 2.5; Kling 4.0 c'è solo sul sito), costi reali per clip, regole per i gioielli, valutazione delle 7 funzioni del video di Gaito, protocollo del test. Reddit non raggiungibile da qui: fonti ufficiali e blog.
+- Client Higgsfield verificato sulla documentazione: campi giusti, audio spento. Da decidere prima del test: modifiche A-D della sezione 4 della guida (soprattutto "Finisci sulla foto vera" solo dopo un primo piano del gioiello).
+- **Kling 4.0 collegato** come motore video `kling-4` (Image to Video, 720p, fotogramma finale); stime di riserva aggiornate al listino della console (Kling 3.0 0,071, Kling 4.0 0,134, Seedance 2.5 0,175 $/s). Predefinito resta Kling 3.0 Standard. Test: 65.
+- Decisi con Matteo: solo crediti API (console.higgsfield.ai, 10 $), immagini restano nello Studio (Unlimited solo a mano sul sito), niente OpenArt né abbonamento. Chiave Higgsfield ancora assente nel `.env`.
 
 ## Prossimi passi
 - **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, Fase A fatta; B–F dopo la prova del weekend e con l'ok di Matteo (prima le decisioni della sezione 0).

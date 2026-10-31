@@ -12,7 +12,7 @@ Pagina: `/reel` (link "Reel Studio" in alto nella pagina principale).
    per ogni inquadratura. Sopra il budget (`REEL_BUDGET_EUR`, default 2 €) l'app chiede conferma.
 4. **Produzione** (fino a 3 inquadrature in parallelo):
    - fotogramma chiave 9:16 generato **dalla foto reale** (oppure la foto reale stessa per la massima fedeltà);
-   - video AI con Higgsfield (Kling 3.0 Std/Pro o Seedance 2.5);
+   - video AI con Higgsfield (Kling 3.0 Std/Pro, Kling 4.0 o Seedance 2.5);
    - le clip reali vengono tagliate e portate a 1080×1920;
    - montaggio finale MP4 9:16 30 fps con transizioni (ffmpeg incluso via `imageio-ffmpeg`).
 5. **Testi**: caption, hashtag (sempre `#imoniliravenna #ravenna #romagnastyle`), primo commento, copertina,
@@ -135,7 +135,8 @@ testi prima di attivare i video veri.
 | Voce | Stima |
 |---|---|
 | Fotogramma chiave AI (gpt-5.4-image-2) | ~0,10 € |
-| Video Kling 3.0 Standard | ~0,09 €/secondo (stima prudente finché non c'è la key) |
+| Video Kling 3.0 Standard | ~0,04-0,07 $/secondo (listino console 31/10, 720p senza audio) |
+| Video Kling 4.0 / Seedance 2.5 | ~0,11-0,13 $ / ~0,14-0,18 $ al secondo |
 | Controllo qualità per fotogramma | ~0,02 € |
 | Copertina poster | ~0,12 € |
 | Testi e regia | ~0,09 € |

@@ -64,10 +64,12 @@ TRANSITIONS = {
 SHOT_PURPOSES = ["hook", "dettaglio", "indossato", "lifestyle", "outfit", "cta"]
 
 # Stime di costo usate quando la stima Higgsfield non e disponibile (USD).
+# Listino della console API al 31/10/2026, 720p senza audio (knowledge/higgsfield_video_guida.md).
 FALLBACK_USD_PER_SECOND = {
-    "kling-3-std": float(os.environ.get("HF_FALLBACK_USD_PER_SEC_KLING_STD", "0.10")),
+    "kling-3-std": float(os.environ.get("HF_FALLBACK_USD_PER_SEC_KLING_STD", "0.071")),
     "kling-3-pro": float(os.environ.get("HF_FALLBACK_USD_PER_SEC_KLING_PRO", "0.16")),
-    "seedance-2.5": float(os.environ.get("HF_FALLBACK_USD_PER_SEC_SEEDANCE", "0.12")),
+    "kling-4": float(os.environ.get("HF_FALLBACK_USD_PER_SEC_KLING_4", "0.134")),
+    "seedance-2.5": float(os.environ.get("HF_FALLBACK_USD_PER_SEC_SEEDANCE", "0.175")),
 }
 KEYFRAME_USD = {
     "openai/gpt-5.4-image-2": 0.12,
