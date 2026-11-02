@@ -261,6 +261,20 @@ def test_pieces_list_tracks_the_four_steps(tmp_path, monkeypatch, capsys):
     assert mine()["steps"]["sito"] == "published"
 
 
+def test_deleted_piece_goes_to_the_trash(tmp_path, monkeypatch, capsys):
+    from fastapi.testclient import TestClient
+
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    client = TestClient(server.app)
+    folder = server._find_manifest_by_run_id(results["run_id"])[0].parent
+
+    reply = client.delete(f"/pieces/{results['run_id']}")
+    assert reply.status_code == 200 and reply.json()["moved_to"] == f"cestino/{folder.name}"
+    assert not folder.exists() and (server.TRASH_DIR / folder.name / "run_manifest.json").is_file()
+    assert all(p["run_id"] != results["run_id"] for p in client.get("/pieces").json()["items"])
+    assert client.delete(f"/pieces/{results['run_id']}").status_code == 404
+
+
 def test_failed_site_ingest_does_not_count_as_sent(tmp_path, monkeypatch, capsys):
     from fastapi.testclient import TestClient
 

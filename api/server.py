@@ -1240,6 +1240,43 @@ def piece_get(run_id: str):
     return _piece_summary(item, _reels_by_piece())
 
 
+TRASH_DIR = STORAGE_ROOT / "cestino"
+
+
+@app.delete("/pieces/{run_id}")
+def piece_delete(run_id: str):
+    """Moves the piece's output folder to the Studio trash (not a hard delete:
+    a wrong tap can be undone by moving the folder back into output/). The
+    site and any Reel already made are not touched."""
+    run_id = run_id.strip()
+    found = _find_manifest_by_run_id(run_id) if run_id else None
+    moved_to = ""
+    if found:
+        folder = found[0].parent
+        if folder.resolve().parent != OUTPUT_DIR.resolve():
+            return JSONResponse({"error": "Cartella del pezzo non valida"}, status_code=400)
+        TRASH_DIR.mkdir(parents=True, exist_ok=True)
+        target = TRASH_DIR / folder.name
+        suffix = 2
+        while target.exists():
+            target = TRASH_DIR / f"{folder.name}-{suffix}"
+            suffix += 1
+        shutil.move(str(folder), str(target))
+        moved_to = f"cestino/{target.name}"
+
+    stale_jobs = [
+        job_id
+        for job_id, job in jobs.items()
+        if isinstance(job.get("results"), dict) and str(job["results"].get("run_id") or job.get("run_id") or "").strip() == run_id
+    ]
+    for job_id in stale_jobs:
+        jobs.pop(job_id, None)
+
+    if not found and not stale_jobs:
+        return JSONResponse({"error": "Pezzo non trovato"}, status_code=404)
+    return {"deleted": run_id, "moved_to": moved_to}
+
+
 @app.get("/missions/{run_id}")
 def mission_by_run_id(run_id: str):
     run_id = run_id.strip()

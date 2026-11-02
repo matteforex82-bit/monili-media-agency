@@ -59,3 +59,24 @@ $frontendCommand = "`$env:NEXT_PUBLIC_API_PORT='$BackendPort'; cd '$Frontend'; n
 Start-Process powershell -WindowStyle Normal -ArgumentList "-NoExit", "-Command", $backendCommand
 Start-Sleep -Seconds 2
 Start-Process powershell -WindowStyle Normal -ArgumentList "-NoExit", "-Command", $frontendCommand
+
+# Opens the Studio in the browser as soon as the web interface answers (the
+# first start can take a minute while Next compiles).
+$StudioUrl = "http://localhost:$FrontendPort"
+Write-Host "Aspetto che lo Studio sia pronto per aprirlo nel browser..."
+$ready = $false
+for ($i = 0; $i -lt 90; $i++) {
+    try {
+        Invoke-WebRequest -Uri $StudioUrl -UseBasicParsing -TimeoutSec 5 | Out-Null
+        $ready = $true
+        break
+    } catch {
+        Start-Sleep -Seconds 2
+    }
+}
+if ($ready) {
+    Start-Process $StudioUrl
+    Write-Host "Studio aperto nel browser: $StudioUrl"
+} else {
+    Write-Host "Lo Studio non risponde ancora: aprilo a mano su $StudioUrl tra poco."
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import MosaicTiles, { stepTiles } from '@/components/MosaicTiles';
 import { API_URL } from '@/lib/apiUrl';
@@ -9,6 +10,9 @@ import { formatPieceDate, type PieceSummary } from '@/lib/pieces';
 export default function PiecesPage() {
   const [pieces, setPieces] = useState<PieceSummary[] | null>(null);
   const [error, setError] = useState('');
+  // The piece waiting for "Sì, elimina", and the one being deleted right now.
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -23,6 +27,22 @@ export default function PiecesPage() {
       alive = false;
     };
   }, []);
+
+  // The backend moves the piece to the Studio trash (MoniliStorage\cestino), it does not erase it.
+  async function deletePiece(runId: string) {
+    setDeleting(runId);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/pieces/${encodeURIComponent(runId)}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+      setPieces((list) => (list ? list.filter((piece) => piece.run_id !== runId) : list));
+      setConfirming(null);
+    } catch {
+      setError('Non sono riuscito a eliminare il pezzo. Controlla che lo Studio sul PC sia acceso e riprova.');
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   return (
     <div className="page">
@@ -40,23 +60,56 @@ export default function PiecesPage() {
       )}
       {pieces && pieces.length > 0 && (
         <ul className="piece-list">
-          {pieces.map((piece) => (
-            <li key={piece.run_id}>
-              <Link href={`/pezzi/${encodeURIComponent(piece.run_id)}`} className="piece-card">
-                {piece.cover ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`${API_URL}/files/${piece.cover}`} alt="" loading="lazy" />
-                ) : (
-                  <span className="piece-thumb-empty" />
+          {pieces.map((piece) => {
+            const name = piece.title || 'Pezzo senza nome';
+            return (
+              <li key={piece.run_id} className="piece-row">
+                <Link href={`/pezzi/${encodeURIComponent(piece.run_id)}`} className="piece-card">
+                  {piece.cover ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={`${API_URL}/files/${piece.cover}`} alt="" loading="lazy" />
+                  ) : (
+                    <span className="piece-thumb-empty" />
+                  )}
+                  <div>
+                    <h2>{name}</h2>
+                    <time dateTime={piece.created_at}>{formatPieceDate(piece.created_at)}</time>
+                    <MosaicTiles items={stepTiles(piece.steps)} palette={piece.palette} />
+                  </div>
+                </Link>
+                <button
+                  type="button"
+                  className="piece-delete"
+                  aria-label={`Elimina ${name}`}
+                  aria-expanded={confirming === piece.run_id}
+                  onClick={() => setConfirming(confirming === piece.run_id ? null : piece.run_id)}
+                >
+                  <Trash2 size={18} aria-hidden="true" />
+                  <span>Elimina</span>
+                </button>
+                {confirming === piece.run_id && (
+                  <div className="piece-confirm" role="group" aria-label={`Conferma eliminazione di ${name}`}>
+                    <p>
+                      Elimino &laquo;{name}&raquo; dallo Studio? Finisce nel cestino sul PC; se è già sul sito, lì resta.
+                    </p>
+                    <div>
+                      <button
+                        type="button"
+                        className="btn-mission"
+                        disabled={deleting === piece.run_id}
+                        onClick={() => deletePiece(piece.run_id)}
+                      >
+                        {deleting === piece.run_id ? 'Elimino...' : 'Sì, elimina'}
+                      </button>
+                      <button type="button" className="btn-secondary" onClick={() => setConfirming(null)}>
+                        Annulla
+                      </button>
+                    </div>
+                  </div>
                 )}
-                <div>
-                  <h2>{piece.title || 'Pezzo senza nome'}</h2>
-                  <time dateTime={piece.created_at}>{formatPieceDate(piece.created_at)}</time>
-                  <MosaicTiles items={stepTiles(piece.steps)} palette={piece.palette} />
-                </div>
-              </Link>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
