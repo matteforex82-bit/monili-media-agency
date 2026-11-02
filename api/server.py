@@ -19,18 +19,31 @@ import requests
 from dotenv import load_dotenv
 from PIL import Image, ImageFilter, ImageOps, ImageStat
 
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+# The project root holds the Studio's own modules (also added again further down).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import studio_auth  # noqa: E402
+
 app = FastAPI(title="Monili Media Agency API")
 load_dotenv(encoding="utf-8-sig")
 
+# Every call needs the PIN session (studio_auth.py). Added before CORS so that
+# CORS wraps it and a 401 still reaches the Studio page readable.
+app.add_middleware(studio_auth.StudioAuthMiddleware)
+# Only the Studio's own pages may call the API, with the session cookie: the PC
+# itself, the home network and Tailscale (100.x addresses, *.ts.net names).
+# Any other website open in the browser gets no access.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origin_regex=(
+        r"^https?://(localhost|127\.0\.0\.1|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+"
+        r"|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|100\.\d+\.\d+\.\d+|[a-z0-9-]+(\.[a-z0-9-]+)*\.ts\.net)(:\d+)?$"
+    ),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -49,6 +62,7 @@ def _resolve_storage_root() -> Path:
 
 
 STORAGE_ROOT = _resolve_storage_root()
+studio_auth.configure(STORAGE_ROOT)
 INPUT_DIR    = STORAGE_ROOT / "input"
 OUTPUT_DIR   = STORAGE_ROOT / "output"
 SHOWCASE_DRAFTS_DIR = STORAGE_ROOT / "showcase-drafts"
@@ -1225,6 +1239,64 @@ def _piece_summary(item: dict, reels_by_piece: dict[str, list[dict]]) -> dict:
 def _collect_pieces(limit: int = 60) -> list[dict]:
     grouped = _reels_by_piece()
     return [_piece_summary(item, grouped) for item in _collect_history(limit)]
+
+
+@app.get("/auth/status")
+def auth_status(request: Request):
+    return {
+        "configured": studio_auth.is_configured(),
+        "logged_in": not studio_auth.REQUIRED
+        or studio_auth.session_valid(request.cookies.get(studio_auth.COOKIE_NAME)),
+        # The PIN is chosen from the PC itself, never from another device.
+        "can_setup": studio_auth.is_local(request),
+    }
+
+
+@app.post("/auth/setup")
+def auth_setup(request: Request, body: dict | None = None):
+    if studio_auth.is_configured():
+        return JSONResponse({"error": "Il PIN c'è già."}, status_code=409)
+    if not studio_auth.is_local(request):
+        return JSONResponse({"error": "Il PIN si sceglie dal PC dove gira lo Studio."}, status_code=403)
+    pin = str((body or {}).get("pin", "")).strip()
+    if not studio_auth.valid_pin_format(pin):
+        return JSONResponse(
+            {"error": f"Il PIN deve avere da {studio_auth.PIN_MIN_LENGTH} a {studio_auth.PIN_MAX_LENGTH} cifre."},
+            status_code=400,
+        )
+    studio_auth.set_pin(pin)
+    response = JSONResponse({"ok": True})
+    studio_auth.set_cookie(response, request)
+    return response
+
+
+@app.post("/auth/login")
+def auth_login(request: Request, body: dict | None = None):
+    if not studio_auth.is_configured():
+        return JSONResponse({"error": "Il PIN non è ancora stato scelto: fallo dal PC."}, status_code=409)
+    address = request.client.host if request.client else "unknown"
+    wait = studio_auth.lockout_seconds(address)
+    if wait:
+        return JSONResponse(
+            {"error": f"Troppi tentativi sbagliati: riprova tra {wait // 60 + 1} minuti."},
+            status_code=429,
+            headers={"Retry-After": str(wait)},
+        )
+    pin = str((body or {}).get("pin", "")).strip()
+    if not studio_auth.verify_pin(pin):
+        studio_auth.record_failure(address)
+        return JSONResponse({"error": "PIN sbagliato."}, status_code=401)
+    studio_auth.clear_failures(address)
+    response = JSONResponse({"ok": True})
+    studio_auth.set_cookie(response, request)
+    return response
+
+
+@app.post("/auth/logout")
+def auth_logout():
+    response = JSONResponse({"ok": True})
+    response.delete_cookie(studio_auth.COOKIE_NAME, path="/")
+    return response
 
 
 @app.get("/pieces")

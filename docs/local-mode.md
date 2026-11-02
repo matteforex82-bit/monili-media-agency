@@ -83,6 +83,16 @@ tailscale serve --bg --https=8443 http://127.0.0.1:8000
 
 3. Sull'iPhone apri `https://<nome-pc>.<tuo-tailnet>.ts.net` (lo mostra `tailscale serve status`). Lo Studio chiama il backend sulla porta 8443 quando la pagina è in https.
 
+## PIN dello Studio
+
+Dal 02/11/2026 lo Studio è chiuso a chiave (`studio_auth.py`): senza PIN non si vedono pezzi e foto, non si lanciano lavori e non si pubblica sul sito.
+
+- **La prima volta** il PIN (da 6 a 12 cifre) si sceglie aprendo lo Studio **dal PC** (`http://localhost:3000`): da altri dispositivi non si può.
+- **Ogni telefono o computer** lo chiede una volta, poi se lo ricorda per 90 giorni.
+- **5 PIN sbagliati** di fila bloccano quel dispositivo per 15 minuti.
+- Il backend risponde solo alle pagine dello Studio (PC, rete di casa, Tailscale), non ad altri siti aperti nel browser.
+- **PIN dimenticato:** chiudi lo Studio, cancella `MoniliStorage\memory\studio_access.json`, riavvialo e dal PC sceglierai un PIN nuovo. Tutti i dispositivi dovranno rimetterlo.
+
 ## Cosa viene salvato
 
 ```text

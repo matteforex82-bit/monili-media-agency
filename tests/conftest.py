@@ -24,6 +24,17 @@ def storage_root() -> Path:
     return _STORAGE
 
 
+@pytest.fixture(autouse=True)
+def _studio_open(request):
+    """The tests call the API directly: the PIN lock (studio_auth) is off,
+    except in test_studio_auth.py, which checks the lock itself."""
+    import studio_auth
+
+    studio_auth.REQUIRED = request.module.__name__.split(".")[-1] == "test_studio_auth"
+    yield
+    studio_auth.REQUIRED = True
+
+
 @pytest.fixture()
 def product_photo(tmp_path) -> Path:
     """Finto orecchino: cerchio argento con goccia blu su fondo verde."""

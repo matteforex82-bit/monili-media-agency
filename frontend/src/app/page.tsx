@@ -133,7 +133,8 @@ export default function NewPiecePage() {
         }
       };
 
-      source = new EventSource(`${API_URL}/mission/${jobId}/stream`);
+      // withCredentials: the live updates need the PIN session cookie too.
+      source = new EventSource(`${API_URL}/mission/${jobId}/stream`, { withCredentials: true });
       source.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);

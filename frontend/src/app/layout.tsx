@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './studio.css';
 import AppShell from '@/components/AppShell';
+import StudioAccess from '@/components/StudioAccess';
 
 export const metadata: Metadata = {
   title: 'I Monili · Studio',
@@ -17,7 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="it">
       <body className="min-h-screen">
-        <AppShell>{children}</AppShell>
+        <StudioAccess>
+          <AppShell>{children}</AppShell>
+        </StudioAccess>
       </body>
     </html>
   );
