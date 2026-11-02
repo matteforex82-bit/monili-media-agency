@@ -6,6 +6,6 @@ Pillow>=10.0.0
 pillow-heif>=0.18.0
 requests>=2.31.0
 python-dotenv>=1.0.0
-imageio-ffmpeg>=0.5.1
+imageio-ffmpeg>=0.7.0
 numpy>=2.0
 onnxruntime>=1.20
