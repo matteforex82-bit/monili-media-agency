@@ -1,0 +1,22 @@
+# Dependabot opens a pull request when a library of the Studio has an update.
+# Nothing changes on the PC by itself: a PR is merged by hand, after the tests
+# pass (python -m pytest tests). Ordinary updates once a month, grouped into one
+# PR per ecosystem so the list stays short.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
