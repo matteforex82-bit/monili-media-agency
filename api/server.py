@@ -352,15 +352,78 @@ def _slugify(value: str) -> str:
     return re.sub(r"(^-+|-+$)", "", cleaned)[:80] or "prodotto"
 
 
+_CATEGORY_WORDS = {
+    "abbigliamento": r"giacc|gilet|kimono|cappott|giubb|camici|abit[oi]\b|vestit|magli|cardigan|blus|gonn|pantalon"
+    r"|poncho|kaftan|caftan|tunic|felp|trench|blazer|top\b",
+    "accessori": r"\bbors|pochette|cintur|foulard|sciarp|cappell|occhial|portafogl|zain|stola|scial",
+    "gioielli": r"collan|braccial|anell|orecchin|cavigliera|ciondol|spilla|gioiell|parure",
+}
+
+# Each shop answers its own pieces (site-config.ts on the site): silver and
+# bijoux at no. 17, clothing and accessories at no. 21.
+SHOP_FOR_CATEGORY = {
+    "gioielli": "via-cavour-17",
+    "bijoux": "via-cavour-17",
+    "abbigliamento": "via-cavour-21",
+    "accessori": "via-cavour-21",
+}
+
+
+def _category_in(text: str) -> str | None:
+    """The category of the first product word in the text (the item named first)."""
+    found = [
+        (match.start(), category)
+        for category, pattern in _CATEGORY_WORDS.items()
+        if (match := re.search(pattern, text.lower()))
+    ]
+    return min(found)[1] if found else None
+
+
 def _pick_category(text: str) -> str:
-    source = text.lower()
-    if re.search(r"collana|bracciale|anello|orecchini|gioiell", source):
-        return "gioielli"
-    if re.search(r"borsa|cintura|foulard|accessorio|regalo", source):
-        return "accessori"
-    if re.search(r"camicia|abito|maglia|giacca|pantalone|lino", source):
-        return "abbigliamento"
-    return "bijoux"
+    return _category_in(text) or "bijoux"
+
+
+def _exact_category_line(analisi: str) -> str:
+    match = re.search(r"categoria esatta[*:\s]*(?:[-*]\s*)?(.+)", analisi, flags=re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
+def _category_for_results(results: dict, brief: str = "") -> str:
+    """The analysis also suggests what to pair the piece with ("con orecchini..."):
+    the category comes from what the piece is, read in order of reliability."""
+    publish_pack = _parse_json_loose(results.get("publish_pack_json"))
+    analisi = str(results.get("analisi", ""))
+    sources = [
+        _exact_category_line(analisi),
+        str(publish_pack.get("product_name", "")),
+        brief,
+        _showcase_signal_text(results),
+    ]
+    return next((category for source in sources if (category := _category_in(source))), "bijoux")
+
+
+_PRICE_NUMBER = r"(\d{1,5}(?:[.,]\d{1,2})?)"
+
+
+def _price_from_brief(brief: str) -> str:
+    """"costo 69€", "69 euro", "€ 22,50", "prezzo: 35" -> the number as written."""
+    for pattern in (
+        rf"{_PRICE_NUMBER}\s*(?:€|eur(?:o|i)?\b)",
+        rf"(?:€|\beur(?:o|i)?)\s*{_PRICE_NUMBER}",
+        rf"\b(?:prezzo|costo|costa|a soli)\s*:?\s*{_PRICE_NUMBER}",
+    ):
+        match = re.search(pattern, brief, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return ""
+
+
+def _size_from_brief(brief: str) -> str:
+    """"taglia M", "tg. 44", "misura 16", "taglia unica" -> the size as written."""
+    if re.search(r"taglia\s+unica", brief, flags=re.IGNORECASE):
+        return "Taglia unica"
+    match = re.search(r"\b(?:taglia|tg\.?|misura|mis\.)\s*:?\s*([a-z0-9][a-z0-9/.\-]{0,7})", brief, flags=re.IGNORECASE)
+    return match.group(1).upper() if match and not match.group(1).isdigit() else (match.group(1) if match else "")
 
 
 
@@ -614,7 +677,7 @@ def _build_showcase_payload(
         or f"Prodotto {run_id}"
     )
     # The owner's category in the Studio wins over the one guessed from the text.
-    category = category or _pick_category(product_signal_text)
+    category = category or _category_for_results(results, str(manifest.get("brief", "")))
     if category == "abbigliamento" and not size:
         raise ValueError("Manca la taglia: per l'abbigliamento è obbligatoria.")
     state = _pick_state(product_signal_text)
@@ -1375,11 +1438,17 @@ def showcase_candidates(run_id: str):
     if not isinstance(results, dict):
         return JSONResponse({"error": "Risultati missione non disponibili."}, status_code=404)
 
+    # Pre-filled in the Studio from the analysis and the description written with
+    # the photo ("Giacca ricamata, costo 69€, taglia M"); the owner checks and sends.
+    brief = str(payload.get("brief", ""))
+    category = _category_for_results(results, brief)
     return {
         "run_id": run_id,
         "items": _showcase_image_candidates(results),
-        # Pre-selects the category in the Studio; the owner can change it.
-        "category": _pick_category(_showcase_signal_text(results)),
+        "category": category,
+        "location": SHOP_FOR_CATEGORY[category],
+        "price": _price_from_brief(brief),
+        "size": _size_from_brief(brief),
     }
 
 

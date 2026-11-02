@@ -157,6 +157,7 @@ function ShowcaseSection({
   const [size, setSize] = useState('');
   const [category, setCategory] = useState('');
   const [location, setLocation] = useState('');
+  const [prefilled, setPrefilled] = useState<string[]>([]);
   // Spenta di default: nelle prime settimane si controlla la bozza sul sito prima di pubblicarla.
   const [publishNow, setPublishNow] = useState(false);
   // Deve combaciare con i controlli di api/server.py: niente pezzo sul sito senza prezzo e negozio,
@@ -195,7 +196,13 @@ function ShowcaseSection({
           })
           .filter(Boolean) as ShowcaseCandidate[];
         setCandidates(items);
-        if (typeof data?.category === 'string') setCategory((prev) => prev || data.category);
+        // Suggestions from the analysis and the description written with the photo: the owner checks them.
+        const suggested = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+        if (suggested(data?.category)) setCategory((prev) => prev || data.category);
+        if (suggested(data?.location)) setLocation((prev) => prev || data.location);
+        if (suggested(data?.price)) setPrice((prev) => prev || data.price);
+        if (suggested(data?.size)) setSize((prev) => prev || data.size);
+        setPrefilled(['category', 'location', 'price', 'size'].filter((key) => suggested(data?.[key])));
         const recommended = items.filter((item) => item.available && item.recommended).map((item) => item.src);
         const fallback = items.filter((item) => item.available).map((item) => item.src);
         setSelected((recommended.length ? recommended : fallback).slice(0, SHOWCASE_MAX_IMAGES));
@@ -287,6 +294,21 @@ function ShowcaseSection({
 
       <section className="step" aria-labelledby="step-dati">
         <h2 className="step-title" id="step-dati"><span className="step-num">2</span>Prezzo, negozio, taglia</h2>
+        {prefilled.length > 0 && (
+          <p className="step-hint">
+            Ho compilato io{' '}
+            {[
+              prefilled.includes('category') && 'categoria',
+              prefilled.includes('location') && 'negozio',
+              prefilled.includes('price') && 'prezzo',
+              prefilled.includes('size') && 'taglia',
+            ]
+              .filter(Boolean)
+              .join(', ')}{' '}
+            dalla foto e dalla tua descrizione: controlla e cambia se serve.
+            {!prefilled.includes('price') && ' Se scrivi il prezzo nella descrizione (es. "costo 69€"), lo metto io.'}
+          </p>
+        )}
         <div className="form-grid">
           <label>
             Categoria
