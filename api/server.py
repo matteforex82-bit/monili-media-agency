@@ -353,16 +353,13 @@ def _slugify(value: str) -> str:
     return re.sub(r"(^-+|-+$)", "", cleaned)[:80] or "prodotto"
 
 
-SHOP_FOR_CATEGORY = categorie.SHOP_FOR_CATEGORY
-
-
 def _pick_category(text: str) -> str:
     return categorie.category_in(text) or "bijoux"
 
 
 def _category_for_results(results: dict, brief: str = "") -> str:
     # The mission already decided it (and made the photos for it); older missions are read again.
-    if results.get("category") in categorie.SHOP_FOR_CATEGORY:
+    if results.get("category") in categorie.LABELS:
         return str(results["category"])
     publish_pack = _parse_json_loose(results.get("publish_pack_json"))
     return categorie.category_from(
@@ -1441,13 +1438,14 @@ def showcase_candidates(run_id: str):
 
     # Pre-filled in the Studio from the analysis and the description written with
     # the photo ("Giacca ricamata, costo 69€, taglia M"); the owner checks and sends.
+    # The shop is not suggested: where the real piece is, only the owner knows.
     brief = str(payload.get("brief", ""))
     category = _category_for_results(results, brief)
     return {
         "run_id": run_id,
         "items": _showcase_image_candidates(results),
         "category": category,
-        "location": SHOP_FOR_CATEGORY[category],
+        "location": "",
         "price": _price_from_brief(brief),
         "size": _size_from_brief(brief),
     }

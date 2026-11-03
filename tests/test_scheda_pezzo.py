@@ -27,7 +27,7 @@ PACK = {
     "product_name": "Anello con pietra viola",
     "seo_title": "Anello con pietra viola | I Monili Ravenna",
     "seo_description": "Anello in metallo argentato con pietra viola, in via Cavour a Ravenna.",
-    "whatsapp_share": "Guarda questo anello: se ti piace te lo mettiamo da parte.",
+    "whatsapp_share": "Guarda questo anello: se ti piace scrivici, ti diciamo se è disponibile.",
     "gmb_title": "Anello con pietra viola",
     "gmb_text": "Nuovo in via Cavour a Ravenna.",
     "caption": "Viola come i mosaici.",

@@ -465,7 +465,7 @@ def _font(name: str, size: int):
 
 
 def make_closing_card(destination: Path) -> Path:
-    """Chiusura 1080x1920 su fondo crema: logo, "Ti piace? Scrivici, te lo mettiamo da parte." e indirizzo.
+    """Chiusura 1080x1920 su fondo crema: logo, "Ti piace? Scrivici, ti diciamo se è disponibile." e indirizzo.
     Colori del sito vetrina; il testo resta sopra il 20% basso che Instagram copre con la caption."""
     width, height = FRAME_SIZE
     paper, ink, soft, terracotta = (246, 241, 230), (26, 26, 26), (90, 84, 76), (200, 89, 58)
@@ -491,8 +491,8 @@ def make_closing_card(destination: Path) -> Path:
     serif, italic, small = _font("GARA.TTF", 96), _font("GARAIT.TTF", 96), _font("GARA.TTF", 39)
     centered("Ti piace?", italic, 765, terracotta)
     centered("Scrivici,", serif, 915, ink)
-    centered("te lo mettiamo", serif, 1027, ink)
-    centered("da parte.", serif, 1140, ink)
+    centered("ti diciamo se", serif, 1027, ink)
+    centered("è disponibile.", serif, 1140, ink)
     draw.line([(width / 2 - 36, 1312), (width / 2 + 36, 1312)], fill=terracotta, width=3)
     centered("VIA CAVOUR 17 E 21", small, 1365, soft, spacing=6)
     centered("RAVENNA", small, 1425, soft, spacing=6)
@@ -581,7 +581,7 @@ def _finish_external(state: dict, source: Path, seconds: float, add_closing: boo
         card = make_closing_card(out_dir / "chiusura.png")
         closing = _still_clip(card, out_dir / "shots" / "chiusura.mp4", CLOSING_SECONDS)
         assemble([(body, seconds), (closing, CLOSING_SECONDS)], [CLOSING_FADE], final_video)
-        log(reel_id, "MONTAGGIO", "Chiusura \"Scrivici, te lo mettiamo da parte\" aggiunta", "success")
+        log(reel_id, "MONTAGGIO", "Chiusura \"Scrivici, ti diciamo se è disponibile\" aggiunta", "success")
     else:
         shutil.copyfile(body, final_video)
     # Copertina: un fotogramma verso la fine del video, quando di solito si vede la persona.
@@ -686,7 +686,7 @@ REGOLE:
 - Le inquadrature AI partono da un fotogramma chiave generato dalla foto reale: il prodotto deve restare identico.
 - Gioielli piccoli: preferisci movimenti lenti (slow push-in, orbit leggero, rack focus), evita rotazioni veloci.
 - Luce naturale e bella, adatta alla scena che inventi.
-- Ogni inquadratura AI dura 3-6 secondi; l'ultima chiude SEMPRE con invito concreto: "Scrivici, te lo mettiamo da parte" o "Ti aspettiamo in centro a Ravenna".
+- Ogni inquadratura AI dura 3-6 secondi; l'ultima chiude SEMPRE con invito concreto: "Scrivici, ti diciamo se è disponibile" o "Ti aspettiamo in centro a Ravenna".
 - Stile: autentico ed elegante, colori e sfondi che fanno risaltare il prodotto. Mai effetti pacchiani.
 - on_screen_text in italiano, max 6 parole, tono da amica.
 - keyframe_prompt_en e motion_prompt_en in inglese, concreti e visivi.

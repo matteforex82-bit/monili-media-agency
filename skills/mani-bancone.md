@@ -9,7 +9,7 @@ default_seconds: 8
 1. HOOK (2s): mani che aprono una scatolina o sollevano il gioiello dal bancone in legno chiaro.
 2. PROVA (3s): il gioiello viene indossato (dita o polso), movimento lento che fa brillare le pietre.
 3. DETTAGLIO (2-3s): macro dalla foto reale (keyframe_mode original_photo, end_on_product true).
-4. CHIUSURA (2s): mano che indica o appoggia il gioiello + testo "Scrivici, te lo mettiamo da parte".
+4. CHIUSURA (2s): mano che indica o appoggia il gioiello + testo "Scrivici, ti diciamo se è disponibile".
 Solo mani femminili curate e naturali, nessun volto. Se ci sono clip reali usale qui: sono perfette.
 
 ## Fotogramma

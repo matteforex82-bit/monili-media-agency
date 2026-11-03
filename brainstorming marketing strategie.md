@@ -377,3 +377,40 @@ Registrare privatamente richieste seguite da Matteo, canale di provenienza quand
 - [SumUp: creazione dei link e controllo del pagamento](https://help.sumup.com/it-IT/articles/2rTTr92lUebQ3nY9jAAy5m-inviare-link-di-pagamento).
 
 Le funzionalità e le condizioni degli strumenti esterni vanno ricontrollate nell'account usato durante il collaudo. I link di riferimento non attestano che quegli account siano già configurati per Monili.
+
+## 16. Chiarimenti di allineamento (3 novembre 2026, sera)
+
+Emersi confrontando il PRD con sito, Studio e documenti esistenti. Dove scritto «proposta», la regola vale come default finché Matteo non decide diversamente.
+
+### 16.1 Decisioni di Matteo
+- **Frase di chiusura** di Reel, Storie, caption e sito: **«Scrivici, ti diciamo se è disponibile»**. Non si usa più «te lo mettiamo da parte»: la riserva nasce solo dopo la verifica umana (§3.2, §5.3). I Reel già pubblicati o importati hanno la frase vecchia dentro il video e restano come sono.
+- **Sede del pezzo:** la sceglie sempre chi pubblica, caso per caso (argento e pietre 17, il resto 21). Lo Studio non la deduce dalla categoria e non la precompila.
+- **Hero:** ogni slide può avere sfondo video o foto; la slide 1 funziona anche da sola. Il video già online resta utilizzabile.
+- **Cadenza unica dei contenuti:** 2 contenuti principali a settimana, Storie riusate nei 3 giorni successivi, nessun giorno fisso promesso. Il countdown quotidiano del piano Natale è riuso, non produzione nuova.
+- **Staff Helper** (strumento per le commesse con dati cliente, previsto dalla bozza precedente): **non si costruisce nello Studio**. Ordini e buoni vivono in un registro privato separato (§16.3).
+
+### 16.2 Regole proposte per i punti rimasti aperti
+1. **Buoni Natale 2026:** quelli emessi dal 3 novembre al 24 dicembre 2026 scadono il 25 gennaio 2027; dopo il 24 dicembre vale la regola ordinaria di un mese.
+2. **Buoni e recesso:** un buono acquistato a distanza ha il recesso di 14 giorni. Il registro (§10.2) prevede lo stato **annullato/rimborsato**; il buono non si usa se è già stato annullato.
+3. **Cambio e recesso sullo stesso acquisto a distanza:** se la cliente dice «rendere» o «rimborso» vale il recesso; se dice «cambiare» vale il cambio commerciale. Nel dubbio si chiede quale dei due vuole, prima di dare istruzioni di spedizione.
+4. **Riserva scaduta:** la conferma espressa dell'ordine decade se il pagamento (o il ritiro con pagamento) non avviene entro la scadenza comunicata. Va scritto nelle condizioni di vendita prima di offrire il pagamento al ritiro. Il rimborso di un pagamento tardivo non più eseguibile segue §8.2.
+5. **Ordine pagato da ritirare:** ritiro entro **14 giorni** dal pagamento; poi si concorda una spedizione o un nuovo ritiro. Si comunica nel messaggio di «pronto al ritiro».
+6. **Spedizione:** nel riepilogo si indicano insieme la partenza (2–3 giorni lavorativi dal pagamento verificato) e il termine di consegna concordato. Il termine di legge di 30 giorni resta solo come ultima tutela se non è stato concordato altro.
+7. **Ritiro di un ordine a distanza:** resta un acquisto a distanza; il recesso decorre dal ritiro. Le condizioni di vendita lo dicono esplicitamente.
+
+### 16.3 Da decidere o far verificare
+- **Buoni, fisco e validità:** un buono spendibile solo nel negozio emittente è in genere un buono «multiuso» (IVA all'uso, non all'emissione), e la validità di un mese è molto breve per un consumatore. **Da far verificare a commercialista e consulente prima di venderli.** Non è una conclusione legale di questo documento.
+- **Dove vive il registro privato** (ordini, riserve, buoni): non nello Studio e non nel database pubblico del sito. Pilota proposto: foglio privato con accesso limitato per ordini e riserve (come già descritto in `docs/impegni-legali.md` §3); applicazione autenticata separata soltanto per i buoni (J11).
+- **Sito nel profilo Google:** oggi `moniliravenna.shop`; si passa alla vetrina quando i pezzi pubblicati sono 10–15 (`docs/STATO_PROGETTO.md`). Da conciliare con «la bio conduce al sito».
+- **Riferimento breve del pezzo:** oggi esiste solo lo slug lungo. Serve un codice breve (mostrato in scheda, caption, messaggio WhatsApp e brief dei Reel) per rispettare «prezzo e riferimento» di §6.
+- **File non tracciato** `prd per GDPR e AI act.md` nella radice: da committare o spostare, decide Matteo.
+
+### 16.4 Sequenza di lavoro per Natale
+Date reali: idee regalo dal 16 novembre, Black Friday 27 novembre, ultime spedizioni utili prima di Natale (da fissare con il corriere).
+
+1. Subito: allineamento di testi, WhatsApp centrale e CTA (J04, J05); nessun annuncio di servizi non attivi.
+2. Poi: Calendly e collegamento (J06, J07), Idee regalo e consulenza (J03), hero (J02).
+3. Poi: testi pronti, registro ordini, pagamenti, procedura pacchetti (J08–J10).
+4. Con ogni lancio: condizioni, privacy e FAQ (J12). La privacy deve citare Calendly prima che il link sia visibile.
+5. Per ultimi, e solo dopo collaudo al banco: buoni digitali (J11).
+6. Dal lancio: contenuti (J13) e registro dei risultati (J14).

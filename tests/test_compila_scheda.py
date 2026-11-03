@@ -1,4 +1,4 @@
-"""Categoria, negozio, prezzo e taglia compilati da analisi e descrizione: chi pubblica controlla e basta."""
+"""Categoria, prezzo e taglia compilati da analisi e descrizione; il negozio lo sceglie sempre chi pubblica."""
 import json
 
 import pytest
@@ -19,7 +19,7 @@ GIACCA = {
 
 def test_the_jacket_is_clothing_even_if_the_styling_talks_about_earrings():
     assert server._category_for_results(GIACCA, "Giacca lavorata Artigianalmente costo 69€") == "abbigliamento"
-    assert server.SHOP_FOR_CATEGORY["abbigliamento"] == "via-cavour-21"
+    assert not hasattr(server, "SHOP_FOR_CATEGORY")
 
 
 @pytest.mark.parametrize(
@@ -57,9 +57,10 @@ def test_candidates_send_the_suggestions_to_the_studio(monkeypatch):
     monkeypatch.setattr(server, "_find_mission_payload", lambda run_id: payload)
     monkeypatch.setattr(server, "_showcase_image_candidates", lambda results: [])
     data = TestClient(server.app).get("/missions/qualsiasi/showcase/candidates").json()
+    # Il negozio non si deduce dalla categoria: lo sceglie chi pubblica.
     assert (data["category"], data["location"], data["price"], data["size"]) == (
         "abbigliamento",
-        "via-cavour-21",
+        "",
         "69",
         "M",
     )

@@ -24,5 +24,5 @@ The lid lifts slowly; the camera makes a very slight push-in toward the jewelry;
 ## Testi
 - Prima riga della caption: la persona a cui regalarlo ("Per la mamma che dice sempre 'non mi serve niente'").
 - Ricorda i servizi: confezione regalo inclusa, possibilità di cambio dopo le feste (solo se il brief lo conferma).
-- Chiusura: "Mandalo a chi deve ancora trovare il regalo" oppure "Scrivici, te lo teniamo da parte".
+- Chiusura: "Mandalo a chi deve ancora trovare il regalo" oppure "Scrivici, ti diciamo se è disponibile".
 - Se il brief ha un prezzo, mettilo: "Regali sotto i 50€" funziona molto bene in questo periodo.

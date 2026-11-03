@@ -25,8 +25,11 @@ qualsiasi file in questa directory senza chiedere conferma.
 - **Ogni contenuto chiude con un invito concreto**: chiedere disponibilità in DM/WhatsApp o passare in negozio; la riserva richiede verifica e conferma. Il nuovo pilota prevede 2 contenuti principali/settimana, riusati nelle Storie in 3 giorni, con prezzo e riferimento nei contenuti di prodotto. Dati storici: 627 visite profilo ma 1 solo tocco sull'indirizzo.
 - **Volto**: niente modella fissa, ma **una donna per pezzo** (stessa nella Scheda e nei Reel di quel pezzo, mai due donne con lo stesso pezzo; cambia da un pezzo all'altro). La donna la inventa l'AI per il pezzo: bella ed elegante ma reale, non una modella perfetta. Più mani e negozio veri. Il gioiello parte sempre dalla foto reale. Etichetta "Info sull'AI" su Instagram per contenuti AI realistici
 - **Creatività**: l'AI resta libera su luoghi, donne, pose e abiti adatti allo stile del negozio, e non ripete donne e scene recenti. Si fissano solo i divieti, in `skills/_base/divieti.md` (pagina Skill → "Mai nei contenuti"): niente elenchi che rendono i contenuti tutti uguali
-- **Frequenza**: 1-2 post/settimana — qualità > quantità
-- **Orari**: Martedì / Giovedì / Sabato — fascia oraria DA VERIFICARE (il grafico Insights indica le 18 come ora meno attiva, possibile fuso orario diverso)
+- **Frequenza**: 2 contenuti principali/settimana (Reel o post) + Storie riusate in 3 giorni — qualità > quantità. Nessun giorno fisso promesso
+- **Orari**: da verificare (il grafico Insights indica le 18 come ora meno attiva, possibile fuso orario diverso)
+- **Frase di chiusura**: "Scrivici, ti diciamo se è disponibile". Mai "te lo mettiamo da parte": la riserva nasce solo dopo la verifica in negozio
+- **Sede del pezzo**: la sceglie sempre chi pubblica (argento e pietre al 17, il resto al 21); lo Studio non la deduce dalla categoria
+- **WhatsApp**: tutti i collegamenti WhatsApp del percorso digitale vanno al numero centrale del 21 (375 771 3966); la sede del pezzo resta visibile
 - **Hashtag fissi** (sempre presenti): #imoniliravenna #ravenna #romagnastyle
 
 ## Visual Identity

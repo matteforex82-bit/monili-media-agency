@@ -71,7 +71,7 @@ Testi esatti sul sito: `Ecosistema Monili/apps/web/src/lib/legal-content.ts`. Se
 | # | Cosa abbiamo dichiarato | Cosa facciamo da oggi |
 |---|---|---|
 | I1 | Footer: ragione sociale, sede, P.IVA, e-mail, WhatsApp dei due negozi | Se cambia un dato (numero, sede, e-mail), si aggiorna `src/config/legal.ts` della vetrina: una sola modifica, vale per tutto il sito |
-| I2 | Per ogni pezzo il WhatsApp è quello del **negozio che lo possiede** (Via Cavour 17: 331 428 5295; Via Cavour 21: 375 771 3966) | Non inventare un numero unico |
+| I2 | **Aggiornato il 03/11/2026 (PRD Journey cliente §3.1, §11):** tutti i collegamenti WhatsApp del sito vanno al **numero centrale del 21: 375 771 3966**. La scheda del pezzo e il messaggio indicano comunque il **negozio del pezzo** (17: 331 428 5295 resta il telefono reale della sede). Il footer e le pagine dei negozi mantengono i telefoni per sede | Il numero centrale è uno solo e ha una costante sola nel codice (`site-config.ts` della vetrina). Non cambiare il luogo del prodotto né i dati legali della società |
 
 ---
 
@@ -88,7 +88,7 @@ Si usano in WhatsApp Business (risposte rapide), Instagram DM e e-mail. Le parti
 > **RIEPILOGO ORDINE — I MONILI DI SAMA BARBARA di Barbara Sama**
 > Via Cavour 17, 48124 Ravenna (RA) — P.IVA 02052730393 — moniliravenna@gmail.com
 > Ordine n. [numero] del [data]
-> Negozio referente: [Via Cavour 17 / 21] — [telefono corrispondente]
+> Negozio di ritiro del pezzo: [Via Cavour 17 / 21] — assistenza WhatsApp: 375 771 3966
 > Pezzo: [descrizione, materiali, misura/taglia] × [quantità]
 > Prezzo (imposte incluse): € [__]
 > Spedizione: € [__] (Italia 8 €, gratuita sopra 99 €)
@@ -171,13 +171,32 @@ Niente indirizzi o chat copiati dove non servono, e niente di tutto questo nello
 
 ---
 
+## 3bis. Promesse nuove del PRD Journey cliente: non ancora dichiarate sul sito
+
+Queste regole sono decise (`brainstorming marketing strategie.md`, §8–§10 e §16) ma **non sono ancora nelle condizioni di vendita**: finché il sito non le riporta, non vanno promesse ai clienti. Si aggiorna prima `/condizioni-vendita`.
+
+| Nuova prassi | Cosa manca nelle condizioni |
+|---|---|
+| Pagamento anche **in negozio al ritiro** (oltre a bonifico e link SumUp) | V8 e la sezione «Pagamenti» elencano solo bonifico anticipato e link SumUp |
+| **Riserva con scadenza** (max 48 h) e conferma che decade se non si paga | Nessuna clausola sulla scadenza della conferma |
+| **Ritiro** di un ordine a distanza (recesso dal ritiro) | Le condizioni parlano solo di consegna con corriere |
+| Partenza entro **2–3 giorni lavorativi** dal pagamento verificato | V5: «30 giorni» se non concordato |
+| **Scatolina** con supplemento, comunicato prima del pagamento | Non menzionata (V4: nessun costo senza accordo espresso, resta valido) |
+| **Cambio commerciale entro 14 giorni**, distinto da recesso e garanzia | Non menzionato |
+| **Buoni regalo** (solo dopo collaudo del registro) | Non menzionati |
+| Dati di prenotazione su **Calendly** | Non citato nella privacy |
+
+Guida operativa: questo file è la fonte unica. `Ecosistema Monili/apps/web/docs/OPERAZIONI_NEGOZIO.md` (vetrina) contiene una versione precedente dei modelli: se i due testi divergono, vale questo.
+
+---
+
 ## 4. Decisioni ancora da prendere (tue, non del codice)
 
 1. **Quanto conservare** chat e richieste senza ordine. La proposta era 6 mesi, ma sul sito non l'abbiamo promessa: scegli una durata e chi fa la pulizia.
 2. **Piano hosting** (Vercel, Neon) e contratti per il trattamento dei dati: verificare cosa si applica al piano reale.
 3. **Prassi vera su pagamenti, spedizioni e resi**: i testi devono corrispondere a come lavorate davvero. Se non è così, si cambia il sito, non la prassi nascosta.
 4. **Classificare le foto già in catalogo** (35 immagini senza flag): IA o reali, foto per foto.
-5. **Configurare le risposte rapide** A, B, D, E, G, I su WhatsApp Business (a mano, per ciascun negozio).
+5. **Configurare le risposte rapide** A, B, D, E, G, I su WhatsApp Business (a mano, sull'account centrale del 21; il 17 solo se continua a ricevere messaggi).
 6. **Far rivedere i testi** a un consulente.
 
 ---

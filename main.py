@@ -367,7 +367,7 @@ Hashtag fissi: #imoniliravenna #ravenna #romagnastyle
 Stile visivo: luce naturale calda, sfondi crema/neutri che fanno risaltare i colori dei prodotti;
 testi in stile editoriale (serif elegante su fondo crema), mai scritte stile fumetto o neon
 Formati prioritari: Story video e Reel (i post statici fanno il 4% delle visualizzazioni)
-Chiusura di ogni contenuto: invito concreto al DM ("scrivici, te lo mettiamo da parte") o a passare in negozio
+Chiusura di ogni contenuto: invito concreto al DM ("scrivici, ti diciamo se è disponibile") o a passare in negozio. Mai promettere di mettere da parte un pezzo: la riserva nasce solo dopo la verifica in negozio
 Ravenna: citta dei mosaici - il legame colori/pietre/mosaico e un tema naturale
 Posting: Martedi/Giovedi/Sabato (orari in verifica sugli Insights)
 """
@@ -657,12 +657,12 @@ def publish_pack_fallback() -> dict:
         "product_name": "",
         "seo_title": "",
         "seo_description": "",
-        "whatsapp_share": "Guarda questo pezzo da I Monili Ravenna: se ti piace scrivici, te lo mettiamo da parte.",
+        "whatsapp_share": "Guarda questo pezzo da I Monili Ravenna: se ti piace scrivici, ti diciamo se è disponibile.",
         "gmb_title": "Nuovo arrivo in negozio",
         "gmb_text": "Pezzo disponibile in boutique in via Cavour, nel centro di Ravenna: passa a provarlo.",
-        "caption": "Nuovo arrivo da I Monili Ravenna: scrivici, te lo mettiamo da parte.",
+        "caption": "Nuovo arrivo da I Monili Ravenna: scrivici, ti diciamo se è disponibile.",
         "hashtags": [],
-        "cta": "Scrivici su WhatsApp o passa in via Cavour, te lo mettiamo da parte.",
+        "cta": "Scrivici su WhatsApp o passa in via Cavour: ti diciamo se è disponibile.",
     }
 
 
@@ -706,7 +706,7 @@ JSON esatto:
   "product_name": "nome breve e concreto del pezzo, es. Anello in argento con ametista",
   "seo_title": "max 60 caratteri, nome del pezzo + I Monili Ravenna",
   "seo_description": "max 155 caratteri, cosa e, materiali certi, dove si trova a Ravenna",
-  "whatsapp_share": "messaggio breve da mandare insieme al link del pezzo, chiude con 'te lo mettiamo da parte'",
+  "whatsapp_share": "messaggio breve da mandare insieme al link del pezzo, chiude con 'ti diciamo se è disponibile'",
   "gmb_title": "titolo post Google Business",
   "gmb_text": "testo post Google Business, max 80 parole, con via Cavour e Ravenna",
   "caption": "una caption breve per la storia che rimanda al pezzo, max 2 emoji",

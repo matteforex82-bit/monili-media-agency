@@ -792,7 +792,7 @@ export default function ReelStudioPage() {
             </div>
             <label className="rs-check">
               <input type="checkbox" checked={importClosing} onChange={(e) => setImportClosing(e.target.checked)} />
-              <span>Aggiungi la chiusura &quot;Ti piace? Scrivici, te lo mettiamo da parte.&quot; (2,5 s su fondo crema)</span>
+              <span>Aggiungi la chiusura &quot;Ti piace? Scrivici, ti diciamo se è disponibile.&quot; (2,5 s su fondo crema)</span>
             </label>
             <button type="button" className="btn-mission rs-cta" disabled={busy || !importFiles.length} onClick={importVideo}>
               {busy ? 'Preparazione...' : 'Importa video'}

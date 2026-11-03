@@ -10,7 +10,7 @@ default_seconds: 7
    su un dettaglio del prodotto con luci calde sfocate.
 2. PEZZO DEL GIORNO (3s): macro dalla foto reale con lento avvicinamento (keyframe_mode original_photo,
    end_on_product true), testo "Il pezzo di oggi".
-3. CHIUSURA (2s): testo "Scrivici: te lo mettiamo da parte" (sticker DM o link nelle Storie).
+3. CHIUSURA (2s): testo "Scrivici: ti diciamo se è disponibile" (sticker DM o link nelle Storie).
 Sempre la stessa scena di marca per tutta la serie: superficie crema, rametto di pino vero, luci calde sfocate.
 
 ## Fotogramma

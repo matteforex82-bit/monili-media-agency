@@ -16,14 +16,9 @@ CATEGORY_WORDS = {
 
 LABELS = {"abbigliamento": "Abbigliamento", "accessori": "Accessori", "gioielli": "Gioielli", "bijoux": "Bijoux"}
 
-# Each shop answers its own pieces (site-config.ts on the site): silver and
-# bijoux at no. 17, clothing and accessories at no. 21.
-SHOP_FOR_CATEGORY = {
-    "gioielli": "via-cavour-17",
-    "bijoux": "via-cavour-17",
-    "abbigliamento": "via-cavour-21",
-    "accessori": "via-cavour-21",
-}
+# The shop is never worked out from the category (PRD Journey cliente, 03/11/2026):
+# silver and stones are at no. 17, the rest at no. 21, but only the owner knows where
+# the real piece is, so the Studio always asks.
 
 # The site photos follow what makes a customer write (Matteo, 02/11/2026). The
 # cover is always the real photo cleaned on the PC; the AI only shows the piece

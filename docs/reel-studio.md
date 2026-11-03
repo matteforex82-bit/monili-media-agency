@@ -64,8 +64,8 @@ fatto con Gemini (Veo) o girato col telefono, e lo trasforma in un Reel finito s
 
 - deve essere **verticale** (un 16:9 viene rifiutato con il consiglio di rigenerarlo in 9:16) e durare al massimo 57 s;
 - viene portato a 1080×1920, 30 fps, senza audio (l'audio si sceglie su Instagram);
-- con la casella attiva (default) si aggiunge la **chiusura** di 2,5 s su fondo crema: logo, "Ti piace? Scrivici, te lo
-  mettiamo da parte." e "via Cavour 17 e 21 · Ravenna" (`reel_studio.make_closing_card`, logo in `assets/logo-monili.png`,
+- con la casella attiva (default) si aggiunge la **chiusura** di 2,5 s su fondo crema: logo, "Ti piace? Scrivici, ti diciamo
+  se è disponibile." (dal 03/11/2026; i Reel già pubblicati hanno ancora la frase vecchia nel video) e "via Cavour 17 e 21 · Ravenna" (`reel_studio.make_closing_card`, logo in `assets/logo-monili.png`,
   font Garamond di Windows);
 - copertina da un fotogramma verso la fine; caption e hashtag scritti dall'AI dalla descrizione (se manca la chiave
   OpenRouter, la descrizione con i 3 hashtag fissi);

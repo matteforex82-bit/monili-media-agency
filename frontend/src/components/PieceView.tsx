@@ -201,10 +201,10 @@ function ShowcaseSection({
         // Suggestions from the analysis and the description written with the photo: the owner checks them.
         const suggested = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
         if (suggested(data?.category)) setCategory((prev) => prev || data.category);
-        if (suggested(data?.location)) setLocation((prev) => prev || data.location);
+        // The shop is never suggested: only who holds the real piece knows where it is.
         if (suggested(data?.price)) setPrice((prev) => prev || data.price);
         if (suggested(data?.size)) setSize((prev) => prev || data.size);
-        setPrefilled(['category', 'location', 'price', 'size'].filter((key) => suggested(data?.[key])));
+        setPrefilled(['category', 'price', 'size'].filter((key) => suggested(data?.[key])));
         const recommended = items.filter((item) => item.available && item.recommended).map((item) => item.src);
         const fallback = items.filter((item) => item.available).map((item) => item.src);
         setSelected((recommended.length ? recommended : fallback).slice(0, SHOWCASE_MAX_IMAGES));
@@ -301,7 +301,6 @@ function ShowcaseSection({
             Ho compilato io{' '}
             {[
               prefilled.includes('category') && 'categoria',
-              prefilled.includes('location') && 'negozio',
               prefilled.includes('price') && 'prezzo',
               prefilled.includes('size') && 'taglia',
             ]
@@ -324,9 +323,9 @@ function ShowcaseSection({
           <label>
             Negozio
             <select value={location} required onChange={(e) => setLocation(e.target.value)}>
-              <option value="">Scegli il negozio</option>
-              <option value="via-cavour-17">Via Cavour 17 (argento e bijoux)</option>
-              <option value="via-cavour-21">Via Cavour 21 (abbigliamento e accessori)</option>
+              <option value="">Dov'è il pezzo? Scegli il negozio</option>
+              <option value="via-cavour-17">Via Cavour 17 (argento e pietre)</option>
+              <option value="via-cavour-21">Via Cavour 21 (il resto)</option>
             </select>
           </label>
           <label>

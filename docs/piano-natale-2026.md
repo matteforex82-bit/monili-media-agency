@@ -1,12 +1,17 @@
 # Piano contenuti Natale 2026 — I Monili
 
 Da fine ottobre a Natale si concentra la maggior parte degli acquisti regalo dell'anno: è il periodo in cui
-Instagram può portare clienti in negozio. Ritmo sostenibile: **2 Reel a settimana + Storie quasi ogni giorno**.
+Instagram può portare clienti in negozio. Ritmo sostenibile: **2 contenuti a settimana, riusati nelle Storie** (vedi cadenza unica sotto).
 Tutto si crea dal Reel Studio con le skill indicate. Le date sono verificate sul calendario 2026.
 
 **Regole fisse del periodo**
-- Ogni contenuto chiude con un invito concreto: *"Scrivici, te lo mettiamo da parte"* oppure *"Mandalo a chi deve
-  ancora trovare il regalo"* (gli invii in DM sono il segnale che porta i Reel a chi non ci segue).
+- **Cadenza unica (PRD Journey cliente, 03/11/2026):** 2 contenuti principali a settimana (Reel o post), riusati nelle
+  Storie nei 3 giorni successivi. Le Storie e il countdown quotidiano sono **contenuti riusati**, non produzione nuova
+  (tempo disponibile: 2-3 ore a settimana). Nessun giorno fisso promesso. Le righe del calendario sotto sono idee
+  tra cui scegliere, non un obbligo.
+- Ogni contenuto chiude con un invito concreto: *"Scrivici, ti diciamo se è disponibile"* oppure *"Mandalo a chi deve
+  ancora trovare il regalo"*; non promettere "te lo mettiamo da parte": la riserva nasce dopo la verifica in negozio.
+  Nei contenuti di prodotto: **prezzo e riferimento del pezzo**. (gli invii in DM sono il segnale che porta i Reel a chi non ci segue).
 - Mettere il **prezzo** nel brief: "Regali sotto i 30/50/80 €" è il contenuto più utile per chi cerca un regalo.
 - Atmosfera natalizia **elegante**: luci calde sfocate, carta crema e nastro terracotta, rametto di pino vero.
   Niente Babbo Natale, renne o glitter (stonano con lo stile del feed).

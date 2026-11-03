@@ -48,12 +48,12 @@ PACK = {
     "product_name": "Borsa ricamata (PROVA)",
     "seo_title": "Borsa ricamata a mano | I Monili Ravenna",
     "seo_description": "Borsa a tracolla ricamata a mano con fiori colorati. In via Cavour a Ravenna.",
-    "whatsapp_share": "Guarda questa borsa ricamata: se ti piace te la mettiamo da parte.",
+    "whatsapp_share": "Guarda questa borsa ricamata: se ti piace scrivici, ti diciamo se è disponibile.",
     "gmb_title": "Nuova borsa ricamata",
     "gmb_text": "Appena arrivata in via Cavour a Ravenna.",
     "caption": "Un giardino da portare a spasso.",
     "hashtags": ["#borsa", "#ricamo", "#artigianale"],
-    "cta": "Scrivici in DM, te la mettiamo da parte.",
+    "cta": "Scrivici in DM, ti diciamo se è disponibile.",
 }
 
 
