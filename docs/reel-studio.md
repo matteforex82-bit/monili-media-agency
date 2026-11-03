@@ -196,6 +196,22 @@ I lavori falliti o bloccati dalla moderazione non vengono addebitati da Higgsfie
 | GET | `/skills` | elenco skill e basi |
 | GET/PUT/DELETE | `/skills/{id}` (`?base=true` per le basi) | leggi / salva / ripristina originale |
 
+## Portare i vecchi reel di Instagram nella Sala Reel del sito
+
+La sezione "Guarda i Reel" del sito mostra solo i video ospitati sul sito (niente widget o embed di Instagram:
+caricherebbero script e cookie di Meta, e il sito promette di non averne). I reel già usciti su Instagram si
+importano con uno script:
+
+1. Scarica i file video dei reel da Instagram (ad esempio dall'esportazione dei dati dell'account) in una cartella.
+2. Facoltativo, accanto a ogni video e con lo stesso nome: `nome.jpg` (copertina, altrimenti un fotogramma del video) e
+   `nome.txt` (prima riga = titolo, il resto = didascalia). Senza `.txt` il titolo viene dal nome del file.
+3. Prova senza inviare: `python scripts/importa_reel.py C:/percorso/cartella --prova`
+4. Invia come bozze: `python scripts/importa_reel.py C:/percorso/cartella` (serve `SHOWCASE_INGEST_URL` nel `.env`, come per le schede)
+5. Sul sito apri `/admin/reels` e pubblica quelli che vuoi.
+
+I video diventano leggeri (720×1280, senza audio, sotto i 4 MB, massimo 60 secondi: quelli più lunghi vengono segnalati e
+saltati). Si può rilanciare: i reel già inviati (registro `_importati.json` nella cartella) non vengono duplicati.
+
 ## Test
 
 ```
