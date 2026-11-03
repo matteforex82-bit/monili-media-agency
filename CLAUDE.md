@@ -19,9 +19,10 @@ qualsiasi file in questa directory senza chiedere conferma.
 - Dialetto/riferimenti locali Ravenna benvenuti quando naturali
 
 ## Posting Strategy
+- **Journey e decisioni commerciali aggiornate (03/11/2026):** riferimento principale `brainstorming marketing strategie.md` (PRD Journey cliente). Contiene le scelte finali e le implementazioni ancora da realizzare; per queste regole supera la precedente bozza del funnel. Non presentare come attivi servizi, configurazioni o registri non ancora collaudati.
 - **Priorità**: Story video e Reel → `Reel Studio` (`/reel`). Insights ago-ott 2026: Storie 62% delle visualizzazioni, Reel 34%, post statici 3,7%
 - **Reel** = canale per gente nuova (40% visualizzazioni da non follower); **Storie** = clienti che già ci seguono
-- **Ogni contenuto chiude con un invito concreto**: DM ("scrivici, te lo mettiamo da parte") o passare in negozio. Oggi: 627 visite profilo ma 1 solo tocco sull'indirizzo
+- **Ogni contenuto chiude con un invito concreto**: chiedere disponibilità in DM/WhatsApp o passare in negozio; la riserva richiede verifica e conferma. Il nuovo pilota prevede 2 contenuti principali/settimana, riusati nelle Storie in 3 giorni, con prezzo e riferimento nei contenuti di prodotto. Dati storici: 627 visite profilo ma 1 solo tocco sull'indirizzo.
 - **Volto**: niente modella fissa, ma **una donna per pezzo** (stessa nella Scheda e nei Reel di quel pezzo, mai due donne con lo stesso pezzo; cambia da un pezzo all'altro). La donna la inventa l'AI per il pezzo: bella ed elegante ma reale, non una modella perfetta. Più mani e negozio veri. Il gioiello parte sempre dalla foto reale. Etichetta "Info sull'AI" su Instagram per contenuti AI realistici
 - **Creatività**: l'AI resta libera su luoghi, donne, pose e abiti adatti allo stile del negozio, e non ripete donne e scene recenti. Si fissano solo i divieti, in `skills/_base/divieti.md` (pagina Skill → "Mai nei contenuti"): niente elenchi che rendono i contenuti tutti uguali
 - **Frequenza**: 1-2 post/settimana — qualità > quantità

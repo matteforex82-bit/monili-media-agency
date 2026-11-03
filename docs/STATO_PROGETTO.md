@@ -2,7 +2,7 @@
 
 File di passaggio di consegne, condiviso con Hermes. Aggiornare a ogni sessione di lavoro.
 
-**Ultimo aggiornamento:** 2026-10-31 · branch `master`
+**Ultimo aggiornamento:** 2026-11-03 · branch `master`
 
 ## Cos'è
 App per creare contenuti social de I Monili Ravenna a partire dalle foto prodotto.
@@ -98,6 +98,7 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - Sito vetrina (repo `monili-vetrina`, tutto online): hero della Home col video Veo del gilet da tablet in su (foto sul telefono), foto vera del civico 17 in Negozi, Laboratorio e riquadro Bijoux, barra in alto del colore dello sfondo.
 
 ## Prossimi passi
+- **Journey cliente:** decisioni e implementazioni richieste raccolte nel PRD alla radice [brainstorming marketing strategie.md](../brainstorming%20marketing%20strategie.md). WhatsApp centrale del 21, acquisti anche nei DM, quattro videoconsulenze gratuite da negozio, riserve/pagamenti entro 48 ore con due promemoria, cambi commerciali 14 giorni, buoni per sede con registro privato. Stato di questo aggiornamento: documentazione completata; sito, account, registro buoni e collaudi restano da eseguire. La bozza precedente del funnel contiene un rinvio al nuovo riferimento.
 - **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, Fase A fatta; B–F dopo la prova del weekend e con l'ok di Matteo (prima le decisioni della sezione 0).
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.
 1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` del PC.
