@@ -56,7 +56,8 @@ export default function PiecePage() {
       title = '';
     }
   }
-  const cover = summary?.cover || (results ? results.image_site_3 || results.image_site_1 || '' : '');
+  const realPhoto = results ? Object.values(results).find((value) => String(value).includes('site_03_real_photo')) : undefined;
+  const cover = summary?.cover || (results ? String(realPhoto || results.image_site_1 || '') : '');
 
   return (
     <div className="page">

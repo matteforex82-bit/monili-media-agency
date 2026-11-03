@@ -67,6 +67,17 @@ export default function NewPiecePage() {
     void photoPalette(url).then(setPalette);
   }, []);
 
+  // Optional real close-up (stone, clasp, leather): cleaned on the PC like the main photo, never redrawn by AI.
+  const [detail, setDetail] = useState<File | null>(null);
+  const [detailPreview, setDetailPreview] = useState<string | null>(null);
+  const pickDetail = useCallback((file: File | null) => {
+    setDetail(file);
+    setDetailPreview((prev) => {
+      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+  }, []);
+
   const handlePhotoClear = useCallback(() => {
     setPhoto(null);
     setPalette([]);
@@ -185,6 +196,7 @@ export default function NewPiecePage() {
     const settings = loadSettings();
     const form = new FormData();
     form.append('foto', photo);
+    if (detail) form.append('dettaglio', detail);
     form.append('brief', brief);
     form.append('text_model', settings.textModel);
     form.append('image_model', settings.imageModel);
@@ -253,6 +265,42 @@ export default function NewPiecePage() {
 
       <PhotoDropzone photo={photo} photoPreview={photoPreview} onFile={handlePhotoSelect} onClear={handlePhotoClear} />
 
+      {photo && (
+        <div className="detail-pick">
+          {detailPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={detailPreview} alt="Dettaglio caricato" />
+          ) : (
+            <span className="detail-pick-empty" aria-hidden="true">+</span>
+          )}
+          <div>
+            <p className="field-label" style={{ margin: 0 }}>
+              Foto del dettaglio <small>facoltativa</small>
+            </p>
+            <p className="detail-pick-hint">
+              Per bijoux e accessori: la pietra, la chiusura o il cuoio da vicino. La ripulisco come la foto principale, senza AI.
+            </p>
+            {detail ? (
+              <button type="button" className="btn-secondary" onClick={() => pickDetail(null)}>
+                Togli il dettaglio
+              </button>
+            ) : (
+              <label className="btn-secondary detail-pick-button">
+                Aggiungi il dettaglio
+                <input
+                  type="file"
+                  accept="image/*,.heic,.heif"
+                  onChange={(e) => {
+                    pickDetail(e.target.files?.[0] ?? null);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            )}
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="field-label" htmlFor="brief">
           Nota <small>facoltativa</small>
@@ -263,7 +311,7 @@ export default function NewPiecePage() {
           rows={4}
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
-          placeholder="Es. orecchini a cerchio, 22 euro, nuovi arrivi, per cerimonia o aperitivo."
+          placeholder="Es. giacca ricamata, costo 69€, taglia M. Prezzo e taglia li metto io nella scheda del sito."
         />
       </div>
 

@@ -2,11 +2,20 @@
 
 Regola (29/10/2026): **un formato uguale per tutti i pezzi**: verticale 4:5, fondo avorio. Le immagini di Instagram sono extra.
 
-## Le foto di ogni pezzo: 2 o 3, sempre in quest'ordine
+## Le foto di ogni pezzo: dipendono da cosa stai pubblicando (dal 02/11/2026)
 
-1. **Pulita "da studio"** (AI, dalla tua foto): il pezzo da solo su fondo avorio. È la copertina della card in Home. Prima di pubblicarla controlla che sia fedele: l'AI a volte cambia un dettaglio (a maggio una goccia blu è uscita ovale).
-2. **Indossata** (AI): una donna per pezzo, bella ed elegante ma reale (età, corpo e viso da persona normale, non da modella), come se per quel pezzo avessimo ingaggiato una modella. La inventa l'AI per quel pezzo (linea guida in `skills/_base/donne.md`), diversa dalle donne usate di recente; luogo e posa li sceglie lei. Le cose da non mostrare mai sono in `skills/_base/divieti.md`. Il Reel dello stesso pezzo, fatto con "Fai il Reel di questo pezzo", usa la stessa donna.
-3. **Foto vera ripulita** (nessuna AI sul pezzo): scontorno fatto sul PC, fondo avorio uguale alle altre, luce, bilanciamento del bianco e contrasto sistemati. Lo Studio la spunta **solo se lo scontorno è pulito**; se il pezzo tocca il bordo della foto (oggetto attaccato o pezzo tagliato) resta senza spunta e lo Studio scrive il motivo. Se viene male, il pezzo esce con 2 foto.
+Regola di marketing (Matteo, 02/11/2026): mai due foto "da catalogo" quasi uguali, una vera e una AI, perché mettono in evidenza le differenze dell'AI. La foto vera dice **com'è** il pezzo, l'AI dice **come sta addosso**. Lo Studio capisce la categoria dall'analisi e fa solo le foto che servono:
+
+| Pezzo | Foto per il sito, in quest'ordine |
+|---|---|
+| **Abbigliamento** | foto vera ripulita (copertina) · indossata AI a figura intera · seconda indossata AI da un altro angolo, con un altro abbinamento e in un altro luogo |
+| **Gioielli e bijoux** | foto vera ripulita (copertina) · indossata AI in primo piano (orecchio, mano, collo o polso) · dettaglio vero ripulito, se lo carichi |
+| **Accessori** | foto vera ripulita (copertina) · indossata AI a mezzo busto (si capisce quanto è grande) · dettaglio vero ripulito, se lo carichi |
+
+- **Foto vera ripulita** (nessuna AI sul pezzo): scontorno fatto sul PC, fondo avorio, luce, bilanciamento del bianco e contrasto sistemati. Lo Studio la mette in copertina **solo se lo scontorno è pulito**. Se viene male, la copertina diventa la foto **catalogo AI** (fatta solo in quel caso) e la foto vera resta in fondo, senza spunta, con il motivo.
+- **Indossate** (AI): una donna per pezzo, bella ed elegante ma reale, sempre la stessa nelle due indossate e nel Reel di quel pezzo (linea guida in `skills/_base/donne.md`, divieti in `skills/_base/divieti.md`). Le inquadrature per categoria sono in `categorie.py` (`SHOT_GUIDE`).
+- **Dettaglio vero** (facoltativo, in "Nuovo pezzo" → "Aggiungi il dettaglio"): la pietra, la chiusura, il cuoio da vicino. Ripulito come la foto principale, mai ridisegnato dall'AI.
+- Risparmio: quando la foto vera viene pulita, una generazione AI in meno per pezzo.
 
 ## Come scattare la foto vera con il telefono
 

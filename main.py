@@ -423,14 +423,29 @@ def scheda_plan_defaults() -> dict:
                 "The product worn naturally by the woman described below, warm natural boutique light, "
                 "correct scale and fit, product in sharp focus."
             ),
+            "worn_2": (
+                "The same garment worn by the same woman from another angle (three-quarter or back view), "
+                "a different outfit pairing and a different place, warm natural light, fit and length clearly visible."
+            ),
         },
     }
 
 
-def agent_scheda_plan(text_model: str, api_key: str, foto: Path, analisi: str, brief: str) -> dict:
-    """One call for styling notes and the two site photo prompts (it replaces four agents)."""
+def agent_scheda_plan(
+    text_model: str, api_key: str, foto: Path, analisi: str, brief: str, category: str = "bijoux"
+) -> dict:
+    """One call for styling notes and the site photo prompts, framed for the kind of piece."""
     log("PIANO SCHEDA", "Styling e prompt delle foto sito (catalogo + indossato)...")
     import casting
+    import categorie
+
+    second_worn = "worn_2" in categorie.AI_SHOTS.get(category, [])
+    worn_2_field = (
+        ',\n    "worn_2": "prompt in inglese: lo stesso capo sulla stessa donna da un altro angolo, '
+        'con un altro abbinamento e in un altro luogo"'
+        if second_worn
+        else ""
+    )
 
     prompt = f"""Sei l'art director del sito vetrina di I Monili Ravenna. Devi restituire SOLO un JSON valido.
 {BRAND}
@@ -439,6 +454,8 @@ Knowledge prompt immagine:
 
 Analisi prodotto: {analisi[:1400]}
 Brief utente: {brief if brief else "Nessun brief"}
+
+COME FOTOGRAFARLO INDOSSATO: {categorie.SHOT_GUIDE.get(category, categorie.SHOT_GUIDE["bijoux"])}
 
 LA DONNA DI QUESTO PEZZO: la inventi tu. {casting.woman_guide()}
 Sara lei anche nei Reel di questo pezzo, come una modella ingaggiata per lui.
@@ -451,7 +468,7 @@ JSON esatto:
   "woman": "in inglese, 1-2 frasi: eta, corporatura, viso, capelli e stile della donna che inventi per questo pezzo",
   "site_prompts": {{
     "clean": "prompt in inglese: clean product catalog photo, warm ivory background, no model, product centered, generous negative space",
-    "worn": "prompt in inglese: product worn naturally by the woman (hand/ear/neck/body depending on the product), correct scale and fit; luogo, posa, luce e abiti li inventi tu, adatti al pezzo e allo stile del negozio"
+    "worn": "prompt in inglese: product worn naturally by the woman, inquadrato come sopra, correct scale and fit; luogo, posa, luce e abiti li inventi tu, adatti al pezzo e allo stile del negozio"{worn_2_field}
   }}
 }}
 
@@ -470,7 +487,7 @@ Regole per i prompt:
     plan["styling"] = str(parsed.get("styling", "")).strip()
     plan["woman"] = " ".join(str(parsed.get("woman", "")).split())[:600]
     prompts = parsed.get("site_prompts") if isinstance(parsed.get("site_prompts"), dict) else {}
-    for key in ("clean", "worn"):
+    for key in ("clean", "worn", "worn_2"):
         value = str(prompts.get(key, "")).strip()
         if value:
             plan["site_prompts"][key] = value
@@ -479,11 +496,13 @@ Regole per i prompt:
 
 
 WORN_PHOTO_NAME = "site_02_worn.jpg"
-SITE_IMAGE_SPECS = [
-    ("clean", "site_product_clean_source.png", "site_01_product_clean.jpg"),
-    ("worn", "site_worn_source.png", WORN_PHOTO_NAME),
-]
+SITE_IMAGE_SPECS = {
+    "clean": ("site_product_clean_source.png", "site_01_product_clean.jpg"),
+    "worn": ("site_worn_source.png", WORN_PHOTO_NAME),
+    "worn_2": ("site_worn_2_source.png", "site_04_worn_2.jpg"),
+}
 REAL_PHOTO_NAME = "site_03_real_photo.jpg"
+DETAIL_PHOTO_NAME = "site_05_detail.jpg"
 
 
 def generate_showcase_images(
@@ -493,6 +512,7 @@ def generate_showcase_images(
     foto: Path,
     site_prompts: dict,
     woman: str = "",
+    shots: list[str] | None = None,
 ) -> list[str]:
     if not api_key:
         log("SITO VISUAL", "OPENROUTER_API_KEY mancante - salto immagini sito dedicate", "warn")
@@ -508,15 +528,17 @@ def generate_showcase_images(
     final_dir.mkdir(parents=True, exist_ok=True)
     generated: list[str] = []
 
-    for index, (key, source_name, final_name) in enumerate(SITE_IMAGE_SPECS, start=1):
+    shots = [key for key in (shots or ["clean", "worn"]) if key in SITE_IMAGE_SPECS]
+    for index, key in enumerate(shots, start=1):
+        source_name, final_name = SITE_IMAGE_SPECS[key]
         prompt = str(site_prompts.get(key, "")).strip()
         if not prompt:
             log("SITO VISUAL", f"Prompt mancante: {key}", "warn")
             continue
-        if key == "worn" and woman:
+        if key.startswith("worn") and woman:
             prompt = f"{prompt}\nWOMAN (this replaces any other description of her): {woman}"
         try:
-            log("SITO VISUAL", f"Generazione foto sito {index}/{len(SITE_IMAGE_SPECS)}", "data")
+            log("SITO VISUAL", f"Generazione foto sito {index}/{len(shots)}", "data")
             controlled = f"""{prompt}
 
 Use the uploaded reference photo as source-of-truth for the product.
@@ -549,14 +571,17 @@ No text, no logos, no watermark, no phone screens, no fake UI.
     return generated
 
 
-def create_real_photo_image(output_dir: Path, source_path: Path) -> tuple[str, dict]:
+def create_real_photo_image(
+    output_dir: Path, source_path: Path, final_name: str = REAL_PHOTO_NAME, label: str = "Foto reale"
+) -> tuple[str, dict]:
     """The real photo cut out, with light fixed, on the ivory 4:5 background (free, done on the PC).
 
     The piece is never redrawn by AI. If the cleanup fails, the plain 4:5 crop is kept,
-    and in both cases the photo is suggested for the site only when the cutout looks clean."""
+    and in both cases the photo is suggested for the site only when the cutout looks clean.
+    The detail photo (DETAIL_PHOTO_NAME) goes through the same steps."""
     final_dir = output_dir / "07_SHOWCASE"
     final_dir.mkdir(parents=True, exist_ok=True)
-    destination = final_dir / REAL_PHOTO_NAME
+    destination = final_dir / final_name
     try:
         import photo_cleanup
 
@@ -568,14 +593,14 @@ def create_real_photo_image(output_dir: Path, source_path: Path) -> tuple[str, d
         save_jpeg_budget(cleaned, destination, target_kb=420)
         check = {"cleaned": True, "ok": not issues, "issues": issues}
         if issues:
-            log("SITO VISUAL", f"Foto reale ripulita ma non suggerita: {issues[0]}", "warn")
+            log("SITO VISUAL", f"{label} ripulita ma non suggerita: {issues[0]}", "warn")
         else:
-            log("SITO VISUAL", "Foto reale ripulita: fondo avorio, luce e colore sistemati", "success")
+            log("SITO VISUAL", f"{label} ripulita: fondo avorio, luce e colore sistemati", "success")
     except Exception as e:
         export_ratio_jpeg(source_path, destination, (1200, 1500), mode="fit", target_kb=420)
-        check = {"cleaned": False, "ok": False, "issues": [f"Foto reale non ripulita ({e}): c'è solo il ritaglio"]}
+        check = {"cleaned": False, "ok": False, "issues": [f"{label} non ripulita ({e}): c'è solo il ritaglio"]}
         log("SITO VISUAL", check["issues"][0], "warn")
-    return f"{output_dir.name}/07_SHOWCASE/{REAL_PHOTO_NAME}", check
+    return f"{output_dir.name}/07_SHOWCASE/{final_name}", check
 
 
 def image_file_report(relative_path: str) -> dict:
@@ -712,7 +737,9 @@ def format_publish_pack_markdown(pack: dict) -> str:
     )
 
 
-def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_model: str = "") -> None:
+def run_agency(
+    foto_path: str, brief: str = "", image_model: str = "", text_model: str = "", detail_path: str = ""
+) -> None:
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         print("OPENROUTER_API_KEY non trovata. Impostala nelle variabili d'ambiente.", flush=True)
@@ -760,8 +787,30 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
     except Exception as e:
         log("ANALISTA", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
 
+    import categorie
+
+    category = categorie.category_from(analisi, brief=brief)
+
+    # The real photo first: it is free, and when it comes out clean it is the
+    # cover, so the AI catalog photo is not needed (and not paid for).
+    real_photo = ""
+    real_photo_check: dict = {}
     try:
-        plan = agent_scheda_plan(selected_text_model, api_key, foto, analisi, brief)
+        real_photo, real_photo_check = create_real_photo_image(output_dir, foto)
+    except Exception as e:
+        log("SITO VISUAL", f"Foto reale non preparata: {e}", "warn")
+    real_ok = bool(real_photo and real_photo_check.get("ok"))
+    shots = ([] if real_ok else ["clean"]) + categorie.AI_SHOTS.get(category, ["worn"])
+    log(
+        "SITO VISUAL",
+        f"{categorie.LABELS[category]}: copertina {'foto vera' if real_ok else 'catalogo AI (la foto vera non è venuta pulita)'}"
+        f", {shots.count('worn') + shots.count('worn_2')} indossat{'e' if 'worn_2' in shots else 'a'} AI"
+        f"{', dettaglio vero' if detail_path else ''}",
+        "data",
+    )
+
+    try:
+        plan = agent_scheda_plan(selected_text_model, api_key, foto, analisi, brief, category)
         safe_write(output_dir / "02_PIANO" / "scheda_plan.json", json.dumps(plan, indent=2, ensure_ascii=False))
     except Exception as e:
         log("PIANO SCHEDA", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
@@ -771,16 +820,30 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
 
         woman = plan.get("woman") or casting.FALLBACK_WOMAN
         log("SITO VISUAL", f"La donna di questo pezzo: {woman}", "data")
-        ai_site_images = generate_showcase_images(output_dir, api_key, selected_image_model, foto, plan["site_prompts"], woman)
+        ai_site_images = generate_showcase_images(
+            output_dir, api_key, selected_image_model, foto, plan["site_prompts"], woman, shots
+        )
     except Exception as e:
         log("SITO VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
-    site_images = list(ai_site_images)
-    real_photo_check: dict = {}
-    try:
-        real_photo, real_photo_check = create_real_photo_image(output_dir, foto)
+
+    detail_photo = ""
+    detail_check: dict = {}
+    if detail_path and Path(detail_path).is_file():
+        try:
+            detail_photo, detail_check = create_real_photo_image(
+                output_dir, Path(detail_path), DETAIL_PHOTO_NAME, "Foto del dettaglio"
+            )
+        except Exception as e:
+            log("SITO VISUAL", f"Foto del dettaglio non preparata: {e}", "warn")
+
+    # Site order: cover, worn shots, detail; a real photo that did not come out
+    # clean stays last, available but not suggested.
+    clean_ai = [path for path in ai_site_images if path.endswith(SITE_IMAGE_SPECS["clean"][1])]
+    worn_ai = [path for path in ai_site_images if path not in clean_ai]
+    cover = [real_photo] if real_ok else clean_ai
+    site_images = cover + worn_ai + ([detail_photo] if detail_photo else [])
+    if real_photo and not real_ok:
         site_images.append(real_photo)
-    except Exception as e:
-        log("SITO VISUAL", f"Foto reale non preparata: {e}", "warn")
 
     try:
         publish_pack = agent_publish_pack(selected_text_model, api_key, analisi, plan, brief)
@@ -838,6 +901,10 @@ def run_agency(foto_path: str, brief: str = "", image_model: str = "", text_mode
         results["woman"] = woman
     if real_photo_check:
         results["real_photo_check"] = json.dumps(real_photo_check, ensure_ascii=False)
+    if detail_check:
+        results["detail_photo_check"] = json.dumps(detail_check, ensure_ascii=False)
+    # Decided once here: the site form starts from it (api/server.py).
+    results["category"] = category
 
     results["decision_summary"] = build_decision_summary(publish_pack, ai_site_images, real_photo_check)
     results["asset_report_json"] = json.dumps(
@@ -868,9 +935,10 @@ def main():
     parser.add_argument("--brief", "-b", default="")
     parser.add_argument("--image-model", default="")
     parser.add_argument("--text-model", default="")
+    parser.add_argument("--dettaglio", default="", help="foto vera del dettaglio (facoltativa)")
     args = parser.parse_args()
     try:
-        run_agency(args.foto, args.brief, args.image_model, args.text_model)
+        run_agency(args.foto, args.brief, args.image_model, args.text_model, args.dettaglio)
     except Exception as e:
         print(f"\nCRASH FATALE: {e}", flush=True)
         print(traceback.format_exc(), flush=True)

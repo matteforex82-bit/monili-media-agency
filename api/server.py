@@ -26,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 
 # The project root holds the Studio's own modules (also added again further down).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import categorie  # noqa: E402
 import studio_auth  # noqa: E402
 
 app = FastAPI(title="Monili Media Agency API")
@@ -352,54 +353,24 @@ def _slugify(value: str) -> str:
     return re.sub(r"(^-+|-+$)", "", cleaned)[:80] or "prodotto"
 
 
-_CATEGORY_WORDS = {
-    "abbigliamento": r"giacc|gilet|kimono|cappott|giubb|camici|abit[oi]\b|vestit|magli|cardigan|blus|gonn|pantalon"
-    r"|poncho|kaftan|caftan|tunic|felp|trench|blazer|top\b",
-    "accessori": r"\bbors|pochette|cintur|foulard|sciarp|cappell|occhial|portafogl|zain|stola|scial",
-    "gioielli": r"collan|braccial|anell|orecchin|cavigliera|ciondol|spilla|gioiell|parure",
-}
-
-# Each shop answers its own pieces (site-config.ts on the site): silver and
-# bijoux at no. 17, clothing and accessories at no. 21.
-SHOP_FOR_CATEGORY = {
-    "gioielli": "via-cavour-17",
-    "bijoux": "via-cavour-17",
-    "abbigliamento": "via-cavour-21",
-    "accessori": "via-cavour-21",
-}
-
-
-def _category_in(text: str) -> str | None:
-    """The category of the first product word in the text (the item named first)."""
-    found = [
-        (match.start(), category)
-        for category, pattern in _CATEGORY_WORDS.items()
-        if (match := re.search(pattern, text.lower()))
-    ]
-    return min(found)[1] if found else None
+SHOP_FOR_CATEGORY = categorie.SHOP_FOR_CATEGORY
 
 
 def _pick_category(text: str) -> str:
-    return _category_in(text) or "bijoux"
-
-
-def _exact_category_line(analisi: str) -> str:
-    match = re.search(r"categoria esatta[*:\s]*(?:[-*]\s*)?(.+)", analisi, flags=re.IGNORECASE)
-    return match.group(1) if match else ""
+    return categorie.category_in(text) or "bijoux"
 
 
 def _category_for_results(results: dict, brief: str = "") -> str:
-    """The analysis also suggests what to pair the piece with ("con orecchini..."):
-    the category comes from what the piece is, read in order of reliability."""
+    # The mission already decided it (and made the photos for it); older missions are read again.
+    if results.get("category") in categorie.SHOP_FOR_CATEGORY:
+        return str(results["category"])
     publish_pack = _parse_json_loose(results.get("publish_pack_json"))
-    analisi = str(results.get("analisi", ""))
-    sources = [
-        _exact_category_line(analisi),
-        str(publish_pack.get("product_name", "")),
-        brief,
-        _showcase_signal_text(results),
-    ]
-    return next((category for source in sources if (category := _category_in(source))), "bijoux")
+    return categorie.category_from(
+        str(results.get("analisi", "")),
+        product_name=str(publish_pack.get("product_name", "")),
+        brief=brief,
+        extra=_showcase_signal_text(results),
+    )
 
 
 _PRICE_NUMBER = r"(\d{1,5}(?:[.,]\d{1,2})?)"
@@ -795,10 +766,11 @@ def _build_showcase_payload(
 
 
 def _showcase_image_candidates(results: dict) -> list[dict]:
+    site_keys = sorted(
+        (key for key in results if re.fullmatch(r"image_site_\d+", key)), key=lambda key: int(key.rsplit("_", 1)[1])
+    )
     candidate_keys = [
-        "image_site_1",
-        "image_site_2",
-        "image_site_3",
+        *site_keys,
         "image_feed",
         "image_stories",
         "image_story_1",
@@ -808,8 +780,9 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
     candidate_keys.extend(sorted(key for key in results if key.startswith("image_ai_")))
     candidate_keys.extend(sorted(key for key in results if key.startswith("image_carousel_")))
 
-    # The real photo is suggested only when its cutout looks clean (missions before the cleanup: always).
+    # The real photos are suggested only when their cutout looks clean (missions before the cleanup: always).
     real_photo_check = _parse_json_loose(results.get("real_photo_check"))
+    detail_photo_check = _parse_json_loose(results.get("detail_photo_check"))
     seen: set[str] = set()
     items: list[dict] = []
     for key in candidate_keys:
@@ -818,6 +791,7 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
             continue
         seen.add(src)
         is_real_photo = "real_photo" in src
+        real_check = real_photo_check if is_real_photo else detail_photo_check if DETAIL_PHOTO_NAME in src else None
         file_path = _resolve_output_relative_path(src) or (OUTPUT_DIR / src)
         available = file_path.exists() and file_path.is_file()
         quality = None
@@ -828,9 +802,9 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
                 quality = None
         recommended = key.startswith("image_site_") or (key in {"image_feed", "image_story_1"} and (not quality or bool(quality.get("passes_source_gate"))))
         note = None
-        if is_real_photo and real_photo_check:
-            recommended = bool(real_photo_check.get("ok"))
-            note = "; ".join(str(issue) for issue in real_photo_check.get("issues") or []) or None
+        if real_check:
+            recommended = bool(real_check.get("ok"))
+            note = "; ".join(str(issue) for issue in real_check.get("issues") or []) or None
         items.append(
             {
                 "src": _relative_to_output(file_path) if available else src,
@@ -970,12 +944,59 @@ def check_openrouter(
         )
 
 
+async def _save_mission_photo(upload: UploadFile, stem: str) -> Path | JSONResponse:
+    """Saves an uploaded photo in input/ (HEIC from the iPhone becomes JPEG), or says why not."""
+    content_type = (upload.content_type or "").lower().strip()
+    original_ext = Path(upload.filename or "").suffix.lower()
+    if not _is_supported_upload(content_type, original_ext):
+        return JSONResponse(
+            {"error": "Formato non supportato. Usa JPG, PNG, WEBP o HEIC/HEIF da iPhone."},
+            status_code=415,
+        )
+
+    ext = original_ext
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        ext = MIME_TO_EXT.get(content_type, ".jpg")
+    path = INPUT_DIR / f"{stem}{ext}"
+    total_bytes = 0
+    try:
+        with path.open("wb") as out_file:
+            while True:
+                chunk = await upload.read(READ_CHUNK_SIZE)
+                if not chunk:
+                    break
+                total_bytes += len(chunk)
+                if total_bytes > MAX_UPLOAD_BYTES:
+                    out_file.close()
+                    path.unlink(missing_ok=True)
+                    return JSONResponse(
+                        {"error": f"File troppo grande. Massimo {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."},
+                        status_code=413,
+                    )
+                out_file.write(chunk)
+    finally:
+        await upload.close()
+
+    if total_bytes == 0:
+        path.unlink(missing_ok=True)
+        return JSONResponse({"error": "File immagine vuoto."}, status_code=400)
+
+    if path.suffix.lower() in HEIC_EXTENSIONS:
+        try:
+            path = _convert_heic_to_jpeg(path)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=415)
+    return path
+
+
 @app.post("/mission/start")
 async def start_mission(
     foto: UploadFile = File(...),
     brief: str = Form(default=""),
     image_model: str = Form(default=DEFAULT_OPENROUTER_IMAGE_MODEL),
     text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
+    # Optional real close-up (stone, clasp, leather): cleaned like the main photo, never redrawn by AI.
+    dettaglio: UploadFile | None = File(default=None),
 ):
     """Avvia una nuova missione. Salva la foto e lancia il processo."""
     selected_image_model = image_model.strip() if image_model.strip() else DEFAULT_OPENROUTER_IMAGE_MODEL
@@ -989,51 +1010,22 @@ async def start_mission(
     job_id = str(uuid.uuid4())[:8]
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
 
-    content_type = (foto.content_type or "").lower().strip()
-    original_ext = Path(foto.filename or "").suffix.lower()
-    if not _is_supported_upload(content_type, original_ext):
-        return JSONResponse(
-            {"error": "Formato non supportato. Usa JPG, PNG, WEBP o HEIC/HEIF da iPhone."},
-            status_code=415,
-        )
-
-    # Salva foto in input/
-    ext = original_ext
-    if ext not in ALLOWED_IMAGE_EXTENSIONS:
-        ext = MIME_TO_EXT.get(content_type, ".jpg")
-    foto_path = INPUT_DIR / f"{timestamp}_{job_id}{ext}"
-    total_bytes = 0
-    try:
-        with foto_path.open("wb") as out_file:
-            while True:
-                chunk = await foto.read(READ_CHUNK_SIZE)
-                if not chunk:
-                    break
-                total_bytes += len(chunk)
-                if total_bytes > MAX_UPLOAD_BYTES:
-                    foto_path.unlink(missing_ok=True)
-                    return JSONResponse(
-                        {"error": f"File troppo grande. Massimo {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."},
-                        status_code=413,
-                    )
-                out_file.write(chunk)
-    finally:
-        await foto.close()
-
-    if total_bytes == 0:
-        foto_path.unlink(missing_ok=True)
-        return JSONResponse({"error": "File immagine vuoto."}, status_code=400)
-
-    if foto_path.suffix.lower() in HEIC_EXTENSIONS:
-        try:
-            foto_path = _convert_heic_to_jpeg(foto_path)
-        except RuntimeError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=415)
+    saved = await _save_mission_photo(foto, f"{timestamp}_{job_id}")
+    if isinstance(saved, JSONResponse):
+        return saved
+    foto_path = saved
+    detail_path: Path | None = None
+    if dettaglio is not None and dettaglio.filename:
+        saved = await _save_mission_photo(dettaglio, f"{timestamp}_{job_id}_dettaglio")
+        if isinstance(saved, JSONResponse):
+            return saved
+        detail_path = saved
 
     jobs[job_id] = {
         "id": job_id,
         "status": "running",
         "foto_path": str(foto_path),
+        "detail_path": str(detail_path) if detail_path else "",
         "brief": brief,
         "image_model": selected_image_model,
         "text_model": selected_text_model,
@@ -1046,16 +1038,22 @@ async def start_mission(
     }
 
     # Lancia in background
-    asyncio.create_task(_run_mission(job_id, foto_path, brief, selected_image_model, selected_text_model))
+    asyncio.create_task(
+        _run_mission(job_id, foto_path, brief, selected_image_model, selected_text_model, detail_path)
+    )
 
     return {"job_id": job_id, "image_model": selected_image_model, "text_model": selected_text_model}
 
 
-async def _run_mission(job_id: str, foto_path: Path, brief: str, image_model: str, text_model: str):
+async def _run_mission(
+    job_id: str, foto_path: Path, brief: str, image_model: str, text_model: str, detail_path: Path | None = None
+):
     """Esegue main.py in subprocess e cattura l'output riga per riga."""
     cmd = [sys.executable, str(PROJECT_ROOT / "main.py"),
            "--foto", str(foto_path),
            "--brief", brief or ""]
+    if detail_path:
+        cmd.extend(["--dettaglio", str(detail_path)])
     if image_model:
         cmd.extend(["--image-model", image_model])
     if text_model:
@@ -1255,8 +1253,9 @@ def _photo_palette(path: Path, count: int = 4) -> list[str]:
 
 
 def _piece_cover(results: dict) -> str:
-    for key in ("image_site_3", "image_site_1", "image_site_2", "image_feed"):
-        value = str(results.get(key) or "").strip()
+    sites = [str(value).strip() for key, value in sorted(results.items()) if key.startswith("image_site_") and value]
+    real = [src for src in sites if REAL_PHOTO_NAME in src]
+    for value in real + sites + [str(results.get("image_feed") or "").strip()]:
         if value:
             return value
     return ""
@@ -1572,7 +1571,7 @@ import reel_kit  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import results_log  # noqa: E402
-from main import WORN_PHOTO_NAME  # noqa: E402
+from main import DETAIL_PHOTO_NAME, REAL_PHOTO_NAME, WORN_PHOTO_NAME  # noqa: E402
 
 MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
 MAX_REEL_PHOTOS = 3

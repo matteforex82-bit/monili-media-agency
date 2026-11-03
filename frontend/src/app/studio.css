@@ -163,6 +163,20 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 }
 .piece-card h2 { font-size: 22px; line-height: 1.1; margin: 0 0 2px; overflow-wrap: anywhere; }
 .piece-card time { display: block; font-size: 12px; color: var(--bot-muted); margin-bottom: 10px; }
+/* Nuovo pezzo: optional detail photo */
+.detail-pick {
+  display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center;
+  padding: 10px; background: var(--bot-card); border: 1px solid var(--bot-border); border-radius: 12px;
+}
+.detail-pick img, .detail-pick-empty {
+  width: 64px; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 6px; background: var(--bot-bg-warm);
+}
+.detail-pick-empty { display: grid; place-items: center; font-size: 26px; color: var(--bot-muted); border: 1px dashed var(--bot-border-hi); }
+.detail-pick-hint { margin: 2px 0 8px; font-size: 13px; line-height: 1.4; color: var(--bot-ink-2); }
+.detail-pick-button { position: relative; cursor: pointer; }
+.detail-pick-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.detail-pick-button:focus-within { outline: 2px solid var(--bot-accent); outline-offset: 2px; }
+
 /* PIN screen (components/StudioAccess.tsx) */
 .access { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: var(--bot-bg-warm); }
 .access-card {

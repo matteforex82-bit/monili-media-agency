@@ -51,6 +51,8 @@ const SITE_IMAGE_KINDS: Array<{ match: string; label: string; slug: string }> = 
   { match: 'site_01_product_clean', label: 'Catalogo (AI)', slug: 'catalogo-ai' },
   { match: 'site_02_worn', label: 'Indossata (AI)', slug: 'indossata-ai' },
   { match: 'site_03_real_photo', label: 'Foto vera ripulita', slug: 'foto-vera-ripulita' },
+  { match: 'site_04_worn_2', label: 'Indossata 2 (AI)', slug: 'indossata-2-ai' },
+  { match: 'site_05_detail', label: 'Dettaglio vero ripulito', slug: 'dettaglio-vero' },
 ];
 
 function siteImageLabel(src: string) {
@@ -479,9 +481,18 @@ export default function PieceView({ results, apiUrl, runId, summary, onChanged }
   const doneReel = reels.find((reel) => reel.status === 'done');
   const sitePhotos = useMemo(
     () =>
-      ['image_site_1', 'image_site_2', 'image_site_3']
+      // Every site photo in the mission's order (up to 4 since the photos follow the category);
+      // a real photo whose cleanup did not come out clean is left out.
+      Object.keys(results)
+        .filter((key) => /^image_site_\d+$/.test(key))
+        .sort((a, b) => Number(a.split('_').pop()) - Number(b.split('_').pop()))
         .map((key) => results[key])
-        .filter((src): src is string => Boolean(src) && !(src.includes('site_03_real_photo') && results.real_photo_check?.includes('"ok": false'))),
+        .filter(
+          (src): src is string =>
+            Boolean(src) &&
+            !(src.includes('site_03_real_photo') && results.real_photo_check?.includes('"ok": false')) &&
+            !(src.includes('site_05_detail') && results.detail_photo_check?.includes('"ok": false')),
+        ),
     [results],
   );
   const postCaption = [caption, cta, hashtags].filter(Boolean).join('\n\n');
