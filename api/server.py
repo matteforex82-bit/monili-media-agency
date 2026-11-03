@@ -694,6 +694,8 @@ def _build_showcase_payload(
             {
                 "src": _image_to_data_url(transformed_abs),
                 "alt": f"{title} - I Monili Ravenna" if not prepared_images else f"{title} dettaglio {len(prepared_images) + 1}",
+                # The site shows the "simulato con IA" label only on the worn shots.
+                "aiGenerated": source_abs.name in AI_WORN_PHOTO_NAMES,
             }
         )
         quality_report.append(
@@ -1571,7 +1573,7 @@ import reel_kit  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import results_log  # noqa: E402
-from main import DETAIL_PHOTO_NAME, REAL_PHOTO_NAME, WORN_PHOTO_NAME  # noqa: E402
+from main import AI_WORN_PHOTO_NAMES, DETAIL_PHOTO_NAME, REAL_PHOTO_NAME, WORN_PHOTO_NAME  # noqa: E402
 
 MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
 MAX_REEL_PHOTOS = 3

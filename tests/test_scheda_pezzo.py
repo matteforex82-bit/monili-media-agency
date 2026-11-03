@@ -2,6 +2,7 @@
 import base64
 import io
 import json
+from pathlib import Path
 
 from PIL import Image, ImageDraw
 
@@ -101,6 +102,16 @@ def test_new_mission_builds_the_site_card(tmp_path, monkeypatch, capsys):
     assert fiche["summary"].startswith("Anello in metallo argentato")
     assert fiche["materials"] == ["metallo argentato"]
     assert len(fiche["images"]) == 2 and fiche["state"] == "disp"
+
+
+def test_site_card_flags_only_the_worn_shots_as_ai(tmp_path, monkeypatch, capsys):
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    sites = [results[k] for k in ("image_site_1", "image_site_2", "image_site_3")]
+    fiche = server._build_showcase_payload(results["run_id"], sites, price=45, location="via-cavour-17")["payload"]["product_fiche"]
+    flags = {Path(src).name: image["aiGenerated"] for src, image in zip(sites, fiche["images"])}
+    assert flags[main.WORN_PHOTO_NAME] is True
+    assert flags[main.REAL_PHOTO_NAME] is False
+    assert all(isinstance(image["aiGenerated"], bool) for image in fiche["images"])
 
 
 def _real_photo_candidate(results: dict) -> dict:

@@ -501,6 +501,7 @@ SITE_IMAGE_SPECS = {
     "worn": ("site_worn_source.png", WORN_PHOTO_NAME),
     "worn_2": ("site_worn_2_source.png", "site_04_worn_2.jpg"),
 }
+AI_WORN_PHOTO_NAMES = (WORN_PHOTO_NAME, SITE_IMAGE_SPECS["worn_2"][1])  # simulated "indossato": the site labels them
 REAL_PHOTO_NAME = "site_03_real_photo.jpg"
 DETAIL_PHOTO_NAME = "site_05_detail.jpg"
 
