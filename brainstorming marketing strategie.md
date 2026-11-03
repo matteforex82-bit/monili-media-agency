@@ -288,18 +288,18 @@ La tabella descrive il lavoro richiesto e non attribuisce al sito funzioni non a
 | ID | Attività | Ambito | Stato in questo aggiornamento |
 | --- | --- | --- | --- |
 | J01 | PRD completo con decisioni finali, percorso, regole e verifiche | Questo file | Documentato |
-| J02 | Hero automatico a tre proposte, sei secondi e controlli accessibili | Sito vetrina | Da realizzare e collaudare |
-| J03 | Idee regalo e presentazione della consulenza, con accessi anche fuori dall'hero | Sito vetrina | Da realizzare e collaudare |
-| J04 | CTA «Chiedi disponibilità», riferimenti prodotto, link centrali al 21 e contatto DM | Sito vetrina | Da allineare e collaudare |
-| J05 | Accesso di Matteo al WhatsApp del 21 su telefono e PC; indicazioni coerenti dei recapiti | Account e dispositivi | Da configurare e provare |
-| J06 | Calendly Free: evento, quattro disponibilità reali, tre ore di anticipo, domande e link personali | Account Calendly | Da configurare e provare |
-| J07 | Collegamento esterno al calendario reale, senza widget automatico | Sito vetrina | Da collegare dopo configurazione J06 |
-| J08 | Testi pronti e registro privato di ordini, riserve, scadenze e promemoria | Operatività privata | Da predisporre |
+| J02 | Hero automatico a tre proposte, sei secondi e controlli accessibili | Sito vetrina | **Fatto e online** (3/11, commit 47283bb): carosello con pausa, frecce, puntini, tastiera, `prefers-reduced-motion`; 2 slide, la terza (consulenza) compare solo con il link Calendly |
+| J03 | Idee regalo e presentazione della consulenza, con accessi anche fuori dall'hero | Sito vetrina | **Fatto e online**: `/idee-regalo` (fasce di prezzo) attiva; `/consulenza` risponde 404 finché non c'è il link reale |
+| J04 | CTA «Chiedi disponibilità», riferimenti prodotto, link centrali al 21 e contatto DM | Sito vetrina | **Fatto e online** (commit 2d3bab9): WhatsApp centrale ovunque, messaggio con titolo, link e sede, «Chiedi disponibilità su WhatsApp». Contatto DM non ricontrollato |
+| J05 | Accesso di Matteo al WhatsApp del 21 su telefono e PC; indicazioni coerenti dei recapiti | Account e dispositivi | Da provare da parte di Matteo (nel sito i recapiti sono già coerenti) |
+| J06 | Calendly Free: evento, quattro disponibilità reali, tre ore di anticipo, domande e link personali | Account Calendly | Checklist e impostazioni pronte in `docs/consulenza-calendly-setup.md`; **account da configurare e provare da Matteo** |
+| J07 | Collegamento esterno al calendario reale, senza widget automatico | Sito vetrina | Codice pronto e spento: basta la variabile Vercel `NEXT_PUBLIC_CONSULTATION_BOOKING_URL` (https Calendly) e un redeploy, **dopo J06** |
+| J08 | Testi pronti e registro privato di ordini, riserve, scadenze e promemoria | Operatività privata | Testi pronti in `docs/messaggi-ordine-pronti.md` (con colonne minime del registro). **Registro privato ancora da creare** |
 | J09 | Pagamento SumUp o bonifico, controllo, chiusura delle richieste e gestione tardivi | Account e procedura | Da collaudare sul servizio reale |
 | J10 | Procedura pacchetto, ritiro per sede, spedizione regalo e tracciamento | Negozi e consegne | Da provare con titolare e commesse |
 | J11 | Registro privato buoni e uso da telefono con saldo unico e storico | Strumento operativo privato | Da realizzare e collaudare prima dei buoni digitali |
-| J12 | Allineamento di FAQ, condizioni, privacy, guida operativa e istruzioni ai contenuti | Sito e documenti | Da eseguire con il lancio delle funzioni |
-| J13 | Due contenuti settimanali, Storie riusate in tre giorni, prezzi e riferimenti | Instagram | Piano concordato, esecuzione da avviare |
+| J12 | Allineamento di FAQ, condizioni, privacy, guida operativa e istruzioni ai contenuti | Sito e documenti | **Parziale**: fatti FAQ, WhatsApp centrale, contatto di recesso, istruzioni ai contenuti, privacy/cookie con paragrafo Calendly condizionato al link. **Mancano le condizioni di vendita** per le promesse nuove (`docs/impegni-legali.md` §3bis) |
+| J13 | Due contenuti settimanali, Storie riusate in tre giorni, prezzi e riferimenti | Instagram | Cadenza e frase di chiusura allineate negli Studio e nelle skill; produzione da avviare. Manca il codice breve del pezzo |
 | J14 | Registro dei risultati e revisione del pilota | Operatività privata | Da predisporre e usare dal lancio |
 
 ## 13. Criteri di accettazione e pilota
@@ -414,3 +414,36 @@ Date reali: idee regalo dal 16 novembre, Black Friday 27 novembre, ultime spediz
 4. Con ogni lancio: condizioni, privacy e FAQ (J12). La privacy deve citare Calendly prima che il link sia visibile.
 5. Per ultimi, e solo dopo collaudo al banco: buoni digitali (J11).
 6. Dal lancio: contenuti (J13) e registro dei risultati (J14).
+
+## 17. Stato a fine giornata e consegna alla prossima sessione (3 novembre 2026)
+
+### 17.1 Fatto e verificato
+- **Studio** (repo `monili-deploy-temp`, `master`, tutto pushato, 102 test verdi): frase di chiusura nuova in Reel, caption, skill e card finale; sede del pezzo sempre scelta da chi pubblica; cadenza unica (§16.1); `docs/impegni-legali.md` aggiornato (modello B, §3bis); `docs/consulenza-calendly-setup.md`; `docs/messaggi-ordine-pronti.md`; `docs/STATO_PROGETTO.md`. **Il Studio va riavviato** per usare card finale e campo sede vuoto.
+- **Sito** (repo `monili-vetrina`, copia `C:\Users\matte\Desktop\PROGETTI AI\Ecosistema Monili\apps\web`, online su https://monili-vetrina.vercel.app): WhatsApp centrale del 21 (commit 2d3bab9); carosello hero, `/idee-regalo`, `/consulenza` spenta, voci di menu e sitemap condizionali, privacy/cookie con Calendly condizionato (commit 47283bb). Controlli fatti: 37 test, tsc, eslint e `next build` verdi; verifica in produzione (home con carosello, `/idee-regalo` 200, `/consulenza` 404, privacy senza Calendly).
+
+### 17.2 Ancora da fare, in ordine
+| # | Cosa | Chi | Note |
+| --- | --- | --- | --- |
+| 1 | J05: provare il WhatsApp del 21 su telefono e PC (anche videochiamata) | Matteo | Prima di tutto: tutti i pulsanti del sito puntano lì |
+| 2 | J06: configurare Calendly e provarlo (slot, 3 ore di anticipo, annullo, fuso) | Matteo | Seguire `docs/consulenza-calendly-setup.md` §1–§3 |
+| 3 | J07: inserire il link in `NEXT_PUBLIC_CONSULTATION_BOOKING_URL` su Vercel e ripubblicare | Matteo, con l'AI per il controllo | Poi verificare: `/consulenza` 200, terza slide, paragrafi Calendly in privacy e cookie |
+| 4 | J09: decidere dove vive il registro privato e crearlo; provare link SumUp e bonifico istantaneo | Matteo | Il registro non va nello Studio né nel database del sito (§16.3). Colonne in `docs/messaggi-ordine-pronti.md` |
+| 5 | J12: aggiornare `/condizioni-vendita` (`src/lib/legal-content.ts`, `legal-compliance.test.ts`) con le promesse di `docs/impegni-legali.md` §3bis: riserva 48 h e decadenza della conferma, pagamento al ritiro, ritiro come contratto a distanza, ritiro entro 14 giorni, partenza 2–3 giorni dal pagamento verificato, cambio commerciale 14 giorni distinto dal recesso | AI, con revisione di Matteo | **Prima** di usare i messaggi 5 e 11 di `docs/messaggi-ordine-pronti.md`. Testo legale: farlo rivedere se possibile |
+| 6 | J10: provare la procedura pacchetto, il ritiro per sede e la spedizione con titolare e commesse; fissare con il corriere l'ultima data utile prima di Natale | Matteo | |
+| 7 | Codice breve del pezzo (scheda, caption, messaggio WhatsApp, brief Reel) | AI | Oggi esiste solo lo slug lungo. Serve per «prezzo e riferimento» (§6) |
+| 8 | J13: avviare i due contenuti a settimana (idee regalo dal 16/11, Black Friday 27/11) | Matteo con lo Studio | Ogni contenuto chiude con «Scrivici, ti diciamo se è disponibile» |
+| 9 | J14: registro dei risultati del pilota | Matteo | Prima di partire con J13 |
+| 10 | J11: registro dei buoni e uso da telefono | AI + Matteo | **Per ultimo**, solo dopo collaudo al banco e solo dopo la verifica fiscale/validità (§16.3). Non annunciare i buoni prima |
+
+### 17.3 Decisioni ancora aperte (Matteo)
+- Buoni: parere di commercialista o consulente su IVA e validità di un mese (§16.3).
+- Sito nel profilo Google: `moniliravenna.shop` finché le schede online non sono 10–15 (da ricontare nel catalogo reale).
+- File `prd per GDPR e AI act.md` nella radice: **lasciato fuori dai commit per scelta di Matteo**; resta non tracciato.
+
+### 17.4 Regole da non perdere (per chi riprende)
+- Nulla di quanto sopra è «attivo» per i clienti finché non è collaudato: non presentare servizi, registri o buoni come già in funzione.
+- Ogni push del sito va online subito su Vercel: chiedere sempre conferma a Matteo prima.
+- Mai dati di clienti nello Studio, nei prompt, nel catalogo o nel database pubblico.
+- Nessun widget o tracker di terzi: Calendly si apre solo al clic, in una nuova scheda.
+- Non modificare la parte di recesso già corretta nelle condizioni; aggiungere le promesse nuove senza toccarla.
+- Prima di ogni push del Studio: `python -m pytest tests`. Nel sito: test, `tsc`, eslint e `next build`.
