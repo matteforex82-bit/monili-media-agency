@@ -188,6 +188,8 @@ Queste regole sono decise (`brainstorming marketing strategie.md`, §8–§10 e 
 | **Buoni regalo** (solo dopo collaudo del registro) | Non menzionati |
 | Dati di prenotazione su **Calendly** | Non citato nella privacy |
 
+**Decisione di Matteo, 4/11/2026:** negli acquisti **in negozio** c'è solo il cambio merce (nessun recesso, nessun rimborso in denaro, salvo cortesia caso per caso); negli acquisti **a distanza** il recesso con rimborso resta obbligatorio per legge, ma le condizioni indicano tutti i paletti leciti (dichiarazione esplicita, pezzo integro e senza uso, reso a spese e rischio del cliente, detrazione per diminuzione di valore, cambio proposto come alternativa). Non sono leciti: chiedere il motivo, vietare il recesso, imporre il cambio al posto del rimborso, rendere il recesso dipendente dalla confezione. Orecchini sigillati per igiene: eccezione possibile solo se il sigillo c'è davvero e il consulente la conferma.
+
 Guida operativa: questo file è la fonte unica. `Ecosistema Monili/apps/web/docs/OPERAZIONI_NEGOZIO.md` (vetrina) contiene una versione precedente dei modelli: se i due testi divergono, vale questo.
 
 ---

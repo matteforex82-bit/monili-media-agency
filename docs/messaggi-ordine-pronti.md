@@ -51,5 +51,14 @@ Secondo, poche ore prima:
 
 Il cambio commerciale è diverso dal recesso: se la cliente scrive «voglio rendere / voglio il rimborso» vale il recesso e si usano i testi D–F di `impegni-legali.md`; se scrive «vorrei cambiare» vale il cambio.
 
+## 12. La cliente chiede di rendere / avere i soldi indietro
+**Acquisto fatto in negozio** (nessun recesso, solo cambio):
+> Ciao [nome], per gli acquisti fatti in negozio facciamo il cambio merce entro 14 giorni (con scontrino e confezione): passa quando vuoi e scegliamo un altro pezzo insieme. Il rimborso in denaro non è previsto.
+
+**Acquisto a distanza** (WhatsApp, Instagram, spedizione): prima proponi il cambio, senza negare il diritto:
+> Ciao [nome], se vuoi possiamo cambiare il pezzo con un altro (anche passando a vederlo in negozio). Se preferisci recedere hai 14 giorni dal ricevimento: scrivici la tua decisione e ti mandiamo le istruzioni. Il pezzo deve tornare integro e senza segni di uso; la spedizione del reso è a tuo carico, meglio tracciata e assicurata.
+
+Se la cliente conferma di voler recedere, si usano i testi D–F di `impegni-legali.md`: il rimborso a un acquisto a distanza non si può rifiutare. Un rimborso fatto per cortesia a chi acquista in negozio è una scelta del momento, non una promessa.
+
 ## Promemoria per il registro privato
 Stati minimi: da verificare · in attesa di pagamento (con scadenza) · pagato · pronto al ritiro · spedito · ritirato · scaduto/chiuso. Colonne: riferimento ordine, pezzo e sede, nome e contatto, scadenza, promemoria inviati (1/2), pagamento verificato (sì/no), rimborsi.
