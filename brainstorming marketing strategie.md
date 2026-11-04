@@ -428,14 +428,27 @@ Date reali: idee regalo dal 16 novembre, Black Friday 27 novembre, ultime spediz
 | 2 | J06: configurare Calendly e provarlo (slot, 3 ore di anticipo, annullo, fuso) | Matteo | Seguire `docs/consulenza-calendly-setup.md` §1–§3 |
 | 3 | J07: inserire il link in `NEXT_PUBLIC_CONSULTATION_BOOKING_URL` su Vercel e ripubblicare | Matteo, con l'AI per il controllo | Poi verificare: `/consulenza` 200, terza slide, paragrafi Calendly in privacy e cookie |
 | 4 | J09: decidere dove vive il registro privato e crearlo; provare link SumUp e bonifico istantaneo | Matteo | Il registro non va nello Studio né nel database del sito (§16.3). Colonne in `docs/messaggi-ordine-pronti.md` |
-| 5 | J12: aggiornare `/condizioni-vendita` (`src/lib/legal-content.ts`, `legal-compliance.test.ts`) con le promesse di `docs/impegni-legali.md` §3bis: riserva 48 h e decadenza della conferma, pagamento al ritiro, ritiro come contratto a distanza, ritiro entro 14 giorni, partenza 2–3 giorni dal pagamento verificato, cambio commerciale 14 giorni distinto dal recesso | AI, con revisione di Matteo | **Prima** di usare i messaggi 5 e 11 di `docs/messaggi-ordine-pronti.md`. Testo legale: farlo rivedere se possibile. **Stato 4/11:** online (commit ac15a12 del sito, verificata `/condizioni-vendita` in produzione). Cambio con scontrino e confezione, solo per il cambio. Da far rivedere a un consulente |
+| 5 | **FATTO 4/11** — J12: aggiornare `/condizioni-vendita` (`src/lib/legal-content.ts`, `legal-compliance.test.ts`) con le promesse di `docs/impegni-legali.md` §3bis: riserva 48 h e decadenza della conferma, pagamento al ritiro, ritiro come contratto a distanza, ritiro entro 14 giorni, partenza 2–3 giorni dal pagamento verificato, cambio commerciale 14 giorni distinto dal recesso | AI, con revisione di Matteo | **Prima** di usare i messaggi 5 e 11 di `docs/messaggi-ordine-pronti.md`. Testo legale: farlo rivedere se possibile. **Stato 4/11:** online (commit ac15a12 del sito, verificata `/condizioni-vendita` in produzione). Cambio con scontrino e confezione, solo per il cambio. Dal 4/11 (commit d4d071b): acquisti in negozio = solo cambio merce; resi a distanza con i paletti leciti; messaggio 12 pronto. **Resta da fare: farle rivedere da un consulente** (voce 11) |
 | 6 | J10: provare la procedura pacchetto, il ritiro per sede e la spedizione con titolare e commesse; fissare con il corriere l'ultima data utile prima di Natale | Matteo | |
-| 7 | Codice breve del pezzo (scheda, caption, messaggio WhatsApp, brief Reel) | AI | **Stato 4/11:** fatto e online dal 4/11 (sito, commit ac15a12; lo Studio va riavviato). Formato `M-XXXXX` (5 caratteri, senza I L O U 0 1), calcolato dal `run_id` della Scheda con FNV-1a: stesso calcolo nello Studio (`piece_code.py`) e nel sito (`pieceCode`), con valori di prova condivisi. Nessun archivio da tenere. Compare in scheda sito («Rif.»), messaggio WhatsApp, caption e invito della Scheda, caption dei Reel nati da una Scheda. |
+| 7 | **FATTO 4/11** — Codice breve del pezzo (scheda, caption, messaggio WhatsApp, brief Reel) | AI | **Stato 4/11:** fatto e online dal 4/11 (sito, commit ac15a12; lo Studio va riavviato). Formato `M-XXXXX` (5 caratteri, senza I L O U 0 1), calcolato dal `run_id` della Scheda con FNV-1a: stesso calcolo nello Studio (`piece_code.py`) e nel sito (`pieceCode`), con valori di prova condivisi. Nessun archivio da tenere. Compare in scheda sito («Rif.»), messaggio WhatsApp, caption e invito della Scheda, caption dei Reel nati da una Scheda. |
 | 8 | J13: avviare i due contenuti a settimana (idee regalo dal 16/11, Black Friday 27/11) | Matteo con lo Studio | Ogni contenuto chiude con «Scrivici, ti diciamo se è disponibile» |
 | 9 | J14: registro dei risultati del pilota | Matteo | Prima di partire con J13 |
 | 10 | J11: registro dei buoni e uso da telefono | AI + Matteo | **Per ultimo**, solo dopo collaudo al banco e solo dopo la verifica fiscale/validità (§16.3). Non annunciare i buoni prima |
+| 11 | Far rivedere le condizioni di vendita online da un consulente | Matteo | Aggiunta il 4/11: il testo è già pubblico |
+
+### 17.2bis Prossimi passi, in ordine (aggiornato 4/11/2026)
+1. **Matteo:** riavviare lo Studio (codice `M-XXXXX`, card finale, sede vuota) e provare una Scheda nuova.
+2. **Matteo:** J05, WhatsApp del 21 su telefono e PC (voce 1).
+3. **Matteo:** J06, configurare e provare Calendly (voce 2); poi **J07** con l'AI (voce 3).
+4. **Matteo:** J09, registro privato, link SumUp e bonifico istantaneo (voce 4).
+5. **Matteo:** far rivedere le condizioni di vendita a un consulente (voce 11): ora sono online e promettono riserva 48 h, pagamento al ritiro, solo cambio in negozio, paletti sui resi a distanza.
+6. **Matteo con lo staff:** J10, procedura pacchetto, ritiro per sede, corriere e ultima data utile prima di Natale (voce 6).
+7. **Matteo:** J14, registro dei risultati; poi **J13**, avvio dei due contenuti a settimana (idee regalo dal 16/11, Black Friday 27/11).
+8. **Per ultimi:** J11, buoni digitali, dopo il parere fiscale.
+Fatti: voci 5 e 7 (AI). Unico passo per l'AI nel frattempo: J07, appena Matteo ha il link Calendly.
 
 ### 17.3 Decisioni ancora aperte (Matteo)
+- Orecchini sigillati per igiene: eccezione al recesso solo se il sigillo c'è davvero e il consulente conferma (`docs/impegni-legali.md`).
 - Buoni: parere di commercialista o consulente su IVA e validità di un mese (§16.3).
 - Sito nel profilo Google: `moniliravenna.shop` finché le schede online non sono 10–15 (da ricontare nel catalogo reale).
 - File `prd per GDPR e AI act.md` nella radice: **lasciato fuori dai commit per scelta di Matteo**; resta non tracciato.
