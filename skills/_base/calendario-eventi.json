@@ -1,0 +1,161 @@
+{
+  "_nota": "Calendario del Piano editoriale (pagina Piano dello Studio). Si modifica qui, non nel codice. Ogni evento copre un intervallo di date (inclusi); per ogni ruolo: 'skills' = quelle preferite, 'angolo' = il taglio del contenuto, 'prezzo_max' = fascia di prezzo facoltativa (solo se c'e' almeno un pezzo adatto). 'no_promo': nei brief non compaiono mai parole come sconto o promo (decisione 4/11/2026: nessuno sconto, Black Friday compreso). Mai giorni o orari di pubblicazione promessi.",
+  "ruoli": {
+    "scoperta": {
+      "etichetta": "Per chi non ci conosce ancora",
+      "skills": ["indossato", "tre-modi", "prima-dopo", "colori-ravenna"],
+      "motivo": "I Reel portano il 40% delle visualizzazioni da persone che non ci seguono: serve un hook forte nei primi 3 secondi e un pezzo ben visibile."
+    },
+    "acquisto": {
+      "etichetta": "Per chi vuole comprare",
+      "skills": ["idea-regalo", "nuovo-arrivo", "pietra-settimana", "mani-bancone"],
+      "motivo": "Chi ci segue guarda soprattutto le Storie (62% delle visualizzazioni): un pezzo con prezzo e riferimento trasforma la visita in un messaggio."
+    }
+  },
+  "note_skill": {
+    "indossato": "Una donna per questo pezzo, la stessa nella Scheda e nel Reel.",
+    "tre-modi": "Lo stesso pezzo in tre look.",
+    "prima-dopo": "Un look semplice che cambia con questo pezzo.",
+    "colori-ravenna": "Il pezzo accostato ai colori dei mosaici di Ravenna.",
+    "idea-regalo": "Il pezzo come regalo per una persona precisa.",
+    "nuovo-arrivo": "Presentazione veloce del pezzo appena arrivato.",
+    "pietra-settimana": "Racconta la pietra e come abbinarla.",
+    "mani-bancone": "Mani che provano il pezzo sul bancone del negozio."
+  },
+  "preferenze_pezzo": {
+    "mani-bancone": ["anell", "bracciale"],
+    "pietra-settimana": ["ametista", "quarzo", "citrino", "turchese", "opale", "granato", "rubino", "pietra"]
+  },
+  "evento_generico": {
+    "id": "generico",
+    "tema": "Settimana libera",
+    "no_promo": true,
+    "ruoli": {
+      "scoperta": { "angolo": "Fai vedere il pezzo addosso, in modo semplice e vero." },
+      "acquisto": { "angolo": "Presenta un pezzo con prezzo e dove trovarlo." }
+    },
+    "storie": "Riusa il contenuto nelle Storie: 2 o 3 momenti, con lo sticker per scriverci."
+  },
+  "eventi": [
+    {
+      "id": "autunno",
+      "dal": "2026-10-26",
+      "al": "2026-11-08",
+      "tema": "Autunno in negozio",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["indossato", "tre-modi"], "angolo": "Look d'autunno con il pezzo addosso." },
+        "acquisto": { "skills": ["nuovo-arrivo", "pietra-settimana"], "angolo": "Un pezzo dell'autunno, appena arrivato." }
+      },
+      "storie": "Riusa nelle Storie 2 o 3 momenti e aggiorna le storie in evidenza."
+    },
+    {
+      "id": "stile-monili",
+      "dal": "2026-11-09",
+      "al": "2026-11-15",
+      "tema": "Lo stile Monili",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["prima-dopo", "colori-ravenna"], "angolo": "Fai capire lo stile: colore, pezzi particolari, Ravenna." },
+        "acquisto": { "skills": ["pietra-settimana", "mani-bancone"], "angolo": "Un pezzo di carattere, da vedere da vicino." }
+      },
+      "storie": "Riusa nelle Storie e prova un sondaggio: argento o oro?"
+    },
+    {
+      "id": "idee-regalo-apertura",
+      "dal": "2026-11-16",
+      "al": "2026-11-22",
+      "tema": "Si aprono le idee regalo",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["indossato", "tre-modi"], "angolo": "Un regalo per l'amica o per la mamma, mostrato addosso." },
+        "acquisto": { "skills": ["idea-regalo"], "prezzo_max": 50, "angolo": "Idea regalo sotto i 50 euro, con confezione regalo inclusa.", "angolo_senza_fascia": "Idea regalo con confezione regalo inclusa." }
+      },
+      "storie": "Prime Storie di idee regalo: riusa il contenuto nei 3 giorni dopo."
+    },
+    {
+      "id": "idee-regalo-weekend",
+      "dal": "2026-11-23",
+      "al": "2026-11-29",
+      "tema": "Idee regalo del weekend",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["prima-dopo", "indossato"], "angolo": "Un regalo per l'amica, mostrato in un look." },
+        "acquisto": { "skills": ["mani-bancone", "pietra-settimana"], "angolo": "Idea regalo da vedere da vicino, con la confezione regalo inclusa." }
+      },
+      "storie": "Storie di idee regalo nel weekend: riusa, non produrre nuovo."
+    },
+    {
+      "id": "feste-countdown",
+      "dal": "2026-11-30",
+      "al": "2026-12-06",
+      "tema": "Look delle feste",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["indossato", "tre-modi"], "angolo": "Look per le feste con il pezzo addosso." },
+        "acquisto": { "skills": ["pietra-settimana", "idea-regalo"], "angolo": "Rosso e colori caldi delle feste: granato, rubino." }
+      },
+      "storie": "A dicembre parte il countdown nelle Storie: un pezzo diverso al giorno, riusando i contenuti gia fatti."
+    },
+    {
+      "id": "immacolata",
+      "dal": "2026-12-07",
+      "al": "2026-12-13",
+      "tema": "Il ponte dell'Immacolata",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["tre-modi", "colori-ravenna"], "angolo": "Look per le feste in versione tre modi, con la citta in festa." },
+        "acquisto": { "skills": ["idea-regalo", "nuovo-arrivo"], "angolo": "Regalo per lei, per chi passa in centro durante il ponte." }
+      },
+      "storie": "Countdown nelle Storie e invito a passare in centro."
+    },
+    {
+      "id": "ultimi-regali",
+      "dal": "2026-12-14",
+      "al": "2026-12-20",
+      "tema": "Gli ultimi regali",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["prima-dopo", "indossato"], "angolo": "L'ultimo regalo da scegliere, mostrato addosso." },
+        "acquisto": { "skills": ["mani-bancone", "idea-regalo"], "angolo": "Pezzo pronto da regalare, con la confezione regalo inclusa." }
+      },
+      "storie": "Countdown e Storie 'ancora disponibili' dopo la verifica in negozio. Non promettere l'arrivo entro Natale senza i tempi del corriere."
+    },
+    {
+      "id": "natale",
+      "dal": "2026-12-21",
+      "al": "2026-12-27",
+      "tema": "Gli auguri",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["colori-ravenna", "indossato"], "angolo": "Auguri dal negozio, con calore e colore." },
+        "acquisto": { "skills": ["idea-regalo", "nuovo-arrivo"], "angolo": "Ultimo regalo disponibile in negozio, da verificare con noi." }
+      },
+      "storie": "Storie di auguri; gli orari di apertura delle feste vanno controllati prima di scriverli."
+    },
+    {
+      "id": "capodanno",
+      "dal": "2026-12-28",
+      "al": "2027-01-03",
+      "tema": "Capodanno",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["prima-dopo", "tre-modi"], "angolo": "Il look di Capodanno con un solo accessorio." },
+        "acquisto": { "skills": ["pietra-settimana", "nuovo-arrivo"], "angolo": "Il pezzo giusto per iniziare l'anno." }
+      },
+      "storie": "Riusa nelle Storie anche i cambi dei regali ricevuti."
+    },
+    {
+      "id": "befana",
+      "dal": "2027-01-04",
+      "al": "2027-01-10",
+      "tema": "Befana e inizio anno",
+      "no_promo": true,
+      "ruoli": {
+        "scoperta": { "skills": ["indossato", "colori-ravenna"], "angolo": "Un pezzo colorato per il nuovo anno." },
+        "acquisto": { "skills": ["mani-bancone", "idea-regalo"], "angolo": "Un pensiero per la Befana, con prezzo e dove trovarlo." }
+      },
+      "storie": "Riusa nelle Storie e invita a passare in negozio."
+    }
+  ]
+}

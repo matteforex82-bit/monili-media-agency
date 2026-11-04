@@ -42,4 +42,7 @@ Nei modelli le parole tra graffe (es. `{scene}`) vengono riempite dall'app: non 
   (`MoniliStorage/skills/`) e hanno la precedenza su questi file; "Ripristina originale" le annulla.
 - **Da GitHub / da Claude o Hermes**: modificando direttamente questi file.
 
+Il **Piano editoriale** (pagina Piano) legge `_base/calendario-eventi.json`: temi per settimana, skill preferite per
+ogni ruolo, fascia di prezzo facoltativa e il divieto di parole promozionali. Si modifica lì, non nel codice.
+
 Le tecniche usate vengono dalla ricerca in `knowledge/ricerca_marketing_ai_2026.md`.

@@ -1507,6 +1507,15 @@ async def showcase_publish(run_id: str, body: dict | None = None):
         "created_at": datetime.now().isoformat(),
         "selected_images": selected,
         "published": publish_now,
+        # Prezzo, sede e categoria al momento dell'invio: il Piano li usa anche se il sito non risponde.
+        "snapshot": {
+            "title": fiche.get("title"),
+            "price": fiche.get("price"),
+            "category": fiche.get("category"),
+            "location": (fiche.get("availableAt") or [""])[0],
+            "state": fiche.get("state"),
+            "published_at": fiche.get("publishedAt") if publish_now else None,
+        },
         "prepared_images": prepared["prepared_images"],
         "quality_report": prepared["quality_report"],
         "rejected_sources": prepared["rejected_sources"],
@@ -1571,6 +1580,7 @@ import reel_kit  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import results_log  # noqa: E402
+import piano  # noqa: E402
 from main import AI_WORN_PHOTO_NAMES, DETAIL_PHOTO_NAME, REAL_PHOTO_NAME, WORN_PHOTO_NAME  # noqa: E402
 
 MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
@@ -1642,6 +1652,172 @@ def reel_config():
         ],
         "default_recipe": reel_kit.DEFAULT_RECIPE,
     }
+
+
+# ------------------------------------------------------------------ Piano editoriale
+_PIANO_SITE_CACHE: dict[str, tuple[float, dict | None]] = {}
+_PIANO_SITE_TTL = 600.0
+_PIANO_SITE_DOWN_UNTIL = 0.0  # se il sito non risponde, per un minuto non lo si interroga piu'
+
+
+def _piano_site_product(product_id: str) -> dict | None:
+    """La scheda pubblica sul sito (solo i pezzi pubblicati rispondono). {'_missing': True} se il sito dice 404."""
+    import time
+    from urllib.parse import quote
+
+    site = _showcase_site_url()
+    if not site or not product_id:
+        return None
+    global _PIANO_SITE_DOWN_UNTIL
+    cached = _PIANO_SITE_CACHE.get(product_id)
+    if cached and time.time() - cached[0] < _PIANO_SITE_TTL:
+        return cached[1]
+    if time.time() < _PIANO_SITE_DOWN_UNTIL:
+        return None
+    result: dict | None = None
+    try:
+        response = requests.get(f"{site}/api/products/{quote(product_id, safe='')}", timeout=4)
+        if response.status_code == 404:
+            result = {"_missing": True}
+        elif response.ok:
+            item = response.json().get("item")
+            result = item if isinstance(item, dict) else None
+    except Exception:
+        result = None
+        _PIANO_SITE_DOWN_UNTIL = time.time() + 60
+    if result is not None:  # un errore di rete non si ricorda: al prossimo giro si riprova
+        _PIANO_SITE_CACHE[product_id] = (time.time(), result)
+    return result
+
+
+def _piano_catalog() -> list[dict]:
+    """Pezzi mandati al sito dallo Studio, con prezzo, sede e foto. Il sito (se risponde) ha l'ultima parola."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    audits: list[dict] = []
+    for path in SHOWCASE_DRAFTS_DIR.glob("showcase-*.json"):
+        try:
+            audit = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if str(audit.get("run_id") or "").strip() and audit.get("sent_at") and audit.get("product_id"):
+            audits.append(audit)
+    with ThreadPoolExecutor(max_workers=8) as pool:  # le risposte del sito arrivano insieme, non una dopo l'altra
+        sites = list(pool.map(lambda a: _piano_site_product(str(a["product_id"])), audits))
+
+    rows: list[dict] = []
+    for audit, site in zip(audits, sites):
+        run_id = str(audit["run_id"]).strip()
+        snapshot = audit.get("snapshot") if isinstance(audit.get("snapshot"), dict) else {}
+        if site and site.get("_missing"):
+            published, item = False, {}
+        elif site:
+            published, item = site.get("publicationStatus", "published") == "published", site
+        else:
+            published, item = bool(audit.get("published")), {}
+        payload = _find_mission_payload(run_id) or {}
+        results = payload.get("results") if isinstance(payload.get("results"), dict) else {}
+        cover = _piece_cover(results)
+        if not cover or not _resolve_output_relative_path(cover):
+            cover = ""
+        locations = item.get("availableAt") or [snapshot.get("location") or ""]
+        rows.append(
+            {
+                "run_id": run_id,
+                "product_id": audit["product_id"],
+                "title": item.get("title") or snapshot.get("title") or audit.get("product_title") or "",
+                "price": item.get("price", snapshot.get("price")),
+                "category": item.get("category") or snapshot.get("category") or "",
+                "location": locations[0],
+                "state": item.get("state") or snapshot.get("state") or "",
+                "published": published,
+                "published_at": item.get("publishedAt") or snapshot.get("published_at") or audit.get("sent_at") or "",
+                "cover": cover,
+            }
+        )
+    return rows
+
+
+def _piano_refiner():
+    """Rifinisce il brief con l'AI solo se c'e' la chiave; il risultato passa comunque dai controlli del Piano."""
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key or api_key == "test-key":
+        return None
+    from main import BRAND, generate_text_with_openrouter, select_openrouter_text_model
+
+    def refine(brief: str, context: dict) -> str | None:
+        piece = context.get("pezzo")
+        prompt = (
+            f"{BRAND}\nRiscrivi questo brief per il Reel Studio di I Monili in italiano, tono caldo da amica, "
+            "massimo 90 parole, una sola frase di chiusura. Mantieni identici: titolo del pezzo, prezzo, "
+            f"riferimento ({piece['code'] if piece else ''}) e la chiusura «{piano.CLOSING}». "
+            "Non inventare materiali, colori o dettagli che non sono nel brief. "
+            "Niente sconti, promozioni, giorni o orari, niente markdown.\n"
+            f"Tema: {context.get('tema')}. Brief: {brief}"
+        )
+        return generate_text_with_openrouter(api_key, select_openrouter_text_model(""), prompt, max_tokens=400).strip()
+
+    return refine
+
+
+def _piano_today():
+    return datetime.now().date()
+
+
+def _piano_link_reel(reference: str, reel_id: str) -> None:
+    if not (reference or "").strip():
+        return
+    state = piano.load_state()
+    if piano.collega_reel(state, reference.strip(), reel_id, _piano_today()):
+        piano.save_state(state)
+
+
+def _piano_error(exc: piano.PianoError):
+    return JSONResponse({"error": str(exc)}, status_code=exc.status)
+
+
+@app.get("/piano")
+def piano_get():
+    state = piano.load_state()
+    view = piano.build_view(state, _piano_catalog(), piano.load_calendar(), _piano_today(), _piano_refiner())
+    piano.save_state(state)
+    return view
+
+
+@app.post("/piano/{week}/{role}/altra-idea")
+def piano_altra_idea(week: str, role: str):
+    try:
+        monday, role = piano.parse_ref(week, role)
+        state = piano.load_state()
+        piano.altra_idea(state, monday, role, _piano_catalog(), piano.load_calendar(), _piano_refiner())
+        piano.save_state(state)
+    except piano.PianoError as exc:
+        return _piano_error(exc)
+    return piano_get()
+
+
+@app.post("/piano/{week}/{role}/salta")
+def piano_salta(week: str, role: str, body: dict | None = None):
+    try:
+        monday, role = piano.parse_ref(week, role)
+        state = piano.load_state()
+        piano.salta(state, monday, role, str((body or {}).get("motivo") or ""))
+        piano.save_state(state)
+    except piano.PianoError as exc:
+        return _piano_error(exc)
+    return piano_get()
+
+
+@app.post("/piano/{week}/{role}/pubblicato")
+def piano_pubblicato(week: str, role: str):
+    try:
+        monday, role = piano.parse_ref(week, role)
+        state = piano.load_state()
+        piano.segna_pubblicato(state, monday, role, _piano_today())
+        piano.save_state(state)
+    except piano.PianoError as exc:
+        return _piano_error(exc)
+    return piano_get()
 
 
 @app.get("/results")
@@ -1779,6 +1955,7 @@ async def reel_create(
     recipe: str = Form(default=""),
     poster_cover: bool = Form(default=True),
     scheda_run_id: str = Form(default=""),
+    piano_ref: str = Form(default="", alias="piano"),
 ):
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
@@ -1841,6 +2018,7 @@ async def reel_create(
         woman_reference,
         scheda_run_id.strip() if woman or woman_reference or _find_manifest_by_run_id(scheda_run_id) else "",
     )
+    _piano_link_reel(piano_ref, reel_id)
     asyncio.create_task(asyncio.to_thread(reel_studio.plan_reel, reel_id, api_key))
     return _public_reel(state)
 

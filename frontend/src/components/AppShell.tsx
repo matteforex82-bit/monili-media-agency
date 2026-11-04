@@ -19,6 +19,12 @@ const ICONS = {
       <path d="M10.5 9.5v5l4-2.5z" />
     </>
   ),
+  piano: (
+    <>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M9 3v4M15 3v4" />
+    </>
+  ),
   altro: (
     <>
       <circle cx="6" cy="12" r="1.2" />
@@ -32,6 +38,7 @@ const ITEMS: Array<{ href: string; label: string; icon: keyof typeof ICONS; matc
   { href: '/', label: 'Nuovo pezzo', icon: 'nuovo', match: (p) => p === '/' },
   { href: '/pezzi', label: 'Pezzi', icon: 'pezzi', match: (p) => p.startsWith('/pezzi') },
   { href: '/reel', label: 'Reel', icon: 'reel', match: (p) => p.startsWith('/reel') },
+  { href: '/piano', label: 'Piano', icon: 'piano', match: (p) => p.startsWith('/piano') },
   { href: '/altro', label: 'Altro', icon: 'altro', match: (p) => ['/altro', '/skills', '/risultati'].some((base) => p.startsWith(base)) },
 ];
 

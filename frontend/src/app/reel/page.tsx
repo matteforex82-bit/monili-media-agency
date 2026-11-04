@@ -315,6 +315,8 @@ export default function ReelStudioPage() {
   const [importClosing, setImportClosing] = useState(true);
   // Il pezzo della Scheda da cui parte il Reel (/reel?pezzo=<run_id>): stessa donna della foto indossata.
   const [piece, setPiece] = useState<Piece | null>(null);
+  // Il contenuto del Piano da cui si parte (/reel?piano=<settimana>:<ruolo>): a creazione avvenuta lo segna come creato.
+  const [pianoRef, setPianoRef] = useState('');
 
 
   // storyboard in modifica
@@ -363,6 +365,13 @@ export default function ReelStudioPage() {
           setVideoModel(cfg.default_video_model);
           setRecipe(cfg.default_recipe || 'libera');
           setKeyframeModel(cfg.default_keyframe_model || '');
+          // Dal Piano: skill, brief e riferimento arrivano già compilati (/reel?pezzo=..&skill=..&brief=..&piano=..).
+          const fromPlan = new URLSearchParams(window.location.search);
+          const wantedSkill = fromPlan.get('skill') || '';
+          if (wantedSkill && cfg.recipes.some((item) => item.id === wantedSkill)) setRecipe(wantedSkill);
+          const wantedBrief = fromPlan.get('brief') || '';
+          if (wantedBrief) setBrief(wantedBrief.slice(0, 1500));
+          setPianoRef(fromPlan.get('piano') || '');
         } else {
           setError('Backend raggiungibile ma Reel Studio non attivo: aggiorna il backend.');
         }
@@ -450,9 +459,11 @@ export default function ReelStudioPage() {
       if (keyframeModel) form.append('keyframe_model', keyframeModel);
       form.append('poster_cover', posterCover ? 'true' : 'false');
       if (piece) form.append('scheda_run_id', piece.runId);
+      if (pianoRef) form.append('piano', pianoRef);
       const res = await fetch(`${API_URL}/reel/create`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(await readError(res));
       const data: ReelState = await res.json();
+      setPianoRef('');
       try { localStorage.setItem(ACTIVE_REEL_KEY, data.id); } catch { /* storage non disponibile */ }
       setDirty(false);
       setReel(data);
