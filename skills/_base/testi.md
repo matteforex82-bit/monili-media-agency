@@ -9,5 +9,6 @@ description: Regole per caption, hashtag, testi a schermo e chiusure
   - "Scrivici in DM, ti diciamo se è disponibile"
   - "Mandalo a chi te lo regalerebbe" (spinge gli invii, il segnale che porta i Reel a chi non ci segue)
   - "Ti aspettiamo in centro a Ravenna"
+- Codice del pezzo (es. «Rif. M-C8BQK»): lo aggiunge lo Studio da solo in fondo a caption e messaggio WhatsApp dei contenuti che nascono da una Scheda pezzo; non inventarlo e non scriverlo tu.
 - Testo a schermo nel primo secondo (molti guardano senza audio), massimo 6 parole.
 - Se il contenuto contiene una persona generata con l'AI, ricorda nella sezione note di attivare "Info sull'AI".

@@ -8,7 +8,7 @@ Riferimento: `brainstorming marketing strategie.md` §8–§9 (J08). Si copiano 
 - Mai dati di carta in chat. Pagamenti: link SumUp, bonifico istantaneo o (solo dopo l'aggiornamento delle condizioni, vedi sotto) in negozio al ritiro.
 - Ogni richiesta va nel registro privato (non nello Studio, non nel sito) con riferimento, stato e scadenza.
 
-**Da non usare finché non sono nelle condizioni di vendita** (`impegni-legali.md` §3bis): i testi con «paghi al ritiro» (5) e quello sul «cambio» (11). Il resto si può usare già.
+**Condizioni online dal 4/11/2026** (`impegni-legali.md` §3bis): i testi con «paghi al ritiro» (5) e sul «cambio» (11) ora si possono usare. Le condizioni non sono ancora state riviste da un consulente.
 
 ## 1. Richiesta ricevuta (fuori orario)
 > Ciao [nome], grazie per averci scritto! Controlliamo il pezzo in negozio e ti rispondiamo [oggi entro le ___ / domani mattina]. A presto!
@@ -22,7 +22,7 @@ Riferimento: `brainstorming marketing strategie.md` §8–§9 (J08). Si copiano 
 ## 4. Riserva con scadenza (solo dopo la verifica, con il tuo «sì»)
 > Ciao [nome], ho messo da parte [descrizione / riferimento] per te fino a [giorno] alle [ora]. Per confermarlo ti mando il riepilogo e il pagamento [link SumUp / IBAN]. Se entro quell'ora non risulta pagato, il pezzo torna in vendita.
 
-## 5. Pagamento al ritiro (**non ancora attivo**: aggiornare prima le condizioni)
+## 5. Pagamento al ritiro
 > Ciao [nome], ti aspettiamo in via Cavour [17/21] entro [giorno] alle [ora] per vedere il pezzo e pagare in negozio. Dopo quell'ora il pezzo torna in vendita.
 
 ## 6. Promemoria di pagamento (due, entro la scadenza)
@@ -46,8 +46,8 @@ Secondo, poche ore prima:
 ## 10. Spedito
 > Ciao [nome], il tuo ordine n. [numero] è partito oggi con [corriere]. Tracciamento: [codice / link]. Consegna prevista [stima]. Per qualsiasi cosa scrivici qui.
 
-## 11. Cambio entro 14 giorni (**non ancora attivo**: aggiornare prima le condizioni)
-> Ciao [nome], nessun problema per il cambio. Portaci il pezzo in negozio entro [data] (14 giorni dal [ritiro/ricevimento]) con il suo imballo, e ne scegliamo un altro insieme.
+## 11. Cambio entro 14 giorni
+> Ciao [nome], nessun problema per il cambio. Portaci il pezzo in negozio entro [data] (14 giorni dal [ritiro/ricevimento]) con il suo imballo e lo scontrino (o il documento di cortesia), e ne scegliamo un altro insieme.
 
 Il cambio commerciale è diverso dal recesso: se la cliente scrive «voglio rendere / voglio il rimborso» vale il recesso e si usano i testi D–F di `impegni-legali.md`; se scrive «vorrei cambiare» vale il cambio.
 

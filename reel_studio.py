@@ -26,6 +26,7 @@ import higgsfield_client as hf
 import reel_kit as kit
 import results_log
 import skills_loader as skills
+from piece_code import add_reference, piece_code
 from main import (
     BRAND,
     MEMORY_ROOT,
@@ -1167,6 +1168,17 @@ Rispondi SOLO con JSON valido:
     fixed = ["#imoniliravenna", "#ravenna", "#romagnastyle"]
     tags = [str(t).strip() for t in copy.get("hashtags") or [] if str(t).strip()]
     copy["hashtags"] = (fixed + [t for t in tags if t.lower() not in fixed])[:14]
+    return _with_piece_code(state, copy)
+
+
+def _with_piece_code(state: dict, copy: dict) -> dict:
+    """Se il Reel nasce da una Scheda pezzo, il suo codice breve va nelle caption: serve a chi scrive in DM."""
+    code = piece_code(str(state.get("scheda_run_id") or ""))
+    if code:
+        copy["piece_code"] = code
+        for key in ("caption", "caption_short"):
+            if isinstance(copy.get(key), str) and copy[key].strip():
+                copy[key] = add_reference(copy[key], code)
     return copy
 
 
@@ -1178,6 +1190,7 @@ def _copy_markdown(state: dict, copy: dict) -> str:
         f"**Formato:** {FORMATS[state['format']]['label']}  ",
         f"**Orario consigliato:** {copy.get('best_slot', '')}  ",
         f"**Audio:** {copy.get('music_suggestion') or storyboard.get('music_mood', '')}",
+        *([f"**Riferimento del pezzo:** {copy['piece_code']}"] if copy.get("piece_code") else []),
         "",
         "## Caption",
         copy.get("caption", ""),

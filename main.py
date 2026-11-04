@@ -18,6 +18,8 @@ import requests
 from dotenv import load_dotenv
 from PIL import Image, ImageOps
 
+from piece_code import add_reference, piece_code
+
 load_dotenv(encoding="utf-8-sig")
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -690,6 +692,16 @@ def normalize_publish_pack(parsed: dict) -> dict:
     return with_legacy_keys(pack)
 
 
+def apply_piece_code(pack: dict, code: str) -> dict:
+    """Il codice breve del pezzo nei testi che il cliente puo' citare (WhatsApp, caption, invito)."""
+    if not code or not isinstance(pack, dict):
+        return pack
+    pack["piece_code"] = code
+    for key in ("whatsapp_share", "caption", "cta"):
+        pack[key] = add_reference(str(pack.get(key, "")), code)
+    return with_legacy_keys(pack)
+
+
 def agent_publish_pack(text_model: str, api_key: str, analisi: str, plan: dict, brief: str) -> dict:
     log("PUBLISH PACK", "Testi per sito, WhatsApp e Google Business...")
     prompt = f"""Scrivi i testi della scheda di un pezzo per il sito vetrina. Restituisci SOLO un JSON valido.
@@ -729,7 +741,8 @@ Regole:
 def format_publish_pack_markdown(pack: dict) -> str:
     return (
         "# Scheda pezzo\n\n"
-        f"## Nome\n{pack.get('product_name') or '-'}\n\n"
+        + (f"## Riferimento\n{pack['piece_code']}\n\n" if pack.get("piece_code") else "")
+        + f"## Nome\n{pack.get('product_name') or '-'}\n\n"
         f"## Google (titolo e descrizione)\n{pack.get('seo_title') or '-'}\n\n{pack.get('seo_description') or '-'}\n\n"
         f"## WhatsApp\n{pack.get('whatsapp_share') or '-'}\n\n"
         f"## Google Business Post\nTitolo: {pack.get('gmb_title') or '-'}\n\nTesto: {pack.get('gmb_text') or '-'}\n\n"
@@ -847,7 +860,9 @@ def run_agency(
         site_images.append(real_photo)
 
     try:
-        publish_pack = agent_publish_pack(selected_text_model, api_key, analisi, plan, brief)
+        publish_pack = apply_piece_code(
+            agent_publish_pack(selected_text_model, api_key, analisi, plan, brief), piece_code(run_id)
+        )
         publish_pack_md = format_publish_pack_markdown(publish_pack)
         safe_write(output_dir / "03_TESTI" / "publish_pack.json", json.dumps(publish_pack, indent=2, ensure_ascii=False))
         safe_write(output_dir / "03_TESTI" / "publish_pack.md", publish_pack_md)
@@ -889,6 +904,7 @@ def run_agency(
         "run_id": run_id,
         "output_dir": output_dir.name,
         "kind": "scheda_pezzo",
+        "piece_code": piece_code(run_id),
         "publish_pack": publish_pack_md,
         "publish_pack_json": json.dumps(publish_pack, ensure_ascii=False),
         "scheda_plan": plan_json,

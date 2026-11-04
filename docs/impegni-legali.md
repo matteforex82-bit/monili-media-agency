@@ -173,7 +173,9 @@ Niente indirizzi o chat copiati dove non servono, e niente di tutto questo nello
 
 ## 3bis. Promesse nuove del PRD Journey cliente: non ancora dichiarate sul sito
 
-Queste regole sono decise (`brainstorming marketing strategie.md`, §8–§10 e §16) ma **non sono ancora nelle condizioni di vendita**: finché il sito non le riporta, non vanno promesse ai clienti. Si aggiorna prima `/condizioni-vendita`.
+> **Aggiornamento 4/11/2026:** le nuove condizioni sono **online** (commit ac15a12 del sito) (`src/lib/legal-content.ts`, nuove sezioni «Riserva, scadenza e pagamento al ritiro», «Ritiro in negozio di un ordine a distanza», «Cambio commerciale»; test `legal-compliance.test.ts`). **Non sono ancora riviste da un consulente**: da farlo appena possibile. Le righe qui sotto descrivono ciò che le condizioni dichiarano ora. Buoni regalo e Calendly (consulenza) restano fuori dalle condizioni.
+
+Queste regole sono decise (`brainstorming marketing strategie.md`, §8–§10 e §16) ma **erano fuori dalle condizioni di vendita fino al 4/11**; ora il sito le riporta (tranne buoni regalo). Se cambiano, si aggiorna prima `/condizioni-vendita`.
 
 | Nuova prassi | Cosa manca nelle condizioni |
 |---|---|

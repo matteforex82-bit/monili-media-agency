@@ -83,7 +83,7 @@ def test_mission_makes_only_what_the_site_needs(tmp_path, monkeypatch, capsys):
     assert not any(k.startswith(("image_story", "image_carousel", "image_feed")) for k in results)
     pack = json.loads(results["publish_pack_json"])
     assert pack["hashtags"] == ["#imoniliravenna", "#ravenna", "#romagnastyle", "#anello", "#bijoux"]
-    assert pack["selected_whatsapp"] == PACK["whatsapp_share"]
+    assert pack["selected_whatsapp"] == f'{PACK["whatsapp_share"]} Rif. {results["piece_code"]}' and results["piece_code"].startswith("M-")
     clean, worn = (next(p for p in image_calls if PLAN["site_prompts"][k] in p) for k in ("clean", "worn"))
     assert "WOMAN" in worn and "WOMAN" not in clean
     assert results["woman"] == PLAN["woman"] and PLAN["woman"] in worn  # la donna la inventa il piano, una per pezzo

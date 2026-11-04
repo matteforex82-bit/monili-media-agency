@@ -1839,7 +1839,7 @@ async def reel_create(
         poster_cover,
         woman,
         woman_reference,
-        scheda_run_id.strip() if woman or woman_reference else "",
+        scheda_run_id.strip() if woman or woman_reference or _find_manifest_by_run_id(scheda_run_id) else "",
     )
     asyncio.create_task(asyncio.to_thread(reel_studio.plan_reel, reel_id, api_key))
     return _public_reel(state)
