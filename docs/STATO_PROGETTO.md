@@ -128,6 +128,9 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - Provato: `python -m pytest tests` (130 verdi), build del frontend, pagina nel browser con dati di prova (proposte, «Un'altra idea», «Salta», «Segna pubblicato», «Crea» verso il Reel Studio, console e rete senza errori). Non provato: la creazione di un Reel vero da «Crea» (richiede chiavi e costa), l'aspetto a schermo (il pannello del browser non era visibile) e il collegamento al sito vero con pezzi reali.
 - Da fare dopo: versione 2 con i dati della pagina Risultati; il Studio va riavviato per vedere la pagina.
 
+## Interventi richiesti a Matteo (5/11/2026)
+- Elenco unico e aggiornato di ciò che l'AI non può fare da sola: `docs/interventi-richiesti-matteo.md`. Controlli del 5/11 sul sito online: 2 pezzi pubblicati (il Piano ne ha bisogno di più), nessuna immagine marcata IA, conservazione delle richieste ancora generica, hosting Vercel Hobby non adatto all'uso commerciale.
+
 ## Aperti / da sapere
 - **Sito vetrina online dal 30/10/2026**: https://monili-vetrina.vercel.app (repo `monili-vetrina`, progetto Vercel
   `monili-vetrina`, piano Hobby per ora, database e foto nuovi e vuoti). Il `.env` dello Studio sul PC punta già lì.

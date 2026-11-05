@@ -1,0 +1,40 @@
+# Interventi che richiedono Matteo (lista viva)
+
+Aggiornata il 5/11/2026. Qui stanno **solo** le cose che l'AI non può fare da sola: accessi, account, decisioni del titolare, prove al banco, spese. Quando una voce è fatta si segna `[x]` con la data. Riferimenti: PRD Journey `brainstorming marketing strategie.md` §17 e stato GDPR in `prd per GDPR e AI act.md`.
+
+## Bloccanti per il lancio dei servizi nuovi (in ordine)
+
+- [ ] **1. J05 — WhatsApp del 21 (375 771 3966).** Aprirlo su telefono e PC, fare una videochiamata di prova a un altro numero. Tutti i pulsanti del sito puntano lì.
+- [ ] **2. J06 — Calendly Free.** Seguire `docs/consulenza-calendly-setup.md` §1–§3. Dal listino ufficiale (ricontrollato il 5/11): il piano gratuito include **un solo tipo di evento, un solo calendario collegato, prenotazione 1 a 1, pagina personalizzabile**; automazioni e promemoria sono a pagamento (coerente con promemoria manuali). **Da verificare nel tuo account**, perché non risulta dalla pagina prezzi: domande personalizzate (numero WhatsApp, regalo, categoria, budget), preavviso minimo di 3 ore, tempo di preparazione di 5 minuti. Se una di queste manca nel gratuito, dimmelo: si cambia l'impostazione, non si compra niente senza una tua decisione.
+- [ ] **3. J07 — Link nel sito.** Mandami il link pubblico `https://calendly.com/...` **dopo** le prove di J06. Io controllo il link e preparo la verifica. La variabile `NEXT_PUBLIC_CONSULTATION_BOOKING_URL` su Vercel e il redeploy li fai tu (o mi autorizzi esplicitamente a pubblicare: ogni deploy va online subito). Dopo: controllo `/consulenza` 200, terza slide, paragrafi Calendly in privacy e cookie. La verifica è già pronta: `python scripts/verifica_consulenza.py` (provata il 5/11 sul sito spento con `--atteso spenta`).
+- [ ] **4. Hosting Vercel: piano commerciale.** Le regole ufficiali di Vercel dicono che i team **Hobby sono limitati all'uso personale non commerciale** e che l'uso commerciale richiede Pro o Enterprise (verificato il 5/11 su vercel.com/docs/limits/fair-use-guidelines). Il sito vetrina promuove e vende: serve decidere il piano (Pro è a pagamento: **la spesa è una tua decisione**; in alternativa un altro hosting). Non è un'urgenza di legge ma un rischio di sospensione dell'account e un punto aperto per DPA e contratti.
+- [ ] **5. J09 — Registro privato, SumUp e bonifico.** Decidere dove vive il registro (proposta: foglio privato con accesso limitato; colonne in `docs/messaggi-ordine-pronti.md`). Provare il link SumUp nel profilo reale: creazione, **annullamento manuale** (non dare per scontato che scada in 48 ore) e controllo del pagamento. Provare il bonifico istantaneo.
+- [ ] **6. Revisione delle condizioni di vendita da un consulente.** Il testo è già online (`/condizioni-vendita`) e promette riserva 48 h, pagamento al ritiro, solo cambio in negozio, resi a distanza con paletti. Va rivisto insieme alla privacy.
+- [ ] **7. J10 — Procedura pacchetto, ritiro per sede, spedizione.** Prova con titolare e commesse; chiedere al corriere l'**ultima data utile prima di Natale**.
+
+## Decisioni del titolare (GDPR e AI Act)
+
+- [ ] **8. Conservazione delle richieste senza ordine.** Oggi la privacy online dice solo «per il tempo necessario». Proposta dei documenti: 6 mesi dalla fine del contatto, poi cancellazione. Scegli: 6 mesi sì/no, e **chi** cancella (e come ricordarlo: es. controllo il primo del mese sul registro). Con la tua scelta aggiorno la privacy (modifica al sito: la pubblichi tu o mi autorizzi).
+- [ ] **9. Foto già in catalogo.** I 2 pezzi online (giacca boho, anello argento 925) hanno 6 immagini, **nessuna marcata `aiGenerated`**. Dimmi per ognuna se è foto reale o generata dall'AI (le foto con donna sintetica vanno marcate). Vale anche per le foto future: le marca lo Studio quando le invia.
+- [ ] **10. Provenienza e diritti delle immagini** (foto del negozio, fornitori): confermare che sono tue o autorizzate.
+- [ ] **11. Fornitori e contratti** (Vercel, Neon, SumUp, Calendly): decidere se far verificare DPA e trasferimenti extra-UE da un consulente, insieme alla voce 6.
+- [ ] **12. Orecchini sigillati per igiene** (eccezione al recesso): solo se il sigillo c'è davvero e il consulente conferma.
+- [ ] **13. Buoni digitali: parere fiscale** (IVA e validità di un mese) di commercialista o consulente. Non annunciare i buoni prima (J11).
+
+## Operativi, da fare con lo Studio
+
+- [ ] **14. Riavviare lo Studio** (codice `M-XXXXX`, card finale, sede vuota, pagina **Piano**) e provare una Scheda nuova.
+- [ ] **15. Pubblicare più pezzi sul sito.** Online ce ne sono **2** (controllato il 5/11 su `/api/products`). Il **Piano editoriale propone solo pezzi pubblicati con prezzo e foto**: con 2 pezzi le idee si ripetono, e le idee regalo partono il **16/11**. Obiettivo realistico: almeno 8–10 pezzi pubblicati entro il 15/11 (anche per i 10–15 che portano il sito nel profilo Google, ora `moniliravenna.shop`). Il lavoro lo facciamo insieme con la Scheda pezzo; le foto reali le porti tu.
+- [ ] **16. J14 — Registro dei risultati del pilota**, prima di avviare J13.
+- [ ] **17. Verifica del fuso orario** del grafico Instagram «Periodi di maggiore attività» (dall'app).
+- [ ] **18. File `prd per GDPR e AI act.md`**: resta non tracciato per tua scelta. Dimmi quando decidi se committarlo o spostarlo.
+
+## Cosa fa l'AI quando sblocchi
+
+| Sblocco | Azione AI |
+| --- | --- |
+| Link Calendly pronto (voce 3) | Verifica del link, checklist post-deploy, aggiornamento PRD |
+| Scelta conservazione (voce 8) | Testo privacy e checklist, test del sito; deploy solo con tuo ok |
+| Elenco foto reali/IA (voce 9) | Marcatura `aiGenerated` sui 2 pezzi, ricontrollo online |
+| Piano Vercel deciso (voce 4) | Aggiornamento di privacy/documenti e verifica ambiente |
+| Pezzi inviati al sito (voce 15) | Verifica che il Piano li veda e rifaccia le proposte |
