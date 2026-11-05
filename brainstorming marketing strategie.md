@@ -459,7 +459,7 @@ Fatti: voci 5 e 7 (AI). Unico passo per l'AI nel frattempo: J07, appena Matteo h
 - **Catalogo online: 2 pezzi** (giacca boho 69 €, anello argento 925 76 €), 6 immagini, nessuna marcata IA. Il Piano editoriale (§17.1bis) e le idee regalo del 16/11 richiedono più pezzi pubblicati: **obiettivo almeno 8–10 entro il 15/11**.
 - **Hosting:** il sito è su Vercel Hobby, riservato all'uso non commerciale secondo le regole ufficiali; per vendere serve un piano commerciale (decisione e spesa di Matteo).
 - **Calendly Free** (listino del 5/11): un tipo di evento, un calendario, prenotazione 1 a 1, niente automazioni (compatibile con i promemoria manuali). Domande personalizzate, preavviso di 3 ore e preparazione di 5 minuti **da verificare nell'account** prima di J07.
-- **Decisioni di Matteo del 5/11:** richieste senza ordine conservate **un mese** (testo della privacy **online dal 5/11**, commit 8d1cf2b del sito, verificato; resta da scegliere chi cancella); hosting **Hobby per ora, poi Pro**; le immagini online **tutte marcate come IA** (script `scripts/marca_immagini_ia.py` pronto; la scrittura sul sito va lanciata da Matteo).
+- **Decisioni di Matteo del 5/11:** richieste senza ordine conservate **un mese** (testo della privacy **online dal 5/11**, commit 8d1cf2b del sito, verificato; resta da scegliere chi cancella); hosting **Hobby per ora, poi Pro**; le immagini online **tutte marcate come IA**: **fatto il 5/11** con `scripts/marca_immagini_ia.py` (lanciato da Matteo), verificato online su catalogo e schede.
 - **Privacy online:** il termine di un mese per le richieste senza ordine è pubblicato (5/11).
 
 ### 17.3 Decisioni ancora aperte (Matteo)
