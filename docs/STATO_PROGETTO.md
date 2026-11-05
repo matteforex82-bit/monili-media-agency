@@ -120,7 +120,7 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 5b. Matteo: se vuole GPT-Image-2.5, creare `OPENAI_API_KEY` su platform.openai.com (il codice è pronto).
 6. Usare la pagina Risultati dopo ogni pubblicazione; più avanti lettura automatica dei numeri con l'API Meta.
 
-## Piano editoriale nello Studio (4/11/2026, in locale, non pushato)
+## Piano editoriale nello Studio (4/11/2026, pushato su `master`, commit d8e6db7)
 - Pagina **Piano** (menu in basso/a sinistra): 2 proposte a settimana con skill, pezzo (foto, prezzo, sede, codice `M-XXXXX`), motivo e brief già pronto; settimana corrente salvata, due successive come anteprima provvisoria. Pulsanti: **Crea** (apre il Reel Studio con skill, pezzo e brief già compilati e segna il contenuto come «creato» quando il Reel parte), **Un'altra idea**, **Salta** (con motivo facoltativo), **Segna pubblicato** (a mano).
 - Codice: `piano.py` (regole), `skills/_base/calendario-eventi.json` (calendario modificabile: temi, skill preferite, fascia di prezzo, nessuna promozione), rotte `/piano` in `api/server.py`, `frontend/src/app/piano`. Stato in `memory/piano.json` (nessun dato di clienti). Perimetro e regole: `docs/piano-editoriale-studio.md`.
 - Pezzi proposti: solo quelli inviati al sito dallo Studio e risultati pubblicati, con prezzo e foto, non venduti. Prezzo e sede arrivano dal sito (`/api/products/<id>`) e, se non risponde, dall'istantanea salvata al momento dell'invio (`snapshot` nel registro `showcase-drafts`; i pezzi inviati prima di oggi hanno quindi bisogno che il sito risponda).

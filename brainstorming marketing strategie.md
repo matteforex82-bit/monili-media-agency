@@ -2,7 +2,7 @@
 
 **Natale 2026 e sviluppo annuale**
 
-**Ultimo aggiornamento:** 3 novembre 2026 · Europe/Rome
+**Ultimo aggiornamento:** 5 novembre 2026 · Europe/Rome (stato di §12 e §17 al 4/11, con il Piano editoriale)
 
 **Stato delle decisioni:** concordate con Matteo nella conversazione di progetto.
 
@@ -299,7 +299,7 @@ La tabella descrive il lavoro richiesto e non attribuisce al sito funzioni non a
 | J10 | Procedura pacchetto, ritiro per sede, spedizione regalo e tracciamento | Negozi e consegne | Da provare con titolare e commesse |
 | J11 | Registro privato buoni e uso da telefono con saldo unico e storico | Strumento operativo privato | Da realizzare e collaudare prima dei buoni digitali |
 | J12 | Allineamento di FAQ, condizioni, privacy, guida operativa e istruzioni ai contenuti | Sito e documenti | **Parziale**: fatti FAQ, WhatsApp centrale, contatto di recesso, istruzioni ai contenuti, privacy/cookie con paragrafo Calendly condizionato al link. **Mancano le condizioni di vendita** per le promesse nuove (`docs/impegni-legali.md` §3bis) |
-| J13 | Due contenuti settimanali, Storie riusate in tre giorni, prezzi e riferimenti | Instagram | Cadenza e frase di chiusura allineate negli Studio e nelle skill; produzione da avviare. Manca il codice breve del pezzo |
+| J13 | Due contenuti settimanali, Storie riusate in tre giorni, prezzi e riferimenti | Instagram | Cadenza e frase di chiusura allineate negli Studio e nelle skill; codice breve `M-XXXXX` fatto (4/11). Dal 4/11 lo Studio ha la pagina **Piano** (§17.1bis) che propone i due contenuti a settimana. **Produzione da avviare** (Matteo) |
 | J14 | Registro dei risultati e revisione del pilota | Operatività privata | Da predisporre e usare dal lancio |
 
 ## 13. Criteri di accettazione e pilota
@@ -421,6 +421,13 @@ Date reali: idee regalo dal 16 novembre, Black Friday 27 novembre, ultime spediz
 - **Studio** (repo `monili-deploy-temp`, `master`, tutto pushato, 102 test verdi): frase di chiusura nuova in Reel, caption, skill e card finale; sede del pezzo sempre scelta da chi pubblica; cadenza unica (§16.1); `docs/impegni-legali.md` aggiornato (modello B, §3bis); `docs/consulenza-calendly-setup.md`; `docs/messaggi-ordine-pronti.md`; `docs/STATO_PROGETTO.md`. **Il Studio va riavviato** per usare card finale e campo sede vuoto.
 - **Sito** (repo `monili-vetrina`, copia `C:\Users\matte\Desktop\PROGETTI AI\Ecosistema Monili\apps\web`, online su https://monili-vetrina.vercel.app): WhatsApp centrale del 21 (commit 2d3bab9); carosello hero, `/idee-regalo`, `/consulenza` spenta, voci di menu e sitemap condizionali, privacy/cookie con Calendly condizionato (commit 47283bb). Controlli fatti: 37 test, tsc, eslint e `next build` verdi; verifica in produzione (home con carosello, `/idee-regalo` 200, `/consulenza` 404, privacy senza Calendly).
 
+### 17.1bis Piano editoriale nello Studio (4 novembre 2026, pushato, commit d8e6db7)
+- Pagina **Piano** dello Studio: 2 proposte a settimana (skill, pezzo con foto, prezzo, sede e codice `M-XXXXX`, motivo e brief già pronto), settimana corrente salvata e due successive come anteprima provvisoria. Pulsanti: **Crea** (apre il Reel Studio già compilato), **Un'altra idea**, **Salta**, **Segna pubblicato** (a mano). Perimetro e regole: `docs/piano-editoriale-studio.md`.
+- Rispetta le decisioni di questo PRD: cadenza unica (§16.1), nessun giorno fisso promesso, frase di chiusura, prezzo e codice nei contenuti di prodotto, **nessuna promozione nella settimana del Black Friday** (27/11: si tratta come idea regalo), nessun dato di clienti (stato in `memory/piano.json`).
+- Propone solo pezzi inviati al sito dallo Studio, risultati pubblicati, con prezzo e foto, non venduti. **Condizione per usarlo davvero:** nel catalogo pubblicato devono esserci abbastanza pezzi; con pochi pezzi le proposte si ripetono («Un'altra idea» non cambia nulla).
+- Provato con dati di prova: 130 test verdi, build, pagina nel browser. **Non provato:** un Reel vero da «Crea» (richiede chiavi e costa), il collegamento al sito con pezzi reali, l'aspetto a schermo. Lo Studio va riavviato per vedere la pagina.
+- Fuori perimetro: pubblicazione automatica, orari consigliati, ordini e dati clienti. Versione 2: suggerimenti guidati dalla pagina Risultati.
+
 ### 17.2 Ancora da fare, in ordine
 | # | Cosa | Chi | Note |
 | --- | --- | --- | --- |
@@ -443,7 +450,7 @@ Date reali: idee regalo dal 16 novembre, Black Friday 27 novembre, ultime spediz
 4. **Matteo:** J09, registro privato, link SumUp e bonifico istantaneo (voce 4).
 5. **Matteo:** far rivedere le condizioni di vendita a un consulente (voce 11): ora sono online e promettono riserva 48 h, pagamento al ritiro, solo cambio in negozio, paletti sui resi a distanza.
 6. **Matteo con lo staff:** J10, procedura pacchetto, ritiro per sede, corriere e ultima data utile prima di Natale (voce 6).
-7. **Matteo:** J14, registro dei risultati; poi **J13**, avvio dei due contenuti a settimana (idee regalo dal 16/11, Black Friday 27/11).
+7. **Matteo:** J14, registro dei risultati; poi **J13**, avvio dei due contenuti a settimana (idee regalo dal 16/11, Black Friday 27/11), partendo dalla pagina **Piano** dello Studio (§17.1bis). Prima del 16/11 servono abbastanza pezzi pubblicati con prezzo e foto, altrimenti il Piano non ha da dove scegliere.
 8. **Per ultimi:** J11, buoni digitali, dopo il parere fiscale.
 Fatti: voci 5 e 7 (AI). Unico passo per l'AI nel frattempo: J07, appena Matteo ha il link Calendly.
 
