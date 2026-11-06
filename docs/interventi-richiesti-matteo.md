@@ -1,6 +1,6 @@
 # Interventi che richiedono Matteo (lista viva)
 
-Aggiornata il 5/11/2026. Qui stanno **solo** le cose che l'AI non può fare da sola: accessi, account, decisioni del titolare, prove al banco, spese. Quando una voce è fatta si segna `[x]` con la data. Riferimenti: PRD Journey `brainstorming marketing strategie.md` §17 e stato GDPR in `prd per GDPR e AI act.md`.
+Aggiornata il 6/11/2026. Qui stanno **solo** le cose che l'AI non può fare da sola: accessi, account, decisioni del titolare, prove al banco, spese. Quando una voce è fatta si segna `[x]` con la data. Riferimenti: PRD Journey `brainstorming marketing strategie.md` §17 e stato GDPR in `prd per GDPR e AI act.md`.
 
 ## Bloccanti per il lancio dei servizi nuovi (in ordine)
 
@@ -29,6 +29,8 @@ Aggiornata il 5/11/2026. Qui stanno **solo** le cose che l'AI non può fare da s
 - [ ] **16. J14 — Registro dei risultati del pilota**, prima di avviare J13.
 - [ ] **17. Verifica del fuso orario** del grafico Instagram «Periodi di maggiore attività» (dall'app).
 - [ ] **18. File `prd per GDPR e AI act.md`**: resta non tracciato per tua scelta. Dimmi quando decidi se committarlo o spostarlo.
+- [ ] **19. Casella `info@imoniliravenna.it` su Aruba.** Il sito la dichiara dal 6/11 (privacy, condizioni, footer): crearla e provarla (posta in entrata e in uscita). Finché non esiste, le richieste dei clienti scritte lì non arrivano.
+- [ ] **20. Allineare PRD e brainstorming a 15 minuti** (consulenza). Lo fa l'AI: oggi citano ancora 10 minuti.
 
 ## Cosa fa l'AI quando sblocchi
 
