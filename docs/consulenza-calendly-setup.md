@@ -6,7 +6,7 @@ Riferimento: `brainstorming marketing strategie.md` §7 (J06 e J07). Qui c'è so
 | Impostazione | Valore |
 |---|---|
 | Nome | Consulenza gratuita in videochiamata |
-| Durata pubblica | 10 minuti |
+| Durata pubblica | 15 minuti (deciso il 6/11; il sito dice «quindici minuti») |
 | Preparazione (non visibile alla cliente) | 5 minuti, nel tuo calendario |
 | Anticipo minimo | 3 ore |
 | Fuso orario | Europe/Rome |

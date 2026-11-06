@@ -54,11 +54,12 @@ def main():
     voce_menu = bool(re.search(r'href="/consulenza"', home))
     check("voce/CTA verso /consulenza nella home " + ("presente" if on else "assente"), voce_menu == on)
 
-    for pagina in ("/privacy", "/cookie"):
+    # Nella privacy compare il nome Calendly; nella pagina cookie solo «il calendario di prenotazione».
+    for pagina, marcatore in (("/privacy", "Calendly"), ("/cookie", "calendario di prenotazione")):
         st, html = get(pagina)
         testo = re.sub(r"<[^>]+>", " ", html)
         check(f"{pagina} 200 (ottenuto {st})", st == 200)
-        check(f"{pagina}: paragrafo Calendly " + ("presente" if on else "assente"), ("Calendly" in testo) == on)
+        check(f"{pagina}: paragrafo sul calendario " + ("presente" if on else "assente"), (marcatore in testo) == on)
 
     st, sitemap = get("/sitemap.xml")
     check("sitemap: /consulenza " + ("presente" if on else "assente"), ("/consulenza" in sitemap) == on)
