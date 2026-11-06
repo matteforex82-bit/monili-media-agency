@@ -128,8 +128,29 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - Provato: `python -m pytest tests` (130 verdi), build del frontend, pagina nel browser con dati di prova (proposte, «Un'altra idea», «Salta», «Segna pubblicato», «Crea» verso il Reel Studio, console e rete senza errori). Non provato: la creazione di un Reel vero da «Crea» (richiede chiavi e costa), l'aspetto a schermo (il pannello del browser non era visibile) e il collegamento al sito vero con pezzi reali.
 - Da fare dopo: versione 2 con i dati della pagina Risultati; il Studio va riavviato per vedere la pagina.
 
-## Interventi richiesti a Matteo (5/11/2026)
-- Elenco unico e aggiornato di ciò che l'AI non può fare da sola: `docs/interventi-richiesti-matteo.md`. Controlli del 5/11 sul sito online: 2 pezzi pubblicati (il Piano ne ha bisogno di più), nessuna immagine marcata IA, conservazione delle richieste ancora generica, hosting Vercel Hobby non adatto all'uso commerciale.
+## Sessione del 5/11/2026 (sera): cosa è stato fatto
+**Elenco unico di ciò che serve da Matteo:** `docs/interventi-richiesti-matteo.md` (numerato, con le condizioni di sblocco). Da lì si riprende.
+
+**Fatto e online (sito, repo `monili-vetrina`):**
+- **Privacy:** richieste senza ordine conservate **un mese** dalla fine del contatto, poi cancellate; documenti fiscali 10 anni (commit 8d1cf2b, con test). Resta da scegliere **chi cancella e come ricordarlo** (Calendly compreso).
+- **Immagini IA:** tutte e 6 le immagini dei 2 pezzi online (giacca boho, anello argento 925) marcate `aiGenerated` da Matteo con `scripts/marca_immagini_ia.py`; verificato online (catalogo e badge nelle schede). Le foto reali dei pezzi futuri **non** vanno marcate: lo Studio marca solo quelle IA all'invio.
+- **Etichetta IA ridisegnata** (commit 8d4ccb7 e af6bebd): sigla **«AI»** bianca in grassetto 11 px, senza contorno, con ombreggiatura morbida; su tutte le foto/video IA; la frase completa di legge resta per screen reader e tooltip. Tolta la vecchia nota «Video realizzato con l'AI» dell'apertura (duplicava il badge).
+- **Reel:** nuovo campo `aiGenerated` per Reel, sigla «AI» in alto a sinistra, interruttore «Creato con l'IA» in `/admin/reels` (commit af6bebd). Matteo ha riferito di aver messo la spunta su «Eleganza Autentica», «Il bomber ricamato sotto i portici», «Dettagli che Parlano di Te» (non ricontrollato dall'AI); «Tempo di Shopping» e «Innamorati del tuo Nuovo Look» non sono IA.
+- Controlli prima di ogni push del sito: 41 test, `tsc`, `eslint` verdi.
+
+**Perché «AI» (AI Act art. 50(4), letto il 5/11 su pagina Commissione e riassunti di studi legali, non sul PDF ufficiale):** dal 2/8/2026 vale l'obbligo di dichiarare i deepfake; le linee guida finali includono anche il ritratto fotorealistico di una persona inventata e le immagini commerciali che abbelliscono il prodotto; il Codice di condotta (volontario, giudicato adeguato) indica l'icona UE o una equivalente con la sigla «AI» maiuscola, visibile senza interazioni, anche in un angolo, «chiara e distinguibile»; per il video all'inizio e dopo le interruzioni (visualizzazione continua incoraggiata). **Non è un parere legale:** la forma finale va confermata dal consulente (voce 6 della lista).
+
+**Nello Studio (repo `monili-deploy-temp`):** pushati 63eed2e, 80f5b3b, e13962f (lista interventi, decisioni, script `verifica_consulenza.py` per J07 e `marca_immagini_ia.py`). **Non pushato:** commit 7fec792 e le modifiche successive a questi documenti. Il file `prd per GDPR e AI act.md` resta non tracciato per scelta di Matteo (aggiornato in locale con la sezione del 5/11).
+
+**Decisioni di Matteo del 5/11:** conservazione un mese; hosting **Hobby per ora, poi Pro** (le regole Vercel limitano Hobby all'uso non commerciale: da fare prima di vendere con regolarità); tutte le immagini online marcate IA; etichetta «AI» leggibile; Reel IA indicati uno per uno.
+
+**Controlli sul sito online del 5/11:** 2 pezzi pubblicati (il Piano editoriale e le idee regalo del 16/11 ne hanno bisogno di **8–10**); `/consulenza` 404 per scelta finché non c'è il link Calendly; Calendly Free = un evento, un calendario, 1 a 1, niente automazioni (domande personalizzate, preavviso 3 ore e preparazione 5 minuti da verificare nell'account).
+
+**Prossimi passi per chi riprende:**
+1. Matteo: J05 (WhatsApp del 21 su telefono e PC), J06 (Calendly), poi mandare il link → l'AI lancia `python scripts/verifica_consulenza.py` e verifica il sito (J07).
+2. Matteo: scegliere chi cancella le conversazioni dopo un mese; pubblicare più pezzi con lo Studio; revisione consulente (condizioni, privacy, forma dell'etichetta IA); J09, J10, J14 e il resto della lista.
+3. AI (quando serve): ~~far inviare `aiGenerated: true` dallo Studio~~ **fatto il 6/11 in locale, non pushato** (`_prepare_reel_for_showcase`; `importa_reel.py` con file `nome.ia`; 131 test verdi; Studio da riavviare); ricontrollare online i Reel marcati; pushare i documenti dello Studio solo con l'ok di Matteo.
+4. Regole: ogni push del sito va online subito → chiedere conferma; mai dati di clienti nello Studio; nessun widget di terzi.
 
 ## Aperti / da sapere
 - **Sito vetrina online dal 30/10/2026**: https://monili-vetrina.vercel.app (repo `monili-vetrina`, progetto Vercel

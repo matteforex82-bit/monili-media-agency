@@ -2195,6 +2195,8 @@ def _prepare_reel_for_showcase(reel_id: str, state: dict) -> tuple[dict, Path, P
             "caption": str(copy.get("caption_short") or "")[:600],
             "duration_sec": reel_studio.probe_duration(video),
             "run_id": reel_id,
+            # Ogni Reel del Studio (non anteprima) è un video generato dall'IA: il sito mostra la sigla «AI».
+            "aiGenerated": True,
         },
         video,
         poster,

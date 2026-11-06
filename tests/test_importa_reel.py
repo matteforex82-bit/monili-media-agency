@@ -47,6 +47,7 @@ def test_sends_draft_with_texts_and_skips_on_rerun(importer, tmp_path, monkeypat
     assert meta["title"] == "Orecchini a fiore" and meta["caption"] == "Smaltati a mano, in via Cavour."
     assert re.fullmatch(r"[a-z0-9][a-z0-9-]{2,79}", meta["id"]) and 1 <= meta["duration_sec"] <= 3
     assert web_video.suffix == ".mp4" and poster.suffix == ".jpg" and poster.stat().st_size <= 600_000
+    assert "aiGenerated" not in meta  # senza il file .ia il reel è reale
     assert importer.REGISTRY_NAME in {p.name for p in tmp_path.iterdir()}
     second = importer.import_folder(tmp_path)
     assert second["skipped"] == [video.name] and not second["sent"] and len(sent) == 1
@@ -78,3 +79,13 @@ def test_title_from_filename_and_stable_unique_ids(importer, tmp_path):
     assert importer.read_texts(tmp_path / "18012345.mp4")[0] == importer.DEFAULT_TITLE
     a, b = tmp_path / "x1.mp4", tmp_path / "x2.mp4"
     assert importer.reel_id_for(a) == importer.reel_id_for(a) != importer.reel_id_for(b)
+
+
+def test_ia_marker_file_flags_the_reel_as_ai(importer, tmp_path, monkeypatch):
+    video = tmp_path / "bomber-ricamato.mp4"
+    _fake_video(video)
+    video.with_suffix(".ia").write_text("", encoding="utf-8")
+    sent = []
+    monkeypatch.setattr(importer.server, "_send_reel_to_showcase", lambda meta, v, p: sent.append(meta) or {"ok": True})
+    importer.import_folder(tmp_path)
+    assert sent[0]["aiGenerated"] is True

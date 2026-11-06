@@ -11,6 +11,7 @@ Uso (dalla cartella del progetto):
 Nella cartella metti i video (.mp4, .mov, .m4v). Accanto a un video, con lo stesso nome, puoi mettere:
     nome.jpg o nome.png   la copertina (altrimenti si prende un fotogramma del video)
     nome.txt              prima riga = titolo, il resto = didascalia
+    nome.ia               file vuoto: il reel è creato con l'IA (il sito mostra la sigla «AI»)
 
 Si può rilanciare quando vuoi: i reel già inviati (registro `_importati.json` nella cartella) si saltano.
 I file leggeri restano in `<cartella>/_web/`. Serve SHOWCASE_INGEST_URL (e il token) come per le schede.
@@ -68,6 +69,12 @@ def poster_for(video: Path, web_dir: Path) -> Path:
     return reel_studio.make_web_poster(source, web_dir / f"{video.stem}-poster.jpg")
 
 
+def is_ai(video: Path) -> bool:
+    """Un file vuoto `nome.ia` accanto al video lo segna come creato con l'IA (sigla «AI» sul sito).
+    Senza quel file il reel è considerato reale, come quelli girati in negozio."""
+    return video.with_suffix(".ia").is_file()
+
+
 def prepare(video: Path, web_dir: Path) -> tuple[dict, Path, Path]:
     web_dir.mkdir(parents=True, exist_ok=True)
     web_video = reel_studio.make_web_video(video, web_dir / f"{video.stem}-reel.mp4")
@@ -80,6 +87,8 @@ def prepare(video: Path, web_dir: Path) -> tuple[dict, Path, Path]:
         "duration_sec": reel_studio.probe_duration(web_video),
         "run_id": f"importato-{video.stem}"[:120],
     }
+    if is_ai(video):
+        meta["aiGenerated"] = True
     return meta, web_video, poster
 
 

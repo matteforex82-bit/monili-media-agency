@@ -85,6 +85,7 @@ def test_publish_sends_light_files_and_links_the_piece(full_hd_video, product_ph
     assert sent["meta"]["product_id"] == "anello-cavour-123"
     assert sent["meta"]["title"] == "Anello Cavour in tre look"
     assert sent["meta"]["caption"] == "Un anello che parla da solo."
+    assert sent["meta"]["aiGenerated"] is True  # i Reel del Studio sono video IA: il sito mostra «AI»
     assert sent["video_size"] <= rs.WEB_REEL_MAX_VIDEO_BYTES
     assert rs.load_state(reel_id)["showcase"]["product_id"] == "anello-cavour-123"
 
