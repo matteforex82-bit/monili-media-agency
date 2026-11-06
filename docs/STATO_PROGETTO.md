@@ -152,6 +152,10 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 3. AI (quando serve): ~~far inviare `aiGenerated: true` dallo Studio~~ **fatto il 6/11 in locale, non pushato** (`_prepare_reel_for_showcase`; `importa_reel.py` con file `nome.ia`; 131 test verdi; Studio da riavviare); ricontrollare online i Reel marcati; pushare i documenti dello Studio solo con l'ok di Matteo.
 4. Regole: ogni push del sito va online subito → chiedere conferma; mai dati di clienti nello Studio; nessun widget di terzi.
 
+## Dominio e e-mail (6/11/2026)
+- **Dominio `imoniliravenna.it` (Aruba) collegato al progetto Vercel `monili-vetrina`** (aggiunti `imoniliravenna.it` e `www.imoniliravenna.it`, senza reindirizzamento). DNS su Aruba: A `@` → 76.76.21.21, CNAME `www` → cname.vercel-dns.com (MX e record `posta` intatti; `ftp` punta a `www`, irrilevante). Propagato; Vercel non segnala più errori di configurazione. Certificato HTTPS e risposta del sito sul dominio: **da ricontrollare**. Da decidere: quale dei due è principale (reindirizzamento) e `NEXT_PUBLIC_SITE_URL` (ancora `monili-vetrina.vercel.app`, serve redeploy).
+- **E-mail ufficiale: `info@imoniliravenna.it`** al posto di `moniliravenna@gmail.com` (sito commit a24f060; verificato online su privacy, condizioni e home; 41 test, tsc, eslint verdi). La casella su Aruba va creata e provata da Matteo (non verificata dall'AI); finché non esiste, le richieste privacy/recesso scritte lì non arrivano. Messaggi pronti in `docs/impegni-legali.md` aggiornati.
+
 ## Aperti / da sapere
 - **Sito vetrina online dal 30/10/2026**: https://monili-vetrina.vercel.app (repo `monili-vetrina`, progetto Vercel
   `monili-vetrina`, piano Hobby per ora, database e foto nuovi e vuoti). Il `.env` dello Studio sul PC punta già lì.

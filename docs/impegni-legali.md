@@ -81,12 +81,12 @@ Si usano in WhatsApp Business (risposte rapide), Instagram DM e e-mail. Le parti
 
 ### A. Benvenuto (risposta rapida `/privacy`)
 
-> Ciao, grazie per averci scritto, I Monili di Sama Barbara! Usiamo il tuo numero e quello che ci scrivi solo per risponderti e seguire l'eventuale ordine, non per iscriverti a liste promozionali. Informativa completa: https://monili-vetrina.vercel.app/privacy — per domande sui tuoi dati: moniliravenna@gmail.com
+> Ciao, grazie per averci scritto, I Monili di Sama Barbara! Usiamo il tuo numero e quello che ci scrivi solo per risponderti e seguire l'eventuale ordine, non per iscriverti a liste promozionali. Informativa completa: https://monili-vetrina.vercel.app/privacy — per domande sui tuoi dati: info@imoniliravenna.it
 
 ### B. Riepilogo ordine (da inviare **prima** del pagamento)
 
 > **RIEPILOGO ORDINE — I MONILI DI SAMA BARBARA di Barbara Sama**
-> Via Cavour 17, 48124 Ravenna (RA) — P.IVA 02052730393 — moniliravenna@gmail.com
+> Via Cavour 17, 48124 Ravenna (RA) — P.IVA 02052730393 — info@imoniliravenna.it
 > Ordine n. [numero] del [data]
 > Negozio di ritiro del pezzo: [Via Cavour 17 / 21] — assistenza WhatsApp: 375 771 3966
 > Pezzo: [descrizione, materiali, misura/taglia] × [quantità]
@@ -96,7 +96,7 @@ Si usano in WhatsApp Business (risposte rapide), Instagram DM e e-mail. Le parti
 > Pagamento: [bonifico SEPA anticipato / link SumUp]
 > Consegna: [nome, indirizzo, telefono] — entro [data o giorni concordati]; corriere tracciato
 >
-> Puoi recedere entro 14 giorni da quando ricevi il pacco, senza dare motivazioni: basta scriverci a moniliravenna@gmail.com o su WhatsApp. La spedizione del reso è a tuo carico. Puoi provare il pezzo come in negozio. Ti rimborsiamo entro 14 giorni dalla tua comunicazione, comprese le spese di spedizione standard. Garanzia legale di 2 anni sui difetti.
+> Puoi recedere entro 14 giorni da quando ricevi il pacco, senza dare motivazioni: basta scriverci a info@imoniliravenna.it o su WhatsApp. La spedizione del reso è a tuo carico. Puoi provare il pezzo come in negozio. Ti rimborsiamo entro 14 giorni dalla tua comunicazione, comprese le spese di spedizione standard. Garanzia legale di 2 anni sui difetti.
 > Condizioni complete: https://monili-vetrina.vercel.app/condizioni-vendita
 > Privacy: https://monili-vetrina.vercel.app/privacy
 >
@@ -123,7 +123,7 @@ Un link da solo **non** è supporto durevole: il testo va incollato o allegato.
 >
 > "Con la presente comunico il recesso dal contratto relativo al seguente bene: [descrizione]; ordinato il [data], ricevuto il [data]; numero ordine [numero]; nome e indirizzo del consumatore [dati]; data [data]." (La firma serve solo se lo mandi su carta.)
 >
-> Invialo a moniliravenna@gmail.com oppure rispondi qui. Hai tempo 14 giorni da quando hai ricevuto il pacco.
+> Invialo a info@imoniliravenna.it oppure rispondi qui. Hai tempo 14 giorni da quando hai ricevuto il pacco.
 
 ### E. Risposta quando il cliente comunica il recesso
 
@@ -137,7 +137,7 @@ Un link da solo **non** è supporto durevole: il testo va incollato o allegato.
 
 ### G. Consenso marketing (facoltativo, mai insieme a un ordine come condizione)
 
-> Se ti va, possiamo scriverti su WhatsApp per novità e proposte di I Monili. Non è necessario per acquistare. Per iscriverti rispondi: "ACCONSENTO a ricevere messaggi promozionali WhatsApp". Puoi smettere quando vuoi scrivendo STOP o a moniliravenna@gmail.com. Informativa: https://monili-vetrina.vercel.app/privacy
+> Se ti va, possiamo scriverti su WhatsApp per novità e proposte di I Monili. Non è necessario per acquistare. Per iscriverti rispondi: "ACCONSENTO a ricevere messaggi promozionali WhatsApp". Puoi smettere quando vuoi scrivendo STOP o a info@imoniliravenna.it. Informativa: https://monili-vetrina.vercel.app/privacy
 
 Si registra: data, canale, testo inviato e risposta del cliente. Chi non risponde **non** va nelle liste.
 
