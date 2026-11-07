@@ -2,8 +2,8 @@
 const KEY = 'monili_settings_v1';
 
 export const IMAGE_ENGINES = [
-  { id: 'openai/gpt-5.4-image-2', label: 'Images 2', hint: 'Il predefinito: foto fedeli al pezzo.' },
-  { id: 'google/gemini-3.1-flash-image-preview', label: 'Gemini', hint: 'Alternativa, da confrontare sullo stesso pezzo.' },
+  { id: 'google/gemini-nano-banana-2.1', label: 'Nano Banana 2.1', hint: 'Il predefinito: veloce, mantiene bene pietre e riflessi.' },
+  { id: 'openai/gpt-image-2.6-sunburst', label: 'GPT Image 2.6', hint: 'Il più recente di OpenAI: molto fedele alla struttura del pezzo, più lento.' },
 ] as const;
 
 export const DEFAULT_TEXT_MODEL = 'openai/gpt-5.5';

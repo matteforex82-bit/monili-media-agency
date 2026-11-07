@@ -150,7 +150,7 @@ testi prima di attivare i video veri.
 
 | Voce | Stima |
 |---|---|
-| Fotogramma chiave AI (gpt-5.4-image-2) | ~0,10 € |
+| Fotogramma chiave AI (Nano Banana 2.1 / GPT Image 2.6, stima, non misurata) | ~0,07–0,20 € |
 | Video Kling 3.0 Standard | ~0,04-0,07 $/secondo (listino console 31/10, 720p senza audio) |
 | Video Kling 4.0 / Seedance 2.5 | ~0,11-0,13 $ / ~0,14-0,18 $ al secondo |
 | Controllo qualità per fotogramma | ~0,02 € |

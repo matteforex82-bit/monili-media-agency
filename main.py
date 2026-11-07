@@ -27,13 +27,17 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
+# Checked on OpenRouter on 07/11/2026: Nano Banana 2.1 (Oct 2026) and GPT Image 2.6 (4 Nov 2026) are the newest.
+# The order is also the fallback order when the chosen model fails.
 SUPPORTED_OPENROUTER_IMAGE_MODELS = [
-    "openai/gpt-5.4-image-2",
-    "google/gemini-3.1-flash-image-preview",
-    "google/gemini-3.1-flash-image",
+    "google/gemini-nano-banana-2.1",
+    "openai/gpt-image-2.6-sunburst",
     "google/gemini-3-pro-image",
+    "google/gemini-3.1-flash-image",
 ]
 DEFAULT_OPENROUTER_IMAGE_MODEL = SUPPORTED_OPENROUTER_IMAGE_MODELS[0]
+# Old choices still saved in .env or in a browser: gpt-5.4-image-2 answers with a provider error (07/11/2026).
+RETIRED_OPENROUTER_IMAGE_MODELS = {"openai/gpt-5.4-image-2", "google/gemini-3.1-flash-image-preview"}
 
 SUPPORTED_OPENROUTER_TEXT_MODELS = [
     "openai/gpt-5.5",
@@ -84,12 +88,9 @@ def encode_image(path: Path) -> tuple[str, str]:
 
 
 def select_openrouter_image_model(requested_model: str = "") -> str:
-    model = (requested_model or "").strip()
-    if model:
-        return model
-    env_model = os.environ.get("OPENROUTER_IMAGE_MODEL", "").strip()
-    if env_model:
-        return env_model
+    for candidate in ((requested_model or "").strip(), os.environ.get("OPENROUTER_IMAGE_MODEL", "").strip()):
+        if candidate and candidate not in RETIRED_OPENROUTER_IMAGE_MODELS:
+            return candidate
     return DEFAULT_OPENROUTER_IMAGE_MODEL
 
 
@@ -271,6 +272,51 @@ def export_ratio_jpeg(
     return save_jpeg_budget(final, destination, target_kb=target_kb)
 
 
+def generate_image_with_image_api(
+    api_key: str,
+    model: str,
+    prompt: str,
+    image_path: Path | list[Path] | None = None,
+    aspect_ratio: str = "1:1",
+    quality: str = "high",
+) -> list[str]:
+    """OpenRouter Image API (POST /api/v1/images) with the real photo(s) as input reference."""
+    # GPT Image has no 4:5: take the closest (3:4); the Studio crops to 4:5 when it exports the photo.
+    aspect_ratio = {"4:5": "3:4", "5:4": "4:3"}.get(aspect_ratio, aspect_ratio)
+    payload: dict = {"model": model, "prompt": prompt, "aspect_ratio": aspect_ratio, "quality": quality, "n": 1}
+    references = image_path if isinstance(image_path, list) else [image_path]
+    encoded = [encode_image(path) for path in references if path and path.exists()]
+    if encoded:
+        payload["input_references"] = [
+            {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_data}"}}
+            for image_data, media_type in encoded
+        ][:16]
+    response = requests.post(
+        "https://openrouter.ai/api/v1/images",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://monili-media-agency.local",
+            "X-Title": "Monili Media Agency",
+        },
+        json=payload,
+        timeout=300,
+    )
+    if response.status_code >= 400:
+        raise RuntimeError(f"{model}: HTTP {response.status_code}: {response.text[:300]}")
+    body = response.json()
+    urls = [
+        f"data:{item.get('media_type') or 'image/png'};base64,{item['b64_json']}"
+        for item in (body.get("data") or [])
+        if isinstance(item, dict) and item.get("b64_json")
+    ]
+    if not urls:
+        error = body.get("error") if isinstance(body, dict) else None
+        detail = error.get("message") if isinstance(error, dict) else "nessuna immagine nella risposta"
+        raise RuntimeError(f"{model}: {str(detail)[:300]}")
+    return urls
+
+
 def generate_image_with_openrouter(
     api_key: str,
     model: str,
@@ -278,10 +324,13 @@ def generate_image_with_openrouter(
     image_path: Path | None = None,
     aspect_ratio: str = "1:1",
 ) -> list[str]:
+    if model.startswith("openai/gpt-image"):
+        # GPT Image models are not served by chat/completions: they use OpenRouter's Image API.
+        return generate_image_with_image_api(api_key, model, prompt, image_path, aspect_ratio)
+
     text_image_models = (
         model.startswith("google/gemini")
         or model.startswith("openai/gpt-5.4-image")
-        or model.startswith("openai/gpt-image")
     )
     modalities = ["image", "text"] if text_image_models else ["image"]
     image_config = {"aspect_ratio": aspect_ratio, "image_size": "1K"} if model.startswith("google/gemini") else None
@@ -297,7 +346,11 @@ def generate_image_with_openrouter(
 
     data_urls = extract_data_urls_from_response(payload)
     if not data_urls:
-        raise RuntimeError("Nessuna immagine trovata nella risposta OpenRouter")
+        # OpenRouter can answer 200 with the provider's error in the body: show it, not a vague "no image".
+        error = payload.get("error") if isinstance(payload, dict) else None
+        if isinstance(error, dict) and error.get("message"):
+            raise RuntimeError(f"{model}: {str(error['message'])[:300]}")
+        raise RuntimeError(f"{model}: nessuna immagine nella risposta OpenRouter")
     return data_urls
 
 
@@ -503,9 +556,56 @@ SITE_IMAGE_SPECS = {
     "worn": ("site_worn_source.png", WORN_PHOTO_NAME),
     "worn_2": ("site_worn_2_source.png", "site_04_worn_2.jpg"),
 }
-AI_WORN_PHOTO_NAMES = (WORN_PHOTO_NAME, SITE_IMAGE_SPECS["worn_2"][1])  # simulated "indossato": the site labels them
 REAL_PHOTO_NAME = "site_03_real_photo.jpg"
 DETAIL_PHOTO_NAME = "site_05_detail.jpg"
+VARIANTS_PHOTO_NAME = "site_06_variants.jpg"  # real photo of the colour options, cleaned on the PC
+VARIANTS_AI_PHOTO_NAME = "site_07_variants_ai.jpg"  # the same options tidied by the AI (only when the real one does not fit)
+# Photos made by the AI: the site labels them "AI" when they are sent.
+AI_WORN_PHOTO_NAMES = (WORN_PHOTO_NAME, SITE_IMAGE_SPECS["worn_2"][1], VARIANTS_AI_PHOTO_NAME)
+
+
+def generate_image_with_fallback(api_key: str, model: str, prompt: str, foto: Path | list[Path], label: str) -> list[str]:
+    """If the chosen model fails (provider errors happen), try the other supported ones
+    instead of leaving the piece without the photo. Every failure is logged with its real reason."""
+    for candidate in [model] + [m for m in SUPPORTED_OPENROUTER_IMAGE_MODELS if m != model]:
+        try:
+            data_urls = generate_image_with_openrouter(api_key, candidate, prompt, image_path=foto, aspect_ratio="4:5")
+        except Exception as model_error:
+            log("SITO VISUAL", f"{label}: {model_error}", "warn")
+            continue
+        if data_urls:
+            if candidate != model:
+                log("SITO VISUAL", f"{label} fatta con {candidate} (il modello scelto non ha risposto)", "data")
+            return data_urls
+    return []
+
+
+VARIANTS_AI_PROMPT = """Reference photo: several variants (colour options) of the SAME product, shown together.
+TASK: make a clean e-commerce 'available colours' photo for a jewellery boutique website.
+Keep EVERY variant EXACTLY as in the reference: same stone colours, stone shapes, stone sizes, metal finish and design; the same number of
+variants, in the same order. Do not invent, merge, recolour, redesign or add any variant or other jewellery.
+Change ONLY the surroundings: remove the busy background, price tags and printed codes, loose threads and anything that is not the product;
+keep the display support (roll, bar or tray) but tidy. Plain warm ivory background, soft natural studio light with a gentle shadow,
+the arrangement filling the vertical 4:5 frame as much as possible, everything crisp and sharp, colours rich but true to the reference.
+No text, no logos, no watermark, no people."""
+
+
+def create_variants_ai_image(output_dir: Path, api_key: str, selected_model: str, source_path: Path) -> str:
+    """The variants photo tidied by the AI, only when the real cleaned one does not fit the frame.
+    The owner must check that every variant matches the real one before sending it (the Studio says so)."""
+    model = select_openrouter_image_model(selected_model)
+    log("SITO VISUAL", "Foto varianti: la foto vera non sta bene nel riquadro, provo a metterla in ordine con l'AI", "data")
+    data_urls = generate_image_with_fallback(api_key, model, VARIANTS_AI_PROMPT, source_path, "Foto varianti")
+    if not data_urls:
+        return ""
+    source_dir = output_dir / "07_SHOWCASE" / "sources"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    source = source_dir / "site_variants_ai_source.png"
+    if not save_data_url_image(data_urls[0], source):
+        return ""
+    final = output_dir / "07_SHOWCASE" / VARIANTS_AI_PHOTO_NAME
+    export_ratio_jpeg(source, final, (1200, 1500), mode="fit", target_kb=420)
+    return f"{output_dir.name}/07_SHOWCASE/{VARIANTS_AI_PHOTO_NAME}"
 
 
 def generate_showcase_images(
@@ -549,13 +649,7 @@ Preserve exact product shape, color, material, proportions, stones and distincti
 Create a single website-ready product photograph, composed safely for 4:5 product cards.
 No text, no logos, no watermark, no phone screens, no fake UI.
 {never}"""
-            data_urls = generate_image_with_openrouter(
-                api_key,
-                model,
-                controlled,
-                image_path=foto,
-                aspect_ratio="4:5",
-            )
+            data_urls = generate_image_with_fallback(api_key, model, controlled, foto, f"Foto {key}")
             if not data_urls:
                 continue
             source_path = source_dir / source_name
@@ -575,7 +669,11 @@ No text, no logos, no watermark, no phone screens, no fake UI.
 
 
 def create_real_photo_image(
-    output_dir: Path, source_path: Path, final_name: str = REAL_PHOTO_NAME, label: str = "Foto reale"
+    output_dir: Path,
+    source_path: Path,
+    final_name: str = REAL_PHOTO_NAME,
+    label: str = "Foto reale",
+    tight: bool = False,
 ) -> tuple[str, dict]:
     """The real photo cut out, with light fixed, on the ivory 4:5 background (free, done on the PC).
 
@@ -591,7 +689,7 @@ def create_real_photo_image(
         with Image.open(source_path) as source:
             photo = ImageOps.exif_transpose(source).convert("RGB")
         cleaned, issues = photo_cleanup.clean_photo(
-            photo, CUTOUT_MODEL_PATH, notify=lambda msg: log("SITO VISUAL", msg, "data")
+            photo, CUTOUT_MODEL_PATH, notify=lambda msg: log("SITO VISUAL", msg, "data"), **({"tight": True} if tight else {})
         )
         save_jpeg_budget(cleaned, destination, target_kb=420)
         check = {"cleaned": True, "ok": not issues, "issues": issues}
@@ -752,7 +850,12 @@ def format_publish_pack_markdown(pack: dict) -> str:
 
 
 def run_agency(
-    foto_path: str, brief: str = "", image_model: str = "", text_model: str = "", detail_path: str = ""
+    foto_path: str,
+    brief: str = "",
+    image_model: str = "",
+    text_model: str = "",
+    detail_path: str = "",
+    variants_path: str = "",
 ) -> None:
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
@@ -850,12 +953,31 @@ def run_agency(
         except Exception as e:
             log("SITO VISUAL", f"Foto del dettaglio non preparata: {e}", "warn")
 
-    # Site order: cover, worn shots, detail; a real photo that did not come out
+    # Colour options (optional): the real photo cleaned on the PC; if it does not fit the frame
+    # (a long thin roll of rings), the AI tidies the same photo and the owner checks it.
+    variants_photo = ""
+    variants_check: dict = {}
+    variants_ai = ""
+    if variants_path and Path(variants_path).is_file():
+        try:
+            variants_photo, variants_check = create_real_photo_image(
+                output_dir, Path(variants_path), VARIANTS_PHOTO_NAME, "Foto delle varianti", tight=True
+            )
+        except Exception as e:
+            log("SITO VISUAL", f"Foto delle varianti non preparata: {e}", "warn")
+        if not (variants_photo and variants_check.get("ok")):
+            try:
+                variants_ai = create_variants_ai_image(output_dir, api_key, selected_image_model, Path(variants_path))
+            except Exception as e:
+                log("SITO VISUAL", f"Foto delle varianti con AI non riuscita: {e}", "warn")
+
+    # Site order: cover, worn shots, detail, colour options; a real photo that did not come out
     # clean stays last, available but not suggested.
     clean_ai = [path for path in ai_site_images if path.endswith(SITE_IMAGE_SPECS["clean"][1])]
     worn_ai = [path for path in ai_site_images if path not in clean_ai]
     cover = [real_photo] if real_ok else clean_ai
-    site_images = cover + worn_ai + ([detail_photo] if detail_photo else [])
+    variants = [path for path in (variants_ai, variants_photo) if path]
+    site_images = cover + worn_ai + ([detail_photo] if detail_photo else []) + variants
     if real_photo and not real_ok:
         site_images.append(real_photo)
 
@@ -920,6 +1042,10 @@ def run_agency(
         results["real_photo_check"] = json.dumps(real_photo_check, ensure_ascii=False)
     if detail_check:
         results["detail_photo_check"] = json.dumps(detail_check, ensure_ascii=False)
+    if variants_check:
+        results["variants_photo_check"] = json.dumps(variants_check, ensure_ascii=False)
+    if variants_ai:
+        results["variants_ai"] = variants_ai
     # Decided once here: the site form starts from it (api/server.py).
     results["category"] = category
 
@@ -953,9 +1079,10 @@ def main():
     parser.add_argument("--image-model", default="")
     parser.add_argument("--text-model", default="")
     parser.add_argument("--dettaglio", default="", help="foto vera del dettaglio (facoltativa)")
+    parser.add_argument("--varianti", default="", help="foto vera delle varianti di colore (facoltativa)")
     args = parser.parse_args()
     try:
-        run_agency(args.foto, args.brief, args.image_model, args.text_model, args.dettaglio)
+        run_agency(args.foto, args.brief, args.image_model, args.text_model, args.dettaglio, args.varianti)
     except Exception as e:
         print(f"\nCRASH FATALE: {e}", flush=True)
         print(traceback.format_exc(), flush=True)

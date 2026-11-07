@@ -30,6 +30,7 @@ SHADOW_RGB = (110, 86, 62)
 MIN_COVERAGE = 0.02
 MAX_COVERAGE = 0.92
 MAX_EDGE_TOUCH = 0.005
+TIGHT_MAX_RATIO = 2.2  # variants photo: longer than this and the piece is too small in a 4:5 frame
 
 _SESSIONS: dict[str, object] = {}
 
@@ -150,13 +151,17 @@ def ivory_background() -> Image.Image:
     return Image.fromarray((IVORY_CENTER * (1 - t) + IVORY_EDGE * t).astype("uint8"))
 
 
-def compose(product: Image.Image, mask: Image.Image) -> Image.Image:
+def compose(product: Image.Image, mask: Image.Image, fill: float | None = None) -> Image.Image:
     box = mask.point(lambda v: 255 if v > 20 else 0).getbbox()
     if not box:
         raise CleanupError("scontorno vuoto")
     product, mask = product.crop(box), mask.crop(box)
 
-    scale = min(CANVAS[0] * 0.80 / product.width, CANVAS[1] * 0.76 / product.height)
+    scale = (
+        min(CANVAS[0] * fill / product.width, CANVAS[1] * fill / product.height)
+        if fill
+        else min(CANVAS[0] * 0.80 / product.width, CANVAS[1] * 0.76 / product.height)
+    )
     size = (max(1, round(product.width * scale)), max(1, round(product.height * scale)))
     product = product.resize(size, Image.Resampling.LANCZOS)
     mask = mask.resize(size, Image.Resampling.LANCZOS)
@@ -177,11 +182,20 @@ def compose(product: Image.Image, mask: Image.Image) -> Image.Image:
 
 
 def clean_photo(
-    photo: Image.Image, model_path: Path, notify: Callable[[str], None] | None = None
+    photo: Image.Image,
+    model_path: Path,
+    notify: Callable[[str], None] | None = None,
+    tight: bool = False,
 ) -> tuple[Image.Image, list[str]]:
-    """The real photo on the ivory 4:5 background, plus the reasons not to suggest it (if any)."""
+    """The real photo on the ivory 4:5 background, plus the reasons not to suggest it (if any).
+
+    `tight` is for the colour-variants photo (a roll of rings): the piece fills more of the frame."""
     photo = photo.convert("RGB")
     alpha = predict_alpha(photo, ensure_model(model_path, notify))
     issues = check_cutout(alpha)
     mask = Image.fromarray((alpha * 255).astype("uint8"))
-    return compose(correct_product(photo, alpha), mask), issues
+    if tight and not issues:
+        box = mask.point(lambda v: 255 if v > 20 else 0).getbbox()
+        if box and max(box[2] - box[0], box[3] - box[1]) / max(1, min(box[2] - box[0], box[3] - box[1])) > TIGHT_MAX_RATIO:
+            issues.append("Il pezzo è lungo e stretto: nel riquadro del sito resta piccolo")
+    return compose(correct_product(photo, alpha), mask, fill=0.93 if tight else None), issues

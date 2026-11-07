@@ -74,7 +74,8 @@ FALLBACK_USD_PER_SECOND = {
     "seedance-2.5": float(os.environ.get("HF_FALLBACK_USD_PER_SEC_SEEDANCE", "0.175")),
 }
 KEYFRAME_USD = {
-    "openai/gpt-5.4-image-2": 0.12,
+    "openai/gpt-image-2.6-sunburst": 0.20,
+    "openai/gpt-image-2.6-flare": 0.12,
     "google/gemini-3-pro-image": 0.14,
     "openai-direct/gpt-image-2.5-flare": 0.12,
     "openai-direct/gpt-image-2.5-sunburst": 0.20,

@@ -120,10 +120,10 @@ MIME_TO_EXT = {
 cleanup_task: asyncio.Task | None = None
 DEFAULT_HISTORY_LIMIT = int(os.environ.get("HISTORY_LIMIT", "20"))
 SUPPORTED_OPENROUTER_IMAGE_MODELS = [
-    "openai/gpt-5.4-image-2",
-    "google/gemini-3.1-flash-image-preview",
-    "google/gemini-3.1-flash-image",
+    "google/gemini-nano-banana-2.1",
+    "openai/gpt-image-2.6-sunburst",
     "google/gemini-3-pro-image",
+    "google/gemini-3.1-flash-image",
 ]
 DEFAULT_OPENROUTER_IMAGE_MODEL = SUPPORTED_OPENROUTER_IMAGE_MODELS[0]
 SUPPORTED_OPENROUTER_TEXT_MODELS = [
@@ -782,6 +782,7 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
     # The real photos are suggested only when their cutout looks clean (missions before the cleanup: always).
     real_photo_check = _parse_json_loose(results.get("real_photo_check"))
     detail_photo_check = _parse_json_loose(results.get("detail_photo_check"))
+    variants_photo_check = _parse_json_loose(results.get("variants_photo_check"))
     seen: set[str] = set()
     items: list[dict] = []
     for key in candidate_keys:
@@ -790,7 +791,15 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
             continue
         seen.add(src)
         is_real_photo = "real_photo" in src
-        real_check = real_photo_check if is_real_photo else detail_photo_check if DETAIL_PHOTO_NAME in src else None
+        real_check = (
+            real_photo_check
+            if is_real_photo
+            else detail_photo_check
+            if DETAIL_PHOTO_NAME in src
+            else variants_photo_check
+            if VARIANTS_PHOTO_NAME in src
+            else None
+        )
         file_path = _resolve_output_relative_path(src) or (OUTPUT_DIR / src)
         available = file_path.exists() and file_path.is_file()
         quality = None
@@ -804,6 +813,10 @@ def _showcase_image_candidates(results: dict) -> list[dict]:
         if real_check:
             recommended = bool(real_check.get("ok"))
             note = "; ".join(str(issue) for issue in real_check.get("issues") or []) or None
+        if VARIANTS_AI_PHOTO_NAME in src:
+            # Made by the AI from the real photo: never ticked on its own, the owner checks every variant.
+            recommended = False
+            note = "Foto messa in ordine dall'AI: controlla che ogni variante sia uguale al pezzo vero prima di spuntarla"
         items.append(
             {
                 "src": _relative_to_output(file_path) if available else src,
@@ -996,6 +1009,8 @@ async def start_mission(
     text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
     # Optional real close-up (stone, clasp, leather): cleaned like the main photo, never redrawn by AI.
     dettaglio: UploadFile | None = File(default=None),
+    # Optional photo of the colour options (e.g. a roll of rings): cleaned like the main photo.
+    varianti: UploadFile | None = File(default=None),
 ):
     """Avvia una nuova missione. Salva la foto e lancia il processo."""
     selected_image_model = image_model.strip() if image_model.strip() else DEFAULT_OPENROUTER_IMAGE_MODEL
@@ -1019,12 +1034,19 @@ async def start_mission(
         if isinstance(saved, JSONResponse):
             return saved
         detail_path = saved
+    variants_path: Path | None = None
+    if varianti is not None and varianti.filename:
+        saved = await _save_mission_photo(varianti, f"{timestamp}_{job_id}_varianti")
+        if isinstance(saved, JSONResponse):
+            return saved
+        variants_path = saved
 
     jobs[job_id] = {
         "id": job_id,
         "status": "running",
         "foto_path": str(foto_path),
         "detail_path": str(detail_path) if detail_path else "",
+        "variants_path": str(variants_path) if variants_path else "",
         "brief": brief,
         "image_model": selected_image_model,
         "text_model": selected_text_model,
@@ -1038,14 +1060,20 @@ async def start_mission(
 
     # Lancia in background
     asyncio.create_task(
-        _run_mission(job_id, foto_path, brief, selected_image_model, selected_text_model, detail_path)
+        _run_mission(job_id, foto_path, brief, selected_image_model, selected_text_model, detail_path, variants_path)
     )
 
     return {"job_id": job_id, "image_model": selected_image_model, "text_model": selected_text_model}
 
 
 async def _run_mission(
-    job_id: str, foto_path: Path, brief: str, image_model: str, text_model: str, detail_path: Path | None = None
+    job_id: str,
+    foto_path: Path,
+    brief: str,
+    image_model: str,
+    text_model: str,
+    detail_path: Path | None = None,
+    variants_path: Path | None = None,
 ):
     """Esegue main.py in subprocess e cattura l'output riga per riga."""
     cmd = [sys.executable, str(PROJECT_ROOT / "main.py"),
@@ -1053,6 +1081,8 @@ async def _run_mission(
            "--brief", brief or ""]
     if detail_path:
         cmd.extend(["--dettaglio", str(detail_path)])
+    if variants_path:
+        cmd.extend(["--varianti", str(variants_path)])
     if image_model:
         cmd.extend(["--image-model", image_model])
     if text_model:
@@ -1581,7 +1611,14 @@ import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import results_log  # noqa: E402
 import piano  # noqa: E402
-from main import AI_WORN_PHOTO_NAMES, DETAIL_PHOTO_NAME, REAL_PHOTO_NAME, WORN_PHOTO_NAME  # noqa: E402
+from main import (  # noqa: E402
+    AI_WORN_PHOTO_NAMES,
+    DETAIL_PHOTO_NAME,
+    REAL_PHOTO_NAME,
+    VARIANTS_AI_PHOTO_NAME,
+    VARIANTS_PHOTO_NAME,
+    WORN_PHOTO_NAME,
+)
 
 MAX_CLIP_BYTES = int(os.environ.get("MAX_CLIP_BYTES", str(200 * 1024 * 1024)))  # 200 MB
 MAX_REEL_PHOTOS = 3

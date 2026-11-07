@@ -78,6 +78,17 @@ export default function NewPiecePage() {
     });
   }, []);
 
+  // Optional photo of the colour options (e.g. a roll of rings): cleaned like the main photo; if it does not fit, the AI tidies it.
+  const [variants, setVariants] = useState<File | null>(null);
+  const [variantsPreview, setVariantsPreview] = useState<string | null>(null);
+  const pickVariants = useCallback((file: File | null) => {
+    setVariants(file);
+    setVariantsPreview((prev) => {
+      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return file ? URL.createObjectURL(file) : null;
+    });
+  }, []);
+
   const handlePhotoClear = useCallback(() => {
     setPhoto(null);
     setPalette([]);
@@ -197,6 +208,7 @@ export default function NewPiecePage() {
     const form = new FormData();
     form.append('foto', photo);
     if (detail) form.append('dettaglio', detail);
+    if (variants) form.append('varianti', variants);
     form.append('brief', brief);
     form.append('text_model', settings.textModel);
     form.append('image_model', settings.imageModel);
@@ -292,6 +304,42 @@ export default function NewPiecePage() {
                   accept="image/*,.heic,.heif"
                   onChange={(e) => {
                     pickDetail(e.target.files?.[0] ?? null);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            )}
+          </div>
+        </div>
+      )}
+
+      {photo && (
+        <div className="detail-pick">
+          {variantsPreview ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={variantsPreview} alt="Varianti caricate" />
+          ) : (
+            <span className="detail-pick-empty" aria-hidden="true">+</span>
+          )}
+          <div>
+            <p className="field-label" style={{ margin: 0 }}>
+              Foto delle varianti <small>facoltativa</small>
+            </p>
+            <p className="detail-pick-hint">
+              I colori disponibili tutti insieme (anche sul rotolo). Se è lunga e stretta, l&apos;AI la rimette in ordine e tu controlli che ogni variante sia identica al vero.
+            </p>
+            {variants ? (
+              <button type="button" className="btn-secondary" onClick={() => pickVariants(null)}>
+                Togli le varianti
+              </button>
+            ) : (
+              <label className="btn-secondary detail-pick-button">
+                Aggiungi le varianti
+                <input
+                  type="file"
+                  accept="image/*,.heic,.heif"
+                  onChange={(e) => {
+                    pickVariants(e.target.files?.[0] ?? null);
                     e.target.value = '';
                   }}
                 />

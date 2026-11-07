@@ -108,8 +108,8 @@ def test_the_detail_photo_reaches_the_mission(monkeypatch, tmp_path):
 
     started = {}
 
-    async def fake_run(job_id, foto_path, brief, image_model, text_model, detail_path=None):
-        started["foto"], started["detail"] = foto_path, detail_path
+    async def fake_run(job_id, foto_path, brief, image_model, text_model, detail_path=None, variants_path=None):
+        started["foto"], started["detail"], started["variants"] = foto_path, detail_path, variants_path
 
     monkeypatch.setattr(server, "_run_mission", fake_run)
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")

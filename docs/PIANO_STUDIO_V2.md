@@ -154,7 +154,7 @@ Riquadro di caricamento grande, nota facoltativa, un pulsante "Crea la scheda". 
 - [ ] Riprendere solo se i post settimanali diventano un peso: richiesta di accesso alle API (progetto Google Cloud, profilo verificato da 60+ giorni, sito) e verifica che `localPosts` funzioni ancora nel 2026.
 
 ### Fase D — Motori per le immagini (decisione dopo la prova)
-Oggi: **OpenRouter con la tua chiave**. Foto della scheda e fotogrammi del Reel con **"Images 2"** (`openai/gpt-5.4-image-2`, predefinito); in alternativa **Gemini** (`google/gemini-3.1-flash-image`, `google/gemini-3-pro-image`, cioè Nano Banana). Se un giorno metti `OPENAI_API_KEY`, i fotogrammi possono usare GPT-Image-2.5 direttamente. **Higgsfield** oggi serve solo ai video (Kling, Seedance).
+Oggi: **OpenRouter con la tua chiave**. Foto della scheda e fotogrammi del Reel con **Nano Banana 2.1** (`google/gemini-nano-banana-2.1`, predefinito dal 7/11/2026); in alternativa **GPT Image 2.6** (`openai/gpt-image-2.6-sunburst`, API immagini di OpenRouter) o Gemini 3 Pro / 3.1 Flash. Se il modello scelto non risponde, lo Studio prova gli altri. Se un giorno metti `OPENAI_API_KEY`, i fotogrammi possono usare GPT-Image-2.5 direttamente. **Higgsfield** oggi serve solo ai video (Kling, Seedance).
 - Higgsfield sa fare anche immagini (ospita Nano Banana Pro, GPT Image, Seedream e il suo Soul), ma a crediti con abbonamento mensile; OpenRouter si paga a immagine, senza abbonamento.
 - [ ] Alla prima Scheda pezzo vera: stesso pezzo con Images 2 e con Gemini 3 Pro, confronto di fedeltà e costo
 - [ ] Decisione: restare su OpenRouter per le foto (consiglio, se la fedeltà regge) o spostare tutto su Higgsfield se l'abbonamento conviene con i volumi reali

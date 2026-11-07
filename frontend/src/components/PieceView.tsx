@@ -53,6 +53,8 @@ const SITE_IMAGE_KINDS: Array<{ match: string; label: string; slug: string }> = 
   { match: 'site_03_real_photo', label: 'Foto vera ripulita', slug: 'foto-vera-ripulita' },
   { match: 'site_04_worn_2', label: 'Indossata 2 (AI)', slug: 'indossata-2-ai' },
   { match: 'site_05_detail', label: 'Dettaglio vero ripulito', slug: 'dettaglio-vero' },
+  { match: 'site_06_variants', label: 'Varianti (foto vera ripulita)', slug: 'varianti-vera' },
+  { match: 'site_07_variants_ai', label: 'Varianti (messa in ordine dall\'AI)', slug: 'varianti-ai' },
 ];
 
 function siteImageLabel(src: string) {
@@ -490,7 +492,10 @@ export default function PieceView({ results, apiUrl, runId, summary, onChanged }
           (src): src is string =>
             Boolean(src) &&
             !(src.includes('site_03_real_photo') && results.real_photo_check?.includes('"ok": false')) &&
-            !(src.includes('site_05_detail') && results.detail_photo_check?.includes('"ok": false')),
+            !(src.includes('site_05_detail') && results.detail_photo_check?.includes('"ok": false')) &&
+            // Colour options: only the real cleaned one when it came out; the AI one is never taken on its own.
+            !(src.includes('site_06_variants') && results.variants_photo_check?.includes('"ok": false')) &&
+            !src.includes('site_07_variants_ai'),
         ),
     [results],
   );

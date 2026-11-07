@@ -32,6 +32,14 @@ AI_SHOTS = {
     "accessori": ["worn"],
 }
 
+# Rings and bracelets: Matteo does not want the whole hand (07/11/2026), only a part of it with the
+# piece worn and a lovely blurred background.
+RING_FRAMING = (
+    "Se e un anello (o un bracciale): inquadratura STRETTA, solo il dito con l'anello e le nocche vicine "
+    "(la mano e tagliata a meta, mai mano intera ne polso ne braccio); il pezzo occupa almeno un terzo della "
+    "larghezza; sfondo bello ma sfocato (muro caldo, mosaico, tessuto), mai neutro e vuoto."
+)
+
 # How the art director frames the worn shots, per category (Italian, it goes in the prompt).
 SHOT_GUIDE = {
     "abbigliamento": (
@@ -41,11 +49,11 @@ SHOT_GUIDE = {
     ),
     "gioielli": (
         'GIOIELLO. "worn": primo piano sulla parte del corpo giusta (orecchio, mano, collo o polso), il pezzo grande '
-        "nell'inquadratura e nitido, si capiscono misura e colore della pietra."
+        "nell'inquadratura e nitido, si capiscono misura e colore della pietra. " + RING_FRAMING
     ),
     "bijoux": (
         'BIJOU. "worn": primo piano sulla parte del corpo giusta (orecchio, mano, collo o polso), il pezzo grande '
-        "nell'inquadratura e nitido, si capiscono misura e colori."
+        "nell'inquadratura e nitido, si capiscono misura e colori. " + RING_FRAMING
     ),
     "accessori": (
         'ACCESSORIO. "worn": a mezzo busto, la donna lo porta (borsa in spalla o a mano, foulard al collo, cintura in '

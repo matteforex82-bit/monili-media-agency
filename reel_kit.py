@@ -76,7 +76,15 @@ def _chat(api_key: str, model: str, prompt: str, images: list[Path], max_tokens:
 def generate_image_multi(api_key: str, model: str, prompt: str, images: list[Path], destination: Path, aspect_ratio: str = "9:16") -> Path:
     if model.startswith(OPENAI_DIRECT_PREFIX):
         return openai_edit(model, prompt, images, destination, aspect_ratio)
-    text_image = model.startswith("google/gemini") or model.startswith("openai/gpt-5.4-image") or model.startswith("openai/gpt-image")
+    if model.startswith("openai/gpt-image"):
+        # GPT Image on OpenRouter: dedicated Image API, not chat/completions.
+        from main import generate_image_with_image_api
+
+        data_urls = generate_image_with_image_api(api_key, model, prompt, images, aspect_ratio)
+        if not data_urls or not save_data_url_image(data_urls[0], destination):
+            raise RuntimeError("nessuna immagine nella risposta")
+        return destination
+    text_image = model.startswith("google/gemini") or model.startswith("openai/gpt-5.4-image")
     payload = _chat(
         api_key,
         model,
