@@ -16,6 +16,7 @@ from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
+import numpy as np
 from PIL import Image, ImageOps
 
 from piece_code import add_reference, piece_code
@@ -261,6 +262,16 @@ def export_ratio_jpeg(
 ) -> Path:
     with Image.open(source_path) as source:
         image = source.convert("RGB")
+        if mode == "extend" and image.width / image.height < size[0] / size[1]:
+            # Narrower than the target (GPT Image 3:4 vs 4:5): widen the soft background on both sides
+            # instead of cropping top and bottom, where a roll of rings reaches the edges.
+            wanted = round(image.height * size[0] / size[1])
+            left = (wanted - image.width) // 2
+            padded = np.pad(
+                np.asarray(image), ((0, 0), (left, wanted - image.width - left), (0, 0)), mode="edge"
+            )
+            image = Image.fromarray(padded)
+            mode = "fit"
         if mode == "contain":
             image.thumbnail((size[0] - 80, size[1] - 80), Image.LANCZOS)
             canvas = Image.new("RGB", size, (250, 247, 240))
@@ -604,7 +615,7 @@ def create_variants_ai_image(output_dir: Path, api_key: str, selected_model: str
     if not save_data_url_image(data_urls[0], source):
         return ""
     final = output_dir / "07_SHOWCASE" / VARIANTS_AI_PHOTO_NAME
-    export_ratio_jpeg(source, final, (1200, 1500), mode="fit", target_kb=420)
+    export_ratio_jpeg(source, final, (1200, 1500), mode="extend", target_kb=420)
     return f"{output_dir.name}/07_SHOWCASE/{VARIANTS_AI_PHOTO_NAME}"
 
 

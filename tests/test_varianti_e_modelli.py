@@ -167,3 +167,49 @@ def test_a_provider_error_in_a_200_reply_is_reported(monkeypatch):
     )
     with pytest.raises(RuntimeError, match="Complexity 'none'"):
         main.generate_image_with_openrouter("key", "google/gemini-nano-banana-2.1", "prompt")
+
+
+def test_sending_a_piece_that_is_already_online_updates_it(monkeypatch):
+    monkeypatch.setenv("SHOWCASE_INGEST_URL", "https://example.test/api/ingest/internal-webapp")
+    monkeypatch.setenv("SHOWCASE_ADMIN_TOKEN", "token")
+    calls = {}
+
+    class Conflict:
+        status_code = 409
+        text = "esiste"
+
+        @staticmethod
+        def json():
+            return {"error": "Esiste gia un prodotto con questo id."}
+
+    class Updated:
+        status_code = 200
+        text = "ok"
+
+        @staticmethod
+        def json():
+            return {"item": {"id": "anello-1"}}
+
+    def fake_patch(url, json=None, headers=None, timeout=None):
+        calls["url"], calls["patch"] = url, json
+        return Updated()
+
+    monkeypatch.setattr(server.requests, "post", lambda *a, **k: Conflict())
+    monkeypatch.setattr(server.requests, "patch", fake_patch)
+    fiche = {
+        "id": "anello-1",
+        "title": "Anello",
+        "price": 14.0,
+        "size": "Regolabile",
+        "category": "gioielli",
+        "availableAt": ["via-cavour-21"],
+        "images": [{"src": "data:image/jpeg;base64,QUJD", "alt": "Anello", "aiGenerated": True}],
+        "summary": "Testo nuovo",
+        "publicationStatus": "published",
+    }
+    result = server._send_payload_to_showcase({"product_fiche": fiche})
+    assert result["ok"] and result["updated"]
+    assert calls["url"] == "https://example.test/api/products/anello-1"
+    # Photos, shop, price, size, category and status are updated; the texts edited on the site are not touched.
+    assert calls["patch"]["availableAt"] == ["via-cavour-21"] and calls["patch"]["publicationStatus"] == "published"
+    assert "summary" not in calls["patch"] and "title" not in calls["patch"]

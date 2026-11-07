@@ -15,6 +15,7 @@ import uuid
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 import requests
 from dotenv import load_dotenv
 from PIL import Image, ImageFilter, ImageOps, ImageStat
@@ -513,6 +514,38 @@ def _image_to_data_url(image_path: Path) -> str:
     return f"data:image/jpeg;base64,{encoded}"
 
 
+SHOWCASE_UPDATE_FIELDS = ("images", "availableAt", "price", "size", "category")
+
+
+def _update_existing_showcase_product(payload: dict, ingest_url: str, headers: dict) -> dict:
+    """Sending a piece again updates what the Studio decides (photos, shop, price, size, category, status).
+    The texts stay as they are on the site: Matteo may have edited them in /admin/review."""
+    fiche = payload.get("product_fiche") or {}
+    product_id = str(fiche.get("id") or "")
+    parts = urlsplit(ingest_url)
+    if not product_id or not parts.scheme or not parts.netloc:
+        return {"ok": False, "status_code": 409, "error": "Il pezzo esiste già sul sito e non riesco ad aggiornarlo."}
+    patch = {key: fiche[key] for key in SHOWCASE_UPDATE_FIELDS if key in fiche}
+    if fiche.get("publicationStatus") == "published":
+        patch["publicationStatus"] = "published"
+    try:
+        response = requests.patch(
+            f"{parts.scheme}://{parts.netloc}/api/products/{product_id}",
+            json=patch,
+            headers=headers,
+            timeout=SHOWCASE_INGEST_TIMEOUT_SECONDS,
+        )
+        try:
+            body = response.json()
+        except Exception:
+            body = None
+        if response.status_code >= 400:
+            return {"ok": False, "status_code": response.status_code, "error": response.text[:800], "body": body}
+        return {"ok": True, "status_code": response.status_code, "created_id": product_id, "updated": True, "body": body}
+    except Exception as exc:
+        return {"ok": False, "status_code": None, "error": str(exc)}
+
+
 def _send_payload_to_showcase(payload: dict) -> dict:
     ingest_url = os.environ.get("SHOWCASE_INGEST_URL", "").strip()
     if not ingest_url:
@@ -539,6 +572,9 @@ def _send_payload_to_showcase(payload: dict) -> dict:
             parsed_body = response.json()
         except Exception:
             parsed_body = None
+        if response.status_code == 409:
+            # The piece is already on the site (the site never overwrites on ingest): update it.
+            return _update_existing_showcase_product(payload, ingest_url, headers)
         if response.status_code >= 400:
             return {
                 "ok": False,
@@ -690,7 +726,13 @@ def _build_showcase_payload(
         prepared_images.append(
             {
                 "src": _image_to_data_url(transformed_abs),
-                "alt": f"{title} - I Monili Ravenna" if not prepared_images else f"{title} dettaglio {len(prepared_images) + 1}",
+                "alt": (
+                    f"{title} - I Monili Ravenna"
+                    if not prepared_images
+                    else f"{title} - colori disponibili"
+                    if source_abs.name in (VARIANTS_PHOTO_NAME, VARIANTS_AI_PHOTO_NAME)
+                    else f"{title} dettaglio {len(prepared_images) + 1}"
+                ),
                 # The site shows the "simulato con IA" label only on the worn shots.
                 "aiGenerated": source_abs.name in AI_WORN_PHOTO_NAMES,
             }
