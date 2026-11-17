@@ -111,12 +111,12 @@ Come posso pagare?
 > Con bonifico istantaneo, con un link SumUp oppure in negozio quando ritiri. In chat non ti chiediamo mai i dati della carta.
 
 Posso restituire o cambiare?
-> Se compri a distanza, puoi ripensarci entro 14 giorni da quando ricevi il pacco, senza darci spiegazioni. La spedizione del reso è a tuo carico e ti rimborsiamo entro 14 giorni da quando ce lo comunichi. Se compri in negozio, puoi cambiare il pezzo entro 14 giorni. Sono due regole diverse. Tutti i dettagli sono nelle condizioni di vendita.
+> Se compri a distanza, puoi ripensarci entro 14 giorni da quando ricevi il pacco, senza darci spiegazioni. Ci scrivi che vuoi rendere il pezzo e lo restituisci entro 14 giorni da quel momento. La spedizione del reso è a tuo carico e ti rimborsiamo entro 14 giorni da quando ce lo comunichi. Il cambio è un servizio a parte, sempre entro 14 giorni: servono lo scontrino e il pezzo con la sua confezione, e se passa dal corriere le spedizioni sono a tuo carico. Tutti i dettagli sono nelle condizioni di vendita.
 
 Bottone: Leggi le condizioni di vendita
 
 Le foto sono vere?
-> Alcune foto dei pezzi indossati sono create con l'intelligenza artificiale e hanno un'etichetta. Il pezzo vero è quello che conta: colori, misure e dettagli sono quelli scritti nella scheda.
+> Alcune foto dei pezzi indossati sono create con l'intelligenza artificiale e hanno un'etichetta. Il pezzo vero è quello che conta: colori, misure e dettagli te li confermiamo prima del pagamento.
 
 Fate pacchetti regalo?
 > Sì, la confezione base è gratuita e possiamo aggiungere un messaggio. Per alcune scatoline da anello, bracciale o collana può esserci un supplemento, e te lo diciamo prima di pagare.
