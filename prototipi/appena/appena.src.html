@@ -1,0 +1,314 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Appena arrivati</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Outfit:wght@300;400;500;600&display=swap">
+<style>
+/* Layout: one stage (phone width or full desktop) with the "Appena arrivati" block. Seven independent ideas
+   can be switched on and off from the "Idee" panel, so each can be judged alone or together. Site palette and type. */
+:root {
+  --bg: #efe8d8;
+  --surround: #ded5c1;
+  --paper: #f6f1e6;
+  --surface: #fbf7ed;
+  --ink: #1a1a1a;
+  --ink-soft: #5a544c;
+  --rule: #cdc4b3;
+  --rule-soft: #d8cfb8;
+  --terra: #c8593a;
+  --terra-deep: #9e4128;
+  --stage: #16130f;
+  --serif: "Cormorant Garamond", "Times New Roman", serif;
+  --sans: "Outfit", system-ui, sans-serif;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surround); color: var(--ink); font-family: var(--sans); font-weight: 300; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--terra); color: #fff; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; }
+.note { padding: 14px max(16px, env(safe-area-inset-left, 0px)) 14px max(16px, env(safe-area-inset-right, 0px)); font-size: 13px; line-height: 1.45; color: var(--ink-soft); text-align: center; text-wrap: balance; }
+
+.stage { container: st / inline-size; background: var(--bg); margin: 0 auto; width: 100%; min-height: 70vh; padding: 56px 22px 150px; transition: width 0.5s var(--ease); overflow-x: clip; }
+.stage[data-device="phone"] { width: min(390px, 100%); border-radius: 30px; box-shadow: 0 30px 70px -40px rgba(60, 40, 20, 0.5), 0 0 0 1px var(--rule); }
+@container st (min-width: 760px) { .stage > .wrap { max-width: 1200px; margin: 0 auto; } }
+@container st (min-width: 760px) { .stage { padding-inline: 56px; padding-top: 90px; } }
+
+.arrow { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ---- head ---- */
+.kicker { display: block; margin-bottom: 8px; font-size: 10.9px; line-height: 16px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); }
+.h2 { margin: 0; font-family: var(--serif); font-weight: 300; font-size: clamp(32px, 9cqi, 44px); line-height: 1.12; }
+.fresh { margin: 10px 0 0; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-soft); }
+.fresh i { width: 7px; height: 7px; border-radius: 50%; background: var(--terra); box-shadow: 0 0 0 4px rgba(200, 89, 58, 0.16); flex: none; }
+.head { display: grid; gap: 22px; margin-bottom: 30px; }
+@container st (min-width: 760px) { .head { grid-template-columns: 1fr auto; align-items: end; } }
+
+/* tabs: today's version (wraps, dot under the active one) */
+.tabs-old { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0; padding: 0; list-style: none; }
+.tabs-old button { appearance: none; background: none; border: 0; padding: 4px 0 10px; cursor: pointer; position: relative; font-size: 12px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+.tabs-old button[aria-pressed="true"] { color: var(--ink); }
+.tabs-old button[aria-pressed="true"]::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--terra); }
+/* tabs: idea 1 (one scrolling line, sliding underline, fading edges) */
+.tabs-new { position: relative; display: flex; gap: 24px; overflow-x: auto; scrollbar-width: none; margin: 0 -22px; padding: 0 22px; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%); }
+.tabs-new::-webkit-scrollbar { display: none; }
+.tabs-new button { appearance: none; background: none; border: 0; padding: 10px 0 12px; cursor: pointer; font-size: 12px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; transition: color 0.3s; }
+.tabs-new button[aria-pressed="true"] { color: var(--ink); }
+.tabs-new .bar { position: absolute; left: 0; bottom: 4px; height: 1px; width: 10px; background: var(--terra); transition: transform 0.55s var(--ease), width 0.55s var(--ease); }
+@container st (min-width: 760px) { .tabs-new { margin: 0; padding: 0; -webkit-mask-image: none; mask-image: none; } }
+
+/* chips: ideas 4 and 7 */
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: -12px -22px 26px; padding: 0 22px 2px; align-items: center; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { appearance: none; flex: none; cursor: pointer; padding: 8px 14px; border-radius: 99px; border: 1px solid var(--rule); background: transparent; font-size: 13px; font-weight: 400; color: var(--ink-soft); white-space: nowrap; transition: background 0.3s, color 0.3s, border-color 0.3s; }
+.chip:hover { border-color: var(--ink-soft); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.chips .sp { flex: none; width: 1px; height: 18px; background: var(--rule); margin: 0 4px; }
+@container st (min-width: 760px) { .chips { margin: -8px 0 34px; padding: 0; flex-wrap: wrap; overflow: visible; } }
+
+/* ---- cards ---- */
+/* Phone: 4 cards at a time (2 x 2), swipe sideways for the next 4. Desktop: one row of 4, swipe/scroll for more. */
+.grid { display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column; grid-auto-columns: calc((100% - 4px) / 2); gap: 34px 4px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; margin: 0 -22px; padding: 0 22px; scroll-padding-inline: 22px; }
+.grid::-webkit-scrollbar { display: none; }
+.grid > .card { scroll-snap-align: none; }
+.grid > .card:nth-child(4n+1) { scroll-snap-align: start; }
+@container st (min-width: 760px) { .grid { grid-template-rows: auto; grid-auto-columns: calc((100% - 18px) / 4); gap: 40px 6px; margin: 0; padding: 0; scroll-padding-inline: 0; } .grid > .card:nth-child(4n+1) { scroll-snap-align: start; } }
+.card { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.media { position: relative; display: block; aspect-ratio: 4 / 5; overflow: hidden; background: var(--paper); }
+.media .ph { transition: scale 1.2s var(--ease); }
+.card:hover .media .ph { scale: 1.05; }
+.badge-new { position: absolute; left: 12px; top: 12px; padding: 3px 8px; background: var(--surface); font-size: 10px; line-height: 14px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; }
+.body { display: grid; gap: 2px; padding: 0 4px; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.t { margin: 0; font-family: var(--serif); font-size: 20px; line-height: 1.25; font-weight: 400; }
+.price { font-size: 14px; white-space: nowrap; }
+.meta { font-size: 12px; line-height: 20px; color: var(--ink-soft); }
+.card:hover .t { color: var(--terra-deep); }
+/* idea 3: shop mark on the photo, price under the name, a quiet ask link */
+.card--new .media::after { content: ""; position: absolute; inset: auto 0 0 0; height: 28%; background: linear-gradient(0deg, rgba(22, 19, 15, 0.38), transparent); pointer-events: none; }
+.shop { position: absolute; z-index: 2; right: 12px; bottom: 12px; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--surface); color: var(--ink); font-family: var(--serif); font-size: 17px; font-weight: 500; line-height: 1; box-shadow: 0 8px 16px -8px rgba(22, 19, 15, 0.6); }
+.card--new .t { font-size: 23px; line-height: 1.12; }
+.card--new .meta { display: flex; justify-content: space-between; gap: 10px; }
+.card--new .meta b { font-weight: 500; color: var(--ink); font-size: 14px; }
+.ask { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; font-weight: 500; letter-spacing: 0.04em; color: var(--terra-deep); }
+.ask .arrow { transition: translate 0.4s var(--ease); }
+.card:hover .ask .arrow { translate: 3px -3px; }
+.where { margin-top: 1px; font-size: 11.5px; line-height: 1.35; font-style: italic; color: var(--ink-soft); }
+.card--sold .media .ph { filter: grayscale(0.55); opacity: 0.8; }
+.card--sold .sold-tag { position: absolute; left: 12px; top: 12px; padding: 3px 8px; background: var(--ink); color: #fff; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+
+/* ---- empty ---- */
+.empty { display: grid; gap: 26px; justify-items: start; padding: 54px 0 20px; border-top: 1px solid var(--rule-soft); }
+.q { margin: 0; max-width: 24ch; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: clamp(26px, 6.4cqi, 40px); line-height: 1.18; color: var(--ink-soft); text-wrap: balance; }
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 13px; font-weight: 500; letter-spacing: 0.02em; transition: background 0.3s; }
+.btn:hover { background: var(--terra-deep); }
+.btn--ghost { background: transparent; color: var(--ink); border: 1px solid var(--ink); padding: 11px 18px; }
+.btn--ghost:hover { background: var(--ink); color: #fff; }
+.asks { display: flex; flex-wrap: wrap; gap: 10px; }
+.ask-chip { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border-radius: 99px; border: 1px solid var(--rule); background: var(--surface); font-size: 14px; font-weight: 400; transition: border-color 0.3s, transform 0.5s var(--ease), background 0.3s; }
+.ask-chip:hover { border-color: var(--terra); transform: translateY(-2px); }
+.ask-chip .arrow { color: var(--terra-deep); }
+.line-small { font-size: 12.5px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.line-small b { font-weight: 500; color: var(--ink); }
+.sold-block { margin-top: 44px; padding-top: 30px; border-top: 1px solid var(--rule-soft); display: grid; gap: 22px; }
+.sold-block h3 { margin: 0; font-family: var(--serif); font-weight: 300; font-style: italic; font-size: 28px; line-height: 1.1; }
+.sold-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sold-grid .t { font-size: 17px; }
+.sold-grid .card--sold { gap: 8px; }
+.more { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--terra-deep); }
+@container st (min-width: 760px) {
+  .empty { grid-template-columns: 1.3fr 1fr; align-items: end; padding: 70px 0 20px; gap: 30px 50px; }
+  .empty .col2 { display: grid; gap: 22px; justify-items: start; }
+  .sold-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+}
+.nores { padding: 40px 0; display: grid; gap: 18px; justify-items: start; border-top: 1px solid var(--rule-soft); }
+
+/* ---- toolbar and ideas panel ---- */
+.dock { position: fixed; z-index: 50; left: 50%; translate: -50% 0; bottom: max(14px, env(safe-area-inset-bottom, 0px)); display: flex; gap: 4px; align-items: center; padding: 6px; background: rgba(22, 19, 15, 0.93); border-radius: 99px; max-width: calc(100vw - 20px); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.5); }
+.dock button { appearance: none; border: 0; cursor: pointer; padding: 10px 14px; border-radius: 99px; background: transparent; color: #cfc4ae; font: 400 13px/1 var(--sans); white-space: nowrap; transition: background 0.25s, color 0.25s; }
+.dock button[aria-pressed="true"] { background: #f3e9d2; color: #16130f; }
+.dock .sep { width: 1px; align-self: stretch; margin: 6px 3px; background: rgba(243, 233, 210, 0.2); }
+.dock .dev, .dock .sep.dv { display: none; }
+@media (min-width: 820px) { .dock .dev, .dock .sep.dv { display: block; } }
+.panel { position: fixed; z-index: 49; left: 50%; translate: -50% 0; bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 62px); width: min(380px, calc(100vw - 20px)); max-height: 66vh; overflow: auto; padding: 8px; border-radius: 22px; background: rgba(22, 19, 15, 0.96); color: #f3e9d2; box-shadow: 0 24px 50px -20px rgba(0, 0, 0, 0.6); }
+.panel[hidden] { display: none; }
+.panel .top { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px 10px; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #b9ad97; }
+.panel .top button { appearance: none; background: none; border: 0; cursor: pointer; color: #f3e9d2; font-size: 12px; text-decoration: underline; padding: 4px 6px; }
+.panel label { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 11px 10px; border-radius: 12px; cursor: pointer; font-size: 14px; line-height: 1.3; }
+.panel label:hover { background: rgba(243, 233, 210, 0.07); }
+.panel label small { display: block; margin-top: 2px; font-size: 12px; color: #b9ad97; }
+.panel input { appearance: none; width: 40px; height: 24px; border-radius: 99px; background: #4a4136; position: relative; cursor: pointer; transition: background 0.3s; }
+.panel input::after { content: ""; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #f3e9d2; transition: translate 0.35s var(--ease); }
+.panel input:checked { background: var(--terra); }
+.panel input:checked::after { translate: 16px 0; }
+.panel input:focus-visible { outline: 2px solid #f3e9d2; outline-offset: 2px; }
+@media (max-width: 520px) { .dock .long { display: none; } .dock button { padding: 10px 14px; } }
+@media (prefers-reduced-motion: reduce) { * { transition-duration: 0.01ms !important; } }
+</style>
+
+<p class="note">Anteprima delle 7 idee per «Appena arrivati». Dal pulsante «Idee» le accendi e spegni una a una. Nomi, prezzi, date e pezzi venduti sono d'esempio; le foto sono già sul sito. «Senza pezzi» è ciò che si vede oggi online.</p>
+
+<div class="stage" id="stage" data-device="full"><div class="wrap" id="root"></div></div>
+
+<div class="panel" id="panel" hidden></div>
+<nav class="dock" aria-label="Anteprima">
+  <button type="button" id="ideeBtn" aria-pressed="false" aria-expanded="false" aria-controls="panel">Idee</button>
+  <span class="sep"></span>
+  <button type="button" data-s="con" aria-pressed="true">Con<span class="long"> pezzi</span></button>
+  <button type="button" data-s="senza" aria-pressed="false">Senza<span class="long"> pezzi</span></button>
+  <span class="sep dv"></span>
+  <button type="button" class="dev" data-d="phone" aria-pressed="false">Telefono</button>
+  <button type="button" class="dev" data-d="full" aria-pressed="true">Desktop</button>
+</nav>
+
+<script>
+(function () {
+  var IMG = { ricamo: "__RICAMO__", camicia: "__CAMICIA__", giacca: "__GIACCA__", camoscio: "__CAMOSCIO__", spilla: "__SPILLA__" };
+  var ARROW = '<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>';
+  var IDEAS = [
+    ["Intestazione ritoccata", "Senza riga sopra il titolo, filtri su una riga che scorre"],
+    ["Data dell'ultimo arrivo", "«Aggiornato il…» sotto il titolo"],
+    ["Schede più curate", "Negozio sulla foto, prezzo sotto, «Chiedi disponibilità»"],
+    ["Filtro per negozio", "Al 17 e al 21"],
+    ["Stato vuoto con richieste pronte", "Tre frasi che aprono WhatsApp già scritte"],
+    ["«Già trovati casa»", "Pezzi venduti quando non ci sono novità"],
+    ["Filtro per budget", "Le fasce di Idee regalo"]
+  ];
+  /* ideas 2 (updated-on line) and 4 (shop filter) are removed: always off and hidden from the panel */
+  var REMOVED = { 1: true, 3: true };
+  var on = [true, false, true, false, true, true, true];
+  var TYPES = [["tutto", "Tutto"], ["bijoux", "Bijoux"], ["accessori", "Accessori"], ["abbigliamento", "Abbigliamento"], ["unici", "Pezzi unici"]];
+  var CATLABEL = { bijoux: "Bijoux", accessori: "Accessori", abbigliamento: "Abbigliamento", unici: "Pezzo unico" };
+  var BUDGETS = [["u50", "Fino a 50 €", 0, 50], ["m100", "50 – 100 €", 50, 100.01], ["o100", "Oltre 100 €", 100.01, 1e9]];
+  var PIECES = [
+    { t: "Camicia ricamata a mano", cat: "abbigliamento", shop: "21", p: 89, img: "camicia", isNew: true },
+    { t: "Giacca in camoscio", cat: "abbigliamento", shop: "21", p: 189, img: "camoscio", isNew: true },
+    { t: "Tessuto con paisley blu", cat: "unici", shop: "21", p: 120, img: "ricamo", isNew: false },
+    { t: "Cerchi dorati", cat: "bijoux", shop: "17", p: 58, img: "spilla", isNew: false }
+  ];
+  var SOLD = [
+    { t: "Orecchini Vento", cat: "bijoux", shop: "17", p: 78, img: "spilla" },
+    { t: "Gilet ricamato", cat: "abbigliamento", shop: "21", p: 140, img: "giacca" },
+    { t: "Borsa in cuoio", cat: "accessori", shop: "21", p: 95, img: "camoscio" },
+    { t: "Anello d'argento", cat: "bijoux", shop: "17", p: 64, img: "ricamo" }
+  ];
+  var state = { s: "con", type: "tutto", shop: "", budget: "" };
+  var stage = document.getElementById("stage"), root = document.getElementById("root"), panel = document.getElementById("panel");
+  function eur(n) { return "€ " + n; }
+
+  function filtered() {
+    if (state.s === "senza") return [];
+    return PIECES.filter(function (p) {
+      if (state.type !== "tutto" && p.cat !== state.type) return false;
+      if (on[3] && state.shop && p.shop !== state.shop) return false;
+      if (on[6] && state.budget) { var b = BUDGETS.filter(function (x) { return x[0] === state.budget; })[0]; if (p.p < b[2] || p.p >= b[3]) return false; }
+      return true;
+    });
+  }
+  function card(p, sold) {
+    var n = on[2] && !sold;
+    var cls = "card" + (n ? " card--new" : "") + (sold ? " card--sold" : "");
+    var shopTxt = p.shop === "17" ? "Argento e Pietre" : "Capi e Borse";
+    var media = '<span class="media"><img class="ph" src="' + IMG[p.img] + '" alt="">' +
+      (sold ? '<span class="sold-tag">Venduto</span>' : (p.isNew ? '<span class="badge-new">Nuovo</span>' : '')) + '</span>';
+    var body;
+    if (n) body = '<span class="body"><h3 class="t">' + p.t + '</h3><span class="meta"><span>' + CATLABEL[p.cat] + '</span><b>' + eur(p.p) + '</b></span><span class="ask">Chiedi disponibilità ' + ARROW + '</span><span class="where">Lo trovi al negozio ' + shopTxt + '</span></span>';
+    else body = '<span class="body"><span class="row"><h3 class="t">' + p.t + '</h3><span class="price">' + eur(p.p) + '</span></span><span class="meta">' + CATLABEL[p.cat] + ' · ' + shopTxt + '</span></span>';
+    return '<a class="' + cls + '" href="#">' + media + body + '</a>';
+  }
+  function tabs() {
+    var btns = TYPES.map(function (t) { return '<button type="button" data-type="' + t[0] + '" aria-pressed="' + (state.type === t[0]) + '">' + t[1] + '</button>'; }).join("");
+    return on[0] ? '<div class="tabs-new" id="tabsNew" role="group" aria-label="Filtra i pezzi">' + btns + '<span class="bar" id="tabBar"></span></div>'
+                 : '<div class="tabs-old" role="group" aria-label="Filtra i pezzi">' + btns + '</div>';
+  }
+  function chips() {
+    if (!on[3] && !on[6]) return "";
+    var out = "";
+    if (on[3]) out += ['17', '21'].map(function (s) { return '<button type="button" class="chip" data-shop="' + s + '" aria-pressed="' + (state.shop === s) + '">Al ' + s + ' · ' + (s === '17' ? 'argento e pietre' : 'capi e borse') + '</button>'; }).join("");
+    if (on[3] && on[6]) out += '<span class="sp"></span>';
+    if (on[6]) out += BUDGETS.map(function (b) { return '<button type="button" class="chip" data-budget="' + b[0] + '" aria-pressed="' + (state.budget === b[0]) + '">' + b[1] + '</button>'; }).join("");
+    return '<div class="chips" role="group" aria-label="Altri filtri">' + out + '</div>';
+  }
+  function emptyBlock() {
+    var shops = '<div class="line-small"><span><b>Argento e Pietre</b> · bijoux in argento e pietre</span><span><b>Capi e Borse</b> · abbigliamento, borse e accessori</span></div>';
+    var txt = "I nuovi pezzi arrivano ogni settimana. Scrivici: ti diciamo cosa è appena arrivato in negozio.";
+    var html;
+    if (on[4]) {
+      html = '<div class="empty"><p class="q">' + txt + '</p><div class="col2"><div class="asks">' +
+        ["Cerco un regalo", "Cerco un bijou in argento", "Cerco un capo ricamato"].map(function (a) { return '<a class="ask-chip" href="#">' + a + ' ' + ARROW + '</a>'; }).join("") +
+        '</div>' + shops + '</div></div>';
+    } else {
+      html = '<div class="empty"><p class="q">' + txt + '</p><div class="col2"><a class="btn" href="#">Scrivici su WhatsApp ' + ARROW + '</a></div></div>';
+    }
+    if (on[5]) {
+      html += '<div class="sold-block"><h3>Già trovati casa</h3><div class="sold-grid">' + SOLD.map(function (p) { return card(p, true); }).join("") + '</div><a class="more" href="#">Ne cerchi uno simile? Scrivici ' + ARROW + '</a></div>';
+    }
+    return html;
+  }
+
+  function render() {
+    var list = filtered();
+    var head = '<div class="head"><div>' + (on[0] ? '' : '<span class="kicker">Al bancone questa settimana</span>') + '<h2 class="h2">Appena arrivati</h2>' +
+      (on[1] ? '<p class="fresh"><i></i>' + (state.s === "con" ? 'Aggiornato il 17 novembre · ' + PIECES.length + ' pezzi' : 'Ultimo arrivo il 9 novembre') + '</p>' : '') +
+      '</div>' + tabs() + '</div>' + chips();
+    var bodyHtml;
+    if (state.s === "senza") bodyHtml = emptyBlock();
+    else if (list.length) bodyHtml = '<div class="grid">' + list.map(function (p) { return card(p, false); }).join("") + '</div>';
+    else bodyHtml = '<div class="nores"><p class="q">Niente con questi filtri.</p><button type="button" class="btn btn--ghost" id="reset">Togli i filtri</button></div>';
+    root.innerHTML = head + bodyHtml;
+
+    root.querySelectorAll("[data-type]").forEach(function (b) { b.addEventListener("click", function () { state.type = b.dataset.type; render(); }); });
+    root.querySelectorAll("[data-shop]").forEach(function (b) { b.addEventListener("click", function () { state.shop = state.shop === b.dataset.shop ? "" : b.dataset.shop; render(); }); });
+    root.querySelectorAll("[data-budget]").forEach(function (b) { b.addEventListener("click", function () { state.budget = state.budget === b.dataset.budget ? "" : b.dataset.budget; render(); }); });
+    var r = document.getElementById("reset"); if (r) r.addEventListener("click", function () { state.type = "tutto"; state.shop = ""; state.budget = ""; render(); });
+    root.querySelectorAll("a[href='#']").forEach(function (a) { a.addEventListener("click", function (e) { e.preventDefault(); }); });
+    placeBar();
+  }
+  function placeBar() {
+    var wrap = document.getElementById("tabsNew"), bar = document.getElementById("tabBar");
+    if (!wrap || !bar) return;
+    var act = wrap.querySelector("[aria-pressed='true']");
+    if (!act) return;
+    bar.style.width = act.offsetWidth + "px";
+    bar.style.transform = "translateX(" + act.offsetLeft + "px)";
+  }
+  window.addEventListener("resize", placeBar);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeBar);
+
+  function buildPanel() {
+    panel.innerHTML = '<div class="top"><span>Idee accese</span><span><button type="button" id="allOn">Tutte</button><button type="button" id="allOff">Nessuna</button></span></div>' +
+      IDEAS.map(function (it, i) { if (REMOVED[i]) return ""; return '<label><span>' + (i + 1) + '. ' + it[0] + '<small>' + it[1] + '</small></span><input type="checkbox" data-i="' + i + '"' + (on[i] ? ' checked' : '') + '></label>'; }).join("");
+    panel.querySelectorAll("input").forEach(function (c) { c.addEventListener("change", function () { on[+c.dataset.i] = c.checked; if (!on[3]) state.shop = ""; if (!on[6]) state.budget = ""; render(); }); });
+    document.getElementById("allOn").addEventListener("click", function () { on = on.map(function (v, i) { return !REMOVED[i]; }); buildPanel(); render(); });
+    document.getElementById("allOff").addEventListener("click", function () { on = on.map(function () { return false; }); state.shop = ""; state.budget = ""; buildPanel(); render(); });
+  }
+  var ideeBtn = document.getElementById("ideeBtn");
+  ideeBtn.addEventListener("click", function () {
+    var open = panel.hidden;
+    panel.hidden = !open;
+    ideeBtn.setAttribute("aria-pressed", String(open));
+    ideeBtn.setAttribute("aria-expanded", String(open));
+  });
+  document.querySelectorAll(".dock [data-s]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      state.s = b.dataset.s;
+      document.querySelectorAll(".dock [data-s]").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      render();
+    });
+  });
+  document.querySelectorAll(".dock [data-d]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      stage.dataset.device = b.dataset.d;
+      document.querySelectorAll(".dock [data-d]").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      setTimeout(placeBar, 560);
+    });
+  });
+  buildPanel();
+  render();
+})();
+</script>
