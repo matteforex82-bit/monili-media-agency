@@ -51,7 +51,7 @@ Menu iniziale (6 bottoni, in quest'ordine):
 5. **Consulenza gratuita** → solo se `consultationEnabled`
 6. **Parla con noi** → passaggio a una persona (§10)
 
-Ogni risposta finisce con **un solo passo successivo** e sempre con «Torna al menu» e «Parla con noi».
+Ogni risposta finisce con **un solo passo successivo**. «Menu» sta in una barra fissa sopra la casella di scrittura, sempre visibile. **«Una persona» non c'è all'inizio**: compare nella stessa barra solo quando il percorso si blocca o la persona è in difficoltà (decisione di Matteo, 17/11/2026), così le persone provano prima l'assistente invece di scrivere subito a noi. Compare quando: il testo non viene capito, c'è un errore tecnico, la ricerca regalo trova meno di 2 pezzi, la persona chiede esplicitamente di parlare con qualcuno, oppure la conversazione arriva a 8 risposte senza concludere (`helpNeeded` in `chatbot-engine.ts`). I contatti legati all'azione (Chiedi disponibilità, WhatsApp per un pezzo, consulenza) restano sempre nelle risposte.
 
 ## 6. Percorso regalo
 
@@ -137,7 +137,7 @@ Fuori dagli orari: «Siamo chiusi, ma puoi scriverci: ti rispondiamo entro la gi
 
 ## 13. Come si verifica
 
-- Test unitari del motore: ogni percorso raggiunge un esito, nessun vicolo cieco, «Parla con noi» disponibile in ogni nodo.
+- Test unitari del motore: ogni percorso raggiunge un esito, nessun vicolo cieco (ogni risposta mostra qualcosa da fare oltre a Menu e Una persona), e «Una persona» che compare solo nei casi della regola del §5.
 - Test come `legal-compliance.test.ts`: le cifre del bot (8 €, 99 €, 14 giorni, 2-3 giorni) coincidono con quelle di `legal-content.ts`; nessun testo contiene «te lo mettiamo da parte»; nessun numero di telefono diverso da quello centrale; nessun campo che chieda dati personali.
 - Prova a mano su telefono e desktop, con tastiera e lettore di schermo, con `consultationEnabled` acceso e spento.
 - Nessuna richiesta di rete in uscita dal widget (controllo nella scheda rete del browser).

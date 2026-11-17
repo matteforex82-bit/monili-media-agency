@@ -15,7 +15,7 @@ Bottoni del menu:
 5. Consulenza gratuita (compare solo se la prenotazione è attiva)
 6. Parlo con una persona
 
-Sotto ogni risposta restano due bottoni: "Torna al menu" e "Parlo con una persona".
+"Menu" sta in una barra fissa sopra la casella di scrittura. "Una persona" compare nella stessa barra solo quando il percorso si blocca (testo non capito, errore, ricerca regalo con meno di 2 pezzi, richiesta esplicita, conversazione lunga senza esito). Le etichette dei bottoni sotto le risposte non ripetono più "Torna al menu" e "Parlo con una persona". Le etichette "Scrivi su WhatsApp" accanto ai pezzi diventano "Chiedi un consiglio su WhatsApp".
 
 ## 2. Cerco un regalo
 
