@@ -4,7 +4,7 @@ Bozza del 17/11/2026, scritta con la skill humanizer e il tono del brand. Le par
 
 ## 1. Apertura
 
-> Ciao! Sono l'assistente automatico dei Monili. Posso aiutarti a scegliere un regalo e dirti dove siamo, a che ora apriamo e come spediamo. Se hai bisogno di una persona, ti ci porto subito.
+> Ciao! Sono l'assistente automatico dei Monili. Posso aiutarti a scegliere un regalo e dirti dove siamo, a che ora apriamo e come spediamo. Se ti serve una persona, scrivi "persona".
 
 Bottoni del menu:
 
@@ -13,9 +13,8 @@ Bottoni del menu:
 3. Dove siamo e orari
 4. Spedizioni, cambi e resi
 5. Consulenza gratuita (compare solo se la prenotazione è attiva)
-6. Parlo con una persona
 
-"Menu" sta in una barra fissa sopra la casella di scrittura. "Una persona" compare nella stessa barra solo quando il percorso si blocca (testo non capito, errore, ricerca regalo con meno di 2 pezzi, richiesta esplicita, conversazione lunga senza esito). Le etichette dei bottoni sotto le risposte non ripetono più "Torna al menu" e "Parlo con una persona". Le etichette "Scrivi su WhatsApp" accanto ai pezzi diventano "Chiedi un consiglio su WhatsApp".
+"Menu" sta in una barra fissa sopra la casella di scrittura. "Una persona" compare nella stessa barra solo quando il percorso si blocca (testo non capito, errore, problema con un ordine, ricerca regalo senza niente online, richiesta esplicita, 8 risposte senza concludere). Chi scrive "persona" arriva comunque ai contatti. Sotto le risposte non si ripetono più "Torna al menu" e "Parlo con una persona". Le scelte della conversazione sono pillole pesca, WhatsApp è scuro, i collegamenti secondari hanno solo il bordo.
 
 ## 2. Cerco un regalo
 
@@ -83,46 +82,84 @@ Il bot non scrive mai "te lo mettiamo da parte", "è tuo" o "ce l'abbiamo".
 
 > Siamo in via Cavour a Ravenna, ai numeri 17 e 21. Al 17 trovi argento e pietre, al 21 tutto il resto.
 >
-> [Stato: "Aperto ora, fino alle 19:30" oppure "Chiuso, riapre domani alle 9:30"]
+> [Stato: "Aperto ora, fino alle 19:30" oppure "Chiuso, riapre domani alle 9:30"]. Orari: [orari dal sito].
 >
-> Orari: [orari dal sito]
+> [Se tra poco cambiano:] Dal 1 dicembre gli orari cambiano: [nuovi orari].
 >
 > Puoi passare senza prenotare. Se vuoi vedere un pezzo del sito, porta la foto o il link.
 
-Bottoni: Apri la mappa del 17 · Apri la mappa del 21 · Vedi la pagina dei negozi
+Bottoni: Apri la mappa del 17 · Apri la mappa del 21 · Chiama il 17 · Chiama il 21 · Vedi la pagina dei negozi
+
+Non c'è una riga sul parcheggio: non abbiamo una fonte, quindi chi lo chiede arriva a "non ho capito" e a WhatsApp.
 
 ## 5. Spedizioni, cambi e resi
 
-Menu delle domande:
+Domande (in quest'ordine):
 
 1. Quanto costa spedire?
 2. Come posso pagare?
 3. Posso restituire o cambiare?
-4. Le foto sono vere?
-5. Fate pacchetti regalo?
-6. Cosa fate con i miei dati?
+4. Ho un problema con un ordine
+5. Prezzi e taglie
+6. Posso riservare un pezzo?
+7. Fate riparazioni o lavori su misura?
+8. Fate pacchetti regalo?
+9. Le foto sono vere?
+10. Cosa fate con i miei dati?
 
-Risposte:
+Ogni risposta che invita a scrivere ha il suo pulsante WhatsApp con un messaggio già pronto (senza dati personali).
 
-Quanto costa spedire?
-> In Italia spediamo a 8 euro, gratis sopra i 99. Il pacco parte entro 2 o 3 giorni lavorativi da quando vediamo il pagamento. Ti diciamo prima anche quando dovrebbe arrivare, così puoi confrontarlo con la data del regalo.
+**Quanto costa spedire?**
+> In Italia spediamo a 8 euro, gratis sopra i 99. Il pacco parte entro 2 o 3 giorni lavorativi da quando vediamo il pagamento. Anche fuori dall'Italia si può spedire, con un costo più alto: te lo indichiamo nel riepilogo prima di pagare.
+>
+> Se il regalo ti serve per una data precisa, scrivici quando: ti diciamo se è possibile.
 
-Come posso pagare?
-> Con bonifico istantaneo, con un link SumUp oppure in negozio quando ritiri. In chat non ti chiediamo mai i dati della carta.
+Bottone: Chiedi i tempi su WhatsApp. Non si scrivono paesi, cifre per l'estero né date di consegna: non sono ancora definiti.
 
-Posso restituire o cambiare?
-> Se compri a distanza, puoi ripensarci entro 14 giorni da quando ricevi il pacco, senza darci spiegazioni. Ci scrivi che vuoi rendere il pezzo e lo restituisci entro 14 giorni da quel momento. La spedizione del reso è a tuo carico e ti rimborsiamo entro 14 giorni da quando ce lo comunichi. Il cambio è un servizio a parte, sempre entro 14 giorni: servono lo scontrino e il pezzo con la sua confezione, e se passa dal corriere le spedizioni sono a tuo carico. Tutti i dettagli sono nelle condizioni di vendita.
+**Come posso pagare?**
+> Con bonifico istantaneo, con Satispay, con un link SumUp oppure in negozio quando ritiri. PayPal non lo usiamo. In chat non ti chiediamo mai i dati della carta.
 
-Bottone: Leggi le condizioni di vendita
+**Posso restituire o cambiare?**
+> Se hai comprato a distanza (sito, WhatsApp o Instagram), puoi ripensarci entro 14 giorni da quando ricevi il pacco, senza darci spiegazioni. Ci scrivi che vuoi rendere il pezzo e lo restituisci entro 14 giorni da quel momento. La spedizione del reso è a tuo carico. Ti rimborsiamo entro 14 giorni da quando ce lo comunichi, appena riceviamo il pezzo o la prova di spedizione.
+>
+> Il cambio è un servizio a parte, sempre entro 14 giorni: servono lo scontrino e il pezzo con la sua confezione. Se hai comprato in negozio non c'è il recesso e non facciamo rimborsi in denaro per ripensamento, ma puoi cambiare il pezzo. Se il cambio passa dal corriere, le spedizioni sono a tuo carico.
 
-Le foto sono vere?
-> Alcune foto dei pezzi indossati sono create con l'intelligenza artificiale e hanno un'etichetta. Il pezzo vero è quello che conta: colori, misure e dettagli te li confermiamo prima del pagamento.
+Bottoni: Scrivi su WhatsApp · Leggi le condizioni di vendita
 
-Fate pacchetti regalo?
+**Ho un problema con un ordine**
+> Ci dispiace! Se il pezzo ha un difetto, per due anni dalla consegna c'è la garanzia legale: riparazione o sostituzione sono gratuite. Mandaci una foto del difetto, il numero dell'ordine e la data di consegna.
+>
+> Il codice di tracciamento te lo mandiamo quando il pacco parte. Se è in ritardo o non lo trovi, scrivici il numero dell'ordine e controlliamo.
+
+Bottone: Scrivi su WhatsApp. Questa risposta fa comparire "Una persona" nella barra.
+
+**Prezzi e taglie**
+> I prezzi sono scritti sulle schede, imposte incluse. Le taglie e le misure le confermiamo prima del pagamento: scrivici quella che ti serve.
+
+Bottoni: Scrivi su WhatsApp · Vedi le idee regalo
+
+**Posso riservare un pezzo?**
+> Prima controlliamo il pezzo in negozio. Se è disponibile, ti confermiamo la riserva e ti diciamo fino a quando vale: al massimo 48 ore. Se in quel tempo non c'è il pagamento o il ritiro, la riserva decade.
+>
+> Scrivici il pezzo che ti interessa: ti diciamo se è disponibile.
+
+Bottone: Scrivi su WhatsApp. Mai "te lo mettiamo da parte": nessuna riserva prima della verifica.
+
+**Fate riparazioni o lavori su misura?**
+> Sì: le riparazioni si fanno in via Cavour 17, dove c'è il nostro laboratorio. Portaci il pezzo, oppure mandaci una foto su WhatsApp e ti diciamo cosa si può fare.
+>
+> Per un lavoro su misura scrivici cosa hai in mente: ti diciamo se è possibile.
+
+Bottoni: Scrivi su WhatsApp · Apri la mappa del 17. Non si dicono prezzi né tempi.
+
+**Fate pacchetti regalo?**
 > Sì, la confezione base è gratuita e possiamo aggiungere un messaggio. Per alcune scatoline da anello, bracciale o collana può esserci un supplemento, e te lo diciamo prima di pagare.
 
-Cosa fate con i miei dati?
-> Quello che ci scrivi lo usiamo solo per risponderti e seguire l'ordine. Niente liste promozionali. Questo assistente non salva la conversazione: quando chiudi la pagina, sparisce.
+**Le foto sono vere?**
+> Alcune foto dei pezzi indossati sono create con l'intelligenza artificiale e hanno un'etichetta. Il pezzo vero è quello che conta: colori, misure e dettagli te li confermiamo prima del pagamento.
+
+**Cosa fate con i miei dati?**
+> Usiamo ciò che ci comunichi solo per risponderti e seguire l'ordine. Niente liste promozionali. Questo assistente non salva la conversazione: quando chiudi la pagina, sparisce.
 
 Bottone: Leggi la privacy
 

@@ -175,7 +175,7 @@ Se la cliente decide di acquistare si passa alla sezione 8. La consulenza da sol
 1. Verificare fisicamente il prodotto durante la presenza in negozio e metterlo da parte.
 2. Preparare il riepilogo con prodotti e riferimenti, quantità, prezzi, eventuale scatolina, spedizione, totale, modalità e tempi di consegna, condizioni applicabili e negozio di ritiro.
 3. Raccogliere la conferma espressa prevista dal processo di vendita; fornire la conferma e le condizioni su supporto durevole secondo gli impegni già documentati.
-4. Permettere il pagamento tramite **link SumUp**, **bonifico bancario istantaneo** oppure **in negozio al ritiro**.
+4. Permettere il pagamento tramite **link SumUp**, **bonifico bancario istantaneo**, **Satispay** (aggiunto il 17/11/2026; PayPal escluso) oppure **in negozio al ritiro**.
 5. Verificare il pagamento effettivo prima di avviare la preparazione della consegna come ordine pagato.
 
 Il processo è lo stesso su WhatsApp e nei DM Instagram. Non raccogliere dati di carta in chat.
@@ -216,6 +216,7 @@ Sono requisiti da realizzare o configurare: questo PRD non indica che il registr
 ### Spedizione
 
 - Italia: **8 €, gratuita sopra 99 €**, come già dichiarato sul sito.
+- Fuori dall'Italia: si spedisce con un **costo più alto**, indicato nel riepilogo prima del pagamento (decisione di Matteo, 17/11/2026). Paesi e prezzi ancora da definire: non scrivere cifre finché non esistono.
 - Preparazione e affidamento al corriere entro **2–3 giorni lavorativi dal pagamento verificato**.
 - La consegna è distinta dalla partenza: comunicarne la stima prima dell'acquisto e confrontarla con la data richiesta per il regalo.
 - Possibile consegna direttamente al destinatario del regalo. L'acquirente resta il referente dell'ordine.

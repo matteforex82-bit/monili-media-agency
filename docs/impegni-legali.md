@@ -17,11 +17,11 @@ Testi esatti sul sito: `Ecosistema Monili/apps/web/src/lib/legal-content.ts`. Se
 | V1 | Prima del pagamento il cliente riceve un **riepilogo** con prodotto, quantità, prezzo, spese, totale, pagamento, consegna, condizioni e info sul recesso | Si invia sempre il modello **B** (sotto), con tutti i campi compilati, **prima** di dare IBAN o link SumUp | Negozio |
 | V2 | L'ordine è concluso solo quando il cliente **conferma espressamente** l'acquisto con obbligo di pagare | Chiedere la frase di conferma del modello B. "Ok va bene" o "conferma l'indirizzo" non bastano | Negozio |
 | V3 | Conferma del contratto e condizioni su **supporto durevole** (testo completo in e-mail o PDF, non solo un link) | Dopo la conferma si invia il modello **C** per e-mail, con il testo delle condizioni incollato o allegato in PDF | Negozio |
-| V4 | Spedizione in Italia **8 €, gratuita sopra 99 €**; nessun costo extra senza accordo espresso | Indicare sempre le spese nel riepilogo; niente supplementi a sorpresa | Negozio |
+| V4 | Spedizione in Italia **8 €, gratuita sopra 99 €**; anche fuori dall'Italia, con costo più alto indicato nel riepilogo prima del pagamento (decisione del 17/11/2026: paesi e prezzi ancora da definire); nessun costo extra senza accordo espresso | Indicare sempre le spese nel riepilogo; niente supplementi a sorpresa | Negozio |
 | V5 | Consegna entro il termine concordato prima dell'ordine; se non concordato, **entro 30 giorni** | Scrivere il termine nel riepilogo. Corriere tracciato sempre | Negozio |
 | V6 | Prezzi in euro, **imposte incluse** | Nessun prezzo "più IVA" | Negozio, Studio |
 | V7 | Prodotti pronti, **non personalizzati** (eccezioni da dichiarare prima dell'ordine) | Se un pezzo è su misura o personalizzato, dirlo nel riepilogo prima del pagamento | Negozio |
-| V8 | Pagamento solo con bonifico SEPA anticipato o link SumUp | Non accettare altro senza aggiornare le condizioni sul sito | Negozio |
+| V8 | Pagamento con bonifico SEPA anticipato, Satispay o link SumUp, oppure in negozio al ritiro (PayPal non si usa; aggiornato il 17/11/2026) | Non accettare altro senza aggiornare le condizioni sul sito | Negozio |
 
 ### Recesso e garanzia
 
@@ -86,14 +86,14 @@ Si usano in WhatsApp Business (risposte rapide), Instagram DM e e-mail. Le parti
 ### B. Riepilogo ordine (da inviare **prima** del pagamento)
 
 > **RIEPILOGO ORDINE — I MONILI DI SAMA BARBARA di Barbara Sama**
-> Via Cavour 17, 48124 Ravenna (RA) — P.IVA 02052730393 — info@imoniliravenna.it
+> Via Cavour 17, 48121 Ravenna (RA) — P.IVA 02052730393 — info@imoniliravenna.it
 > Ordine n. [numero] del [data]
 > Negozio di ritiro del pezzo: [Via Cavour 17 / 21] — assistenza WhatsApp: 375 771 3966
 > Pezzo: [descrizione, materiali, misura/taglia] × [quantità]
 > Prezzo (imposte incluse): € [__]
 > Spedizione: € [__] (Italia 8 €, gratuita sopra 99 €)
 > **Totale da pagare: € [__]**
-> Pagamento: [bonifico SEPA anticipato / link SumUp]
+> Pagamento: [bonifico SEPA anticipato / Satispay / link SumUp]
 > Consegna: [nome, indirizzo, telefono] — entro [data o giorni concordati]; corriere tracciato
 >
 > Puoi recedere entro 14 giorni da quando ricevi il pacco, senza dare motivazioni: basta scriverci a info@imoniliravenna.it o su WhatsApp. La spedizione del reso è a tuo carico. Puoi provare il pezzo come in negozio. Ti rimborsiamo entro 14 giorni dalla tua comunicazione, comprese le spese di spedizione standard. Garanzia legale di 2 anni sui difetti.
@@ -128,7 +128,7 @@ Un link da solo **non** è supporto durevole: il testo va incollato o allegato.
 ### E. Risposta quando il cliente comunica il recesso
 
 > Abbiamo ricevuto la tua comunicazione di recesso per l'ordine [numero] il [data]. Nessun problema!
-> Spediscici il pezzo **entro 14 giorni da oggi** (cioè entro il [data + 14]) a: I MONILI DI SAMA BARBARA di Barbara Sama, Via Cavour 17, 48124 Ravenna (RA). La spedizione del reso è a tuo carico: ti consigliamo un invio tracciato e di conservare la ricevuta.
+> Spediscici il pezzo **entro 14 giorni da oggi** (cioè entro il [data + 14]) a: I MONILI DI SAMA BARBARA di Barbara Sama, Via Cavour 17, 48121 Ravenna (RA). La spedizione del reso è a tuo carico: ti consigliamo un invio tracciato e di conservare la ricevuta.
 > Ti rimborsiamo, comprese le spese di spedizione standard, entro il [data + 14] con lo stesso mezzo di pagamento che hai usato. Se il pezzo non è ancora arrivato, possiamo attendere l'arrivo o la prova della spedizione.
 
 ### F. Rimborso eseguito

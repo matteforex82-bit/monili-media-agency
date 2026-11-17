@@ -158,3 +158,28 @@ Fuori dagli orari: «Siamo chiusi, ma puoi scriverci: ti rispondiamo entro la gi
 3. Motore e test.
 4. Interfaccia e accessibilità.
 5. Prova su telefono, poi pubblicazione.
+
+## 16. Dopo l'audit del 17/11/2026: decisioni e punti aperti
+
+Un revisore indipendente ha provato il bot online come cliente (circa 100 prove). Cosa è stato deciso e cambiato:
+
+**Decisioni di Matteo**
+- **Spedizione fuori dall'Italia: sì, con un costo più alto.** Il bot lo dice, senza cifre né paesi, e rimanda al riepilogo prima del pagamento. Paesi e prezzi sono da definire; la frase nelle condizioni di vendita è neutra ("fuori dall'Italia").
+- **Pagamenti: Satispay sì, PayPal no.** Aggiornati insieme: condizioni di vendita (sezione pagamenti), informativa privacy, `LEGAL_CONFIG.paymentsAccepted`, `impegni-legali.md` (V4, V8, modello B) e PRD §8.1 e §9.
+- **Riparazioni: solo al civico 17.** Il bot lo dice senza prezzi né tempi; per i lavori su misura rimanda a WhatsApp.
+- **CAP: 48121 ovunque** (sede legale e indirizzo dei resi inclusi). La scheda aziendale in PDF e `prd per GDPR e AI act.md` riportano ancora 48124: vanno corretti a mano, e va verificato che la sede in visura camerale coincida.
+- **Traduzione del sito: da progettare a parte**, non nel bot. Prima si decide come tradurre il sito intero (lingue, URL, SEO, testi legali), poi il bot segue.
+
+**Corretto nel bot**
+- "Chiedi disponibilità" sui pezzi suggeriti ora chiede se il pezzo è ancora disponibile (prima, per alcuni pezzi, chiedeva orari e sede). La scheda del pezzo sul sito era già giusta.
+- Nessuna risposta dice più "scrivici" senza il pulsante per farlo; il saluto non promette più una persona che non c'è.
+- Il testo libero ora conta le parole riconosciute per argomento, con una priorità (un problema con un ordine batte la spedizione) e tollera i refusi. Nuovi argomenti: problema con un ordine, riserva, riparazioni, prezzi e taglie. Resi divisi tra acquisto a distanza e in negozio.
+- La ricerca regalo propone solo fasce e tipi che hanno almeno un pezzo online; con zero pezzi lo dice chiaramente.
+- Chiamate ai due negozi, orari di dicembre annunciati prima del cambio, nomi accessibili sui pulsanti dei pezzi, cursore che resta nella casella dopo una domanda scritta.
+- "Una persona" compare anche dopo "problema con un ordine", e il conteggio delle 8 risposte riparte dal Menu.
+
+**Ancora aperto**
+- Attesa totale per le risposte lunghe (circa 6 secondi con puntini e scrittura): lasciata come chiesto; tetto riducibile in `chatbot-typing.ts`.
+- Nessuna riga su parcheggio, festivi e data limite degli ordini per Natale: mancano le fonti.
+- Buoni regalo non menzionati finché il registro non è collaudato. Inglese rimandato al progetto di traduzione.
+- Condizioni, privacy e testi del bot non ancora rivisti dal consulente (Satispay e spedizioni all'estero compresi).
