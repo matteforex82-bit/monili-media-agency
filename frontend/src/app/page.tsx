@@ -3,7 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import MosaicTiles, { type TileItem } from '@/components/MosaicTiles';
+import DraftList, { type DraftListHandle } from '@/components/DraftList';
 import PhotoDropzone from '@/components/PhotoDropzone';
+import QuickCapture from '@/components/QuickCapture';
 import { API_URL } from '@/lib/apiUrl';
 import { photoPalette } from '@/lib/palette';
 import { loadSettings } from '@/lib/settings';
@@ -11,6 +13,7 @@ import { loadSettings } from '@/lib/settings';
 type MissionState = 'idle' | 'running' | 'error';
 
 const ACTIVE_JOB_STORAGE_KEY = 'monili_active_job_id';
+const MODE_STORAGE_KEY = 'monili_new_mode';
 
 // Le parole chiave dei log del backend -> a che punto è il lavoro (0 analisi, 1 piano, 2 foto, 3 testi).
 const STAGE_KEYWORDS: Array<[string, number]> = [
@@ -46,6 +49,9 @@ export default function NewPiecePage() {
   const [stage, setStage] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState('');
+  // Di base si salva per dopo (in negozio); «subito» è il flusso di prima: foto, scheda, attesa.
+  const [mode, setMode] = useState<'later' | 'now'>('later');
+  const draftsRef = useRef<DraftListHandle>(null);
   const stopRef = useRef<() => void>(() => undefined);
 
   const addLog = useCallback((msg: string) => setLogs((prev) => [...prev.slice(-80), msg]), []);
@@ -57,6 +63,17 @@ export default function NewPiecePage() {
   }, [photoPreview]);
 
   useEffect(() => () => stopRef.current(), []);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(MODE_STORAGE_KEY) === 'now') setMode('now');
+    } catch { /* storage non disponibile */ }
+  }, []);
+
+  const chooseMode = (next: 'later' | 'now') => {
+    setMode(next);
+    try { localStorage.setItem(MODE_STORAGE_KEY, next); } catch { /* storage non disponibile */ }
+  };
 
   const handlePhotoSelect = useCallback((file: File, url: string) => {
     setPhoto(file);
@@ -224,6 +241,20 @@ export default function NewPiecePage() {
     }
   }, [photo, brief, follow]);
 
+  // Una bozza salvata in negozio è partita: da qui è lo stesso lavoro di sempre (attesa, poi si apre la scheda).
+  const startFromDraft = useCallback(
+    (jobId: string) => {
+      stopRef.current();
+      try { localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, jobId); } catch { /* storage non disponibile */ }
+      setStage(0);
+      setLogs([]);
+      setError('');
+      setState('running');
+      follow(jobId);
+    },
+    [follow],
+  );
+
   // Se la pagina viene riaperta mentre il lavoro è in corso, lo riprende.
   useEffect(() => {
     let stored = '';
@@ -260,7 +291,20 @@ export default function NewPiecePage() {
     <div className="page new-piece">
       <div>
         <h1 className="page-title">Nuovo pezzo</h1>
-        <p className="page-lead">Carica la foto del pezzo, aggiungi una nota se serve: lo Studio prepara la scheda per il sito, WhatsApp e Google.</p>
+        <p className="page-lead">
+          {mode === 'later'
+            ? 'In negozio: fai le foto, scrivi due righe e salva. Le schede le crei dopo, con calma.'
+            : 'Carica la foto del pezzo, aggiungi una nota se serve: lo Studio prepara la scheda per il sito, WhatsApp e Google.'}
+        </p>
+      </div>
+
+      <div className="mode-switch" role="group" aria-label="Come vuoi lavorare">
+        <button type="button" aria-pressed={mode === 'later'} onClick={() => chooseMode('later')}>
+          Salva per dopo
+        </button>
+        <button type="button" aria-pressed={mode === 'now'} onClick={() => chooseMode('now')}>
+          Crea subito
+        </button>
       </div>
 
       {state === 'error' && (
@@ -275,6 +319,13 @@ export default function NewPiecePage() {
         </div>
       )}
 
+      {mode === 'later' ? (
+        <>
+          <QuickCapture onSaved={() => draftsRef.current?.refresh()} />
+          <DraftList ref={draftsRef} onStarted={startFromDraft} />
+        </>
+      ) : (
+        <>
       <PhotoDropzone photo={photo} photoPreview={photoPreview} onFile={handlePhotoSelect} onClear={handlePhotoClear} />
 
       {photo && (
@@ -369,6 +420,8 @@ export default function NewPiecePage() {
         </button>
         {!photo && <p className="page-lead" style={{ margin: 0, textAlign: 'center' }}>Carica una foto per cominciare.</p>}
       </div>
+        </>
+      )}
     </div>
   );
 }

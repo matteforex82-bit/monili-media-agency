@@ -22,11 +22,12 @@ from PIL import Image, ImageFilter, ImageOps, ImageStat
 
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 # The project root holds the Studio's own modules (also added again further down).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import bozze  # noqa: E402
 import categorie  # noqa: E402
 import studio_auth  # noqa: E402
 
@@ -71,6 +72,9 @@ SHOWCASE_DRAFTS_DIR = STORAGE_ROOT / "showcase-drafts"
 INPUT_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 SHOWCASE_DRAFTS_DIR.mkdir(parents=True, exist_ok=True)
+# Bozze veloci: foto e nota salvate in negozio, la Scheda pezzo si crea dopo.
+BOZZE_DIR = STORAGE_ROOT / "bozze"
+bozze_store = bozze.BozzeStore(BOZZE_DIR, trash=STORAGE_ROOT / "cestino")
 
 app.mount("/files", StaticFiles(directory=str(OUTPUT_DIR)), name="files")
 
@@ -998,7 +1002,7 @@ def check_openrouter(
         )
 
 
-async def _save_mission_photo(upload: UploadFile, stem: str) -> Path | JSONResponse:
+async def _save_mission_photo(upload: UploadFile, stem: str, directory: Path | None = None) -> Path | JSONResponse:
     """Saves an uploaded photo in input/ (HEIC from the iPhone becomes JPEG), or says why not."""
     content_type = (upload.content_type or "").lower().strip()
     original_ext = Path(upload.filename or "").suffix.lower()
@@ -1011,7 +1015,7 @@ async def _save_mission_photo(upload: UploadFile, stem: str) -> Path | JSONRespo
     ext = original_ext
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         ext = MIME_TO_EXT.get(content_type, ".jpg")
-    path = INPUT_DIR / f"{stem}{ext}"
+    path = (directory or INPUT_DIR) / f"{stem}{ext}"
     total_bytes = 0
     try:
         with path.open("wb") as out_file:
@@ -1083,6 +1087,21 @@ async def start_mission(
             return saved
         variants_path = saved
 
+    _launch_job(job_id, foto_path, brief, selected_image_model, selected_text_model, detail_path, variants_path)
+    return {"job_id": job_id, "image_model": selected_image_model, "text_model": selected_text_model}
+
+
+def _launch_job(
+    job_id: str,
+    foto_path: Path,
+    brief: str,
+    image_model: str,
+    text_model: str,
+    detail_path: Path | None = None,
+    variants_path: Path | None = None,
+    draft_id: str = "",
+) -> None:
+    """Registers the job and starts the mission in the background (used by the new piece page and by the drafts)."""
     jobs[job_id] = {
         "id": job_id,
         "status": "running",
@@ -1090,8 +1109,9 @@ async def start_mission(
         "detail_path": str(detail_path) if detail_path else "",
         "variants_path": str(variants_path) if variants_path else "",
         "brief": brief,
-        "image_model": selected_image_model,
-        "text_model": selected_text_model,
+        "image_model": image_model,
+        "text_model": text_model,
+        "draft_id": draft_id,
         "logs": [],
         "results": None,
         "output_dir": None,
@@ -1099,13 +1119,22 @@ async def start_mission(
         "last_update": datetime.now().isoformat(),
         "completed_at": None,
     }
+    asyncio.create_task(_run_mission(job_id, foto_path, brief, image_model, text_model, detail_path, variants_path))
 
-    # Lancia in background
-    asyncio.create_task(
-        _run_mission(job_id, foto_path, brief, selected_image_model, selected_text_model, detail_path, variants_path)
-    )
 
-    return {"job_id": job_id, "image_model": selected_image_model, "text_model": selected_text_model}
+def _sync_draft(job_id: str) -> None:
+    """When a mission started from a draft ends, the draft says so: scheda pronta or, on error, back to todo."""
+    job = jobs.get(job_id) or {}
+    draft_id = job.get("draft_id") or ""
+    if not draft_id:
+        return
+    results = job.get("results") if isinstance(job.get("results"), dict) else {}
+    run_id = str(results.get("run_id") or job.get("run_id") or "")
+    if job.get("status") == "done" and run_id:
+        bozze_store.update(draft_id, status=bozze.STATUS_DONE, run_id=run_id, error="")
+    else:
+        tail = (job.get("logs") or [""])[-1]
+        bozze_store.update(draft_id, status=bozze.STATUS_TODO, error=str(tail)[:300] or "Il lavoro non è finito: riprova.")
 
 
 async def _run_mission(
@@ -1205,6 +1234,149 @@ async def _run_mission(
             job["status"] = "error"
             job["completed_at"] = datetime.now().isoformat()
             job["last_update"] = datetime.now().isoformat()
+    finally:
+        _sync_draft(job_id)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Bozze veloci: in negozio si salvano foto + nota, la Scheda pezzo si crea dopo (nessuna AI al salvataggio).
+# ---------------------------------------------------------------------------------------------------------------
+MAX_DRAFT_PHOTOS = 8
+
+
+async def _store_draft_photos(folder: Path, files: list[UploadFile], start: int = 1) -> tuple[list[str], JSONResponse | None]:
+    names: list[str] = []
+    for offset, upload in enumerate(f for f in files if f is not None and f.filename):
+        stem = f"foto-{start + offset}-{uuid.uuid4().hex[:4]}"
+        saved = await _save_mission_photo(upload, stem, directory=folder)
+        if isinstance(saved, JSONResponse):
+            for name in names:
+                (folder / name).unlink(missing_ok=True)
+            return [], saved
+        names.append(saved.name)
+    return names, None
+
+
+@app.post("/bozze")
+async def draft_create(foto: list[UploadFile] = File(...), nota: str = Form(default="")):
+    """Saves the photos and the note taken in the shop. No AI, no cost: the piece is made later."""
+    files = [f for f in foto if f is not None and f.filename][:MAX_DRAFT_PHOTOS]
+    if not files:
+        return JSONResponse({"error": "Serve almeno una foto."}, status_code=400)
+    _draft_id, folder = bozze_store.new_folder()
+    names, error = await _store_draft_photos(folder, files)
+    if error is not None:
+        shutil.rmtree(folder, ignore_errors=True)
+        return error
+    return bozze_store.create(folder, nota, names)
+
+
+@app.get("/bozze")
+def draft_list():
+    bozze_store.reset_stale({job_id for job_id, job in jobs.items() if job.get("status") == "running"})
+    return {"items": bozze_store.list()}
+
+
+@app.get("/bozze/{draft_id}/foto/{name}")
+def draft_photo(draft_id: str, name: str, w: int = 0):
+    path = bozze_store.photo_path(draft_id, name)
+    if not path:
+        return JSONResponse({"error": "Foto non trovata"}, status_code=404)
+    width = max(0, min(int(w or 0), 2000))
+    if width:
+        thumb_dir = path.parent / bozze.THUMB_DIR
+        thumb = thumb_dir / f"{width}-{path.stem}.jpg"
+        if not thumb.is_file():
+            try:
+                thumb_dir.mkdir(exist_ok=True)
+                with Image.open(path) as image:
+                    image = ImageOps.exif_transpose(image)
+                    image.thumbnail((width, width * 2))
+                    image.convert("RGB").save(thumb, "JPEG", quality=82)
+            except Exception:
+                return FileResponse(path)
+        return FileResponse(thumb, headers={"Cache-Control": "private, max-age=3600"})
+    return FileResponse(path)
+
+
+@app.post("/bozze/{draft_id}/foto")
+async def draft_add_photos(draft_id: str, foto: list[UploadFile] = File(...)):
+    meta = bozze_store.get(draft_id)
+    folder = bozze_store.folder(draft_id)
+    if not meta or not folder:
+        return JSONResponse({"error": "Bozza non trovata"}, status_code=404)
+    room = MAX_DRAFT_PHOTOS - len(meta["photos"])
+    if room <= 0:
+        return JSONResponse({"error": f"Al massimo {MAX_DRAFT_PHOTOS} foto per pezzo."}, status_code=400)
+    names, error = await _store_draft_photos(folder, [f for f in foto if f.filename][:room], start=len(meta["photos"]) + 1)
+    if error is not None:
+        return error
+    return bozze_store.add_photos(draft_id, names)
+
+
+@app.put("/bozze/{draft_id}")
+def draft_update(draft_id: str, body: dict):
+    updated = bozze_store.update(
+        draft_id,
+        note=body.get("note"),
+        main=body.get("main"),
+        detail=body.get("detail"),
+    )
+    if not updated:
+        return JSONResponse({"error": "Bozza non trovata"}, status_code=404)
+    return updated
+
+
+@app.delete("/bozze/{draft_id}/foto/{name}")
+def draft_remove_photo(draft_id: str, name: str):
+    updated = bozze_store.remove_photo(draft_id, name)
+    if not updated:
+        return JSONResponse({"error": "Foto non trovata"}, status_code=404)
+    return updated
+
+
+@app.delete("/bozze/{draft_id}")
+def draft_delete(draft_id: str):
+    if not bozze_store.delete(draft_id):
+        return JSONResponse({"error": "Bozza non trovata"}, status_code=404)
+    return {"deleted": draft_id}
+
+
+@app.post("/bozze/{draft_id}/crea")
+async def draft_make_piece(draft_id: str, body: dict | None = None):
+    """Starts the Scheda pezzo from a saved draft: main photo, optional detail photo, the note as brief."""
+    meta = bozze_store.get(draft_id)
+    if not meta:
+        return JSONResponse({"error": "Bozza non trovata"}, status_code=404)
+    if meta["status"] == bozze.STATUS_RUNNING:
+        return JSONResponse({"error": "La scheda di questo pezzo è già in preparazione."}, status_code=409)
+    if not os.environ.get("OPENROUTER_API_KEY", "").strip():
+        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend locale."}, status_code=400)
+
+    body = body or {}
+    main_name = meta.get("main") or (meta["photos"][0] if meta["photos"] else "")
+    main_path = bozze_store.photo_path(draft_id, main_name)
+    if not main_path:
+        return JSONResponse({"error": "La foto principale non c'è più."}, status_code=400)
+    detail_path = bozze_store.photo_path(draft_id, meta.get("detail") or "") if meta.get("detail") else None
+    if detail_path and detail_path == main_path:
+        detail_path = None
+
+    text_model = str(body.get("text_model") or "").strip() or DEFAULT_OPENROUTER_TEXT_MODEL
+    image_model = str(body.get("image_model") or "").strip() or DEFAULT_OPENROUTER_IMAGE_MODEL
+    # The mission copies its photos into input/ like any other: the draft keeps its own.
+    job_id = str(uuid.uuid4())[:8]
+    stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    copied_main = INPUT_DIR / f"{stamp}_{job_id}{main_path.suffix.lower()}"
+    shutil.copyfile(main_path, copied_main)
+    copied_detail: Path | None = None
+    if detail_path:
+        copied_detail = INPUT_DIR / f"{stamp}_{job_id}_dettaglio{detail_path.suffix.lower()}"
+        shutil.copyfile(detail_path, copied_detail)
+
+    bozze_store.update(draft_id, status=bozze.STATUS_RUNNING, job_id=job_id, error="", run_id="")
+    _launch_job(job_id, copied_main, meta.get("note", ""), image_model, text_model, copied_detail, None, draft_id=draft_id)
+    return {"job_id": job_id}
 
 
 @app.get("/mission/{job_id}/stream")

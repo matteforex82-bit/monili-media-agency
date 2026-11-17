@@ -120,6 +120,7 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 
 ## Prossimi passi
 - **Journey cliente:** decisioni e implementazioni richieste raccolte nel PRD alla radice [brainstorming marketing strategie.md](../brainstorming%20marketing%20strategie.md). WhatsApp centrale del 21, acquisti anche nei DM, quattro videoconsulenze gratuite da negozio, riserve/pagamenti entro 48 ore con due promemoria, cambi commerciali 14 giorni, buoni per sede con registro privato. Stato di questo aggiornamento: documentazione completata; sito, account, registro buoni e collaudi restano da eseguire. La bozza precedente del funnel contiene un rinvio al nuovo riferimento.
+- **Tag pietra (17/11/2026):** campo `stoneTags` nella Scheda pezzo (scelto da chi pubblica nello Studio, inviato al sito) per rendere cliccabile la fascia delle pietre in home. Specifica completa in [PLAN_VETRINA.md](../PLAN_VETRINA.md) §2.1, riga J15 del PRD Journey. Da realizzare; serve prima la scelta tra foto vere e immagini AI per le pietre.
 - **Studio v2** (restyling, pagina del pezzo, Instagram, motori, movimenti, carosello): piano in `docs/PIANO_STUDIO_V2.md`, Fase A fatta; B–F dopo la prova del weekend e con l'ok di Matteo (prima le decisioni della sezione 0).
 0. Prima missione "Scheda pezzo" vera con un gioiello: controllare foto e testi, e quanto costa davvero.
 1. Matteo crea l'account e la API key Higgsfield (guida in `docs/reel-studio.md`) e la mette nel `.env` del PC.
@@ -166,6 +167,21 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - **Dominio `imoniliravenna.it` (Aruba) collegato al progetto Vercel `monili-vetrina` ed è quello principale** (scelta delegata dal titolare). DNS su Aruba: A `@` → 76.76.21.21, CNAME `www` → cname.vercel-dns.com (MX e record `posta` intatti; `ftp` punta a `www`, irrilevante). `www.imoniliravenna.it` reindirizza (308) a `imoniliravenna.it`. `NEXT_PUBLIC_SITE_URL` (Production) = `https://imoniliravenna.it`, redeploy fatto: canonical e og:url verificati online, `/`, `/privacy`, `/cookie`, `/condizioni-vendita` 200 con HTTPS valido. `monili-vetrina.vercel.app` risponde ancora (il `.env` dello Studio lo usa per l'invio: invariato). Il profilo Google resta su `moniliravenna.shop` fino a 10–15 pezzi.
 - **Consulenza accesa (6/11):** evento Calendly Free da **15 minuti** (non 10), link `https://calendly.com/moniliravenna/15min`; variabile `NEXT_PUBLIC_CONSULTATION_BOOKING_URL` su Vercel (Production), testi del sito a «quindici minuti» (commit 2bdac71 del sito), `verifica_consulenza.py` TUTTO OK (corretto il controllo di `/cookie`, che non cita «Calendly» ma «il calendario di prenotazione»). Le prove di prenotazione le ha fatte Matteo (riferite). Calendly tiene i dati di prenotazione: vanno cancellati con la regola di un mese (voce 8). Il PRD e il brainstorming citano ancora 10 minuti: da allineare.
 - **E-mail ufficiale: `info@imoniliravenna.it`** al posto di `moniliravenna@gmail.com` (sito commit a24f060; verificato online su privacy, condizioni e home; 41 test, tsc, eslint verdi). La casella su Aruba va creata e provata da Matteo (non verificata dall'AI); finché non esiste, le richieste privacy/recesso scritte lì non arrivano. Messaggi pronti in `docs/impegni-legali.md` aggiornati.
+
+## Fatto il 2026-11-17 (Salva per dopo, in negozio)
+- **Nuovo modo di lavorare nello Studio**: la pagina «Nuovo pezzo» ha due modi. **Salva per dopo** (il predefinito): in negozio si fanno
+  le foto (fino a 8, anche dal rullino) e si scrivono due righe («anello ametista 159 euro, misura 13»); si salva senza AI e senza costi,
+  e si può passare subito al pezzo dopo. **Crea subito** è il flusso di prima (foto, scheda, attesa).
+- Le bozze stanno in `MoniliStorageozze\<id>\` (foto + `bozza.json`), codice in `bozze.py`, rotte `/bozze` in `api/server.py`.
+  Dalla lista «Da lavorare» si apre una bozza, si sceglie la foto **Principale** e il **Dettaglio**, si corregge la nota e si preme
+  «Crea la scheda»: parte la Scheda pezzo di sempre (la nota diventa il brief); a fine lavoro la bozza diventa «scheda pronta» con il
+  link. Prezzo, misura e pietra si riconoscono dalla nota e si mostrano come etichette (solo in vista: la nota resta com'è).
+- Il telefono carica foto ridotte a 2400 px (upload veloce anche in 4G). Eliminare una bozza la sposta in `cestino\`.
+- Nessun costo e nessuna chiamata AI finché non si preme «Crea la scheda». Se lo Studio si riavvia mentre una scheda è «in corso»,
+  la bozza torna da lavorare con un avviso.
+- Sistemata anche la barra in basso sul telefono (cinque voci in quattro colonne: «Altro» andava a capo).
+- Test: `tests/test_bozze.py` (6); in totale 146 test verdi.
+- **Da fare**: le altre foto oltre Principale e Dettaglio per ora restano nella bozza (non vanno alla scheda); «Pezzi» non elenca ancora le bozze.
 
 ## Aperti / da sapere
 - **Sito vetrina online dal 30/10/2026**: https://monili-vetrina.vercel.app (repo `monili-vetrina`, progetto Vercel
