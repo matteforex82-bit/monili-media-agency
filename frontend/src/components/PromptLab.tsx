@@ -34,6 +34,7 @@ interface Attempt {
 interface Lab {
   category: string;
   target_model?: string;
+  woman_token?: string;
   analisi: string;
   styling: string;
   woman: string;
@@ -74,6 +75,7 @@ export default function PromptLab({ draftId, mainPhoto }: { draftId: string; mai
   const [data, setData] = useState<Payload | null>(null);
   const [category, setCategory] = useState('');
   const [target, setTarget] = useState(MODELS[0]);
+  const [woman, setWoman] = useState('token');
   const [busy, setBusy] = useState(false);
   const [judging, setJudging] = useState('');
   const [error, setError] = useState('');
@@ -131,7 +133,7 @@ export default function PromptLab({ draftId, mainPhoto }: { draftId: string; mai
   async function analyze() {
     setBusy(true);
     await run(
-      () => request('/prompt', json('POST', { category, model: target, text_model: loadSettings().textModel })),
+      () => request('/prompt', json('POST', { category, model: target, woman, text_model: loadSettings().textModel })),
       'Non sono riuscito a preparare i prompt',
     );
     setBusy(false);
@@ -389,6 +391,10 @@ export default function PromptLab({ draftId, mainPhoto }: { draftId: string; mai
                 </option>
               ))}
             </select>
+            <select className="lab-select" value={woman} onChange={(e) => setWoman(e.target.value)} aria-label="Come scrivere la donna nel prompt">
+              <option value="token">Donna: @MODELLA (scelgo io)</option>
+              <option value="invented">Donna: descritta dall&apos;AI</option>
+            </select>
             <button type="button" className="btn-mission" onClick={analyze} disabled={busy}>
               {busy ? 'Analizzo...' : 'Analizza e prepara il prompt'}
             </button>
@@ -406,7 +412,11 @@ export default function PromptLab({ draftId, mainPhoto }: { draftId: string; mai
             <summary>Analisi del pezzo</summary>
             <pre>{lab.analisi}</pre>
             {lab.styling && <p>{lab.styling}</p>}
-            {lab.woman && <p className="draft-hint">Donna: {lab.woman}</p>}
+            {lab.woman_token ? (
+              <p className="draft-hint">Nel prompt la donna è {lab.woman_token}: prima di generare scrivi al suo posto Aurora o l&apos;altra modella.</p>
+            ) : (
+              lab.woman && <p className="draft-hint">Donna: {lab.woman}</p>
+            )}
           </details>
 
           {shotCards(Object.entries(lab.prompts))}

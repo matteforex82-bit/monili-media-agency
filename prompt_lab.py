@@ -22,11 +22,21 @@ LIBRARY_FILE = MEMORY_ROOT / "prompt_lab.json"
 SHOTS = ("clean", "worn", "worn_2")
 MODELS = ("Seedream", "Nano Banana", "GPT Image", "Altro")
 VIDEO_MODEL = "Seedance 2.5"
+WOMAN_TOKEN = "@MODELLA"  # nel prompt: Matteo sceglie a mano chi è (Aurora o un'altra modella)
 SCENES = ("scena_1", "scena_2", "scena_3")
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm"}
 AUTO_MODELS = ("Nano Banana", "GPT Image")  # i modelli del flusso automatico dello Studio
 KNOWLEDGE_DIR = Path(__file__).parent / "knowledge" / "fucina"
-MODEL_FILES = {"Seedream": "seedream.md", "Nano Banana": "nano-banana.md", "GPT Image": "nano-banana.md", "Seedance 2.5": "seedance.md"}
+MODEL_FILES = {
+    "Seedream": "seedream.md",
+    "Nano Banana": "nano-banana.md",
+    "GPT Image": "gpt-image.md",
+    "Seedance 2.5": "seedance.md",
+    # conoscenza pronta, ma questi modelli non si scelgono ancora nella Fucina
+    "Flux": "flux.md",
+    "Kling": "kling.md",
+    "Genjutsu": "genjutsu.md",
+}
 SHOT_LABELS = {"clean": "Foto catalogo", "worn": "Foto indossata", "worn_2": "Seconda indossata"}
 CATEGORIES = ("bijoux", "abbigliamento", "accessori")
 GOOD_FROM = 4  # voto da cui un prompt è «buono»
@@ -155,7 +165,14 @@ class LabStore:
         tmp.replace(folder / LAB_NAME)
 
     def save_analysis(
-        self, folder: Path, category: str, analisi: str, plan: dict, final_prompts: dict[str, str], target_model: str = ""
+        self,
+        folder: Path,
+        category: str,
+        analisi: str,
+        plan: dict,
+        final_prompts: dict[str, str],
+        target_model: str = "",
+        woman_token: str = "",
     ) -> dict:
         """A new analysis replaces the prompts but keeps the attempts already made."""
         with _lock:
@@ -163,6 +180,7 @@ class LabStore:
             lab = {
                 "category": category,
                 "target_model": target_model,
+                "woman_token": woman_token,
                 "analisi": analisi,
                 "styling": plan.get("styling", ""),
                 "woman": plan.get("woman", ""),
@@ -360,7 +378,7 @@ def scenes_prompt(lab: dict, category_note: str, hints_text: str) -> str:
 Hai in mano la foto del capo già indossato dalla donna di questo pezzo: sarà il PRIMO FOTOGRAMMA di ogni scena (Seedance 2.5, da immagine a video).
 
 Analisi del capo: {str(lab.get("analisi", ""))[:1200]}
-La donna: {lab.get("woman", "")}
+La donna: {(lab.get("woman_token") + " (la sceglie Matteo a mano: scrivi esattamente " + lab.get("woman_token") + ", non descriverne il volto)") if lab.get("woman_token") else lab.get("woman", "")}
 Appunti del titolare: {category_note or "nessuno"}
 
 {knowledge}

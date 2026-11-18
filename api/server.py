@@ -1466,6 +1466,8 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
     target = str(body.get("model") or "").strip()
     if target not in prompt_lab.MODELS:
         target = "Seedream"
+    # «@MODELLA» (default): the woman is a slot Matteo fills by hand; "" = the AI describes a woman
+    woman_token = prompt_lab.WOMAN_TOKEN if str(body.get("woman", "token")) != "invented" else ""
 
     def work() -> dict:
         import casting
@@ -1480,11 +1482,11 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
         never = casting.never_line()
         shots = ["clean"] + categorie.AI_SHOTS.get(category, ["worn"])
         finals = {
-            key: studio_main.controlled_site_prompt(plan["site_prompts"][key], key, woman, never)
+            key: studio_main.controlled_site_prompt(plan["site_prompts"][key], key, woman, never, woman_token)
             for key in shots
             if key in plan.get("site_prompts", {})
         }
-        return prompt_lab.store.save_analysis(folder, category, analisi, plan, finals, target)
+        return prompt_lab.store.save_analysis(folder, category, analisi, plan, finals, target, woman_token)
 
     try:
         lab = await asyncio.to_thread(work)

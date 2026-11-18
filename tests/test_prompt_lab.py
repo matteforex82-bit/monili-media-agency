@@ -50,6 +50,19 @@ def test_controlled_prompt_adds_woman_and_fidelity_rules():
     assert "woman" not in clean.lower().split("use the uploaded")[0]
 
 
+def test_woman_is_a_slot_the_owner_fills_by_hand(monkeypatch):
+    _fake_agents(monkeypatch)
+    draft = _draft()
+    lab = client.post(f"/bozze/{draft['id']}/prompt", json={"category": "bijoux", "model": "Seedream"}).json()["lab"]
+    worn = lab["prompts"]["worn"]["text"]
+    assert lab["woman_token"] == "@MODELLA" and "The woman is @MODELLA" in worn and "short dark hair" not in worn
+    assert "@MODELLA" not in lab["prompts"]["clean"]["text"]
+    invented = client.post(f"/bozze/{draft['id']}/prompt", json={"category": "bijoux", "model": "Seedream", "woman": "invented"}).json()["lab"]
+    assert invented["woman_token"] == "" and "short dark hair" in invented["prompts"]["worn"]["text"]
+    assert "@MODELLA" in prompt_lab.scenes_prompt(lab, "", "") and "short dark hair" in prompt_lab.scenes_prompt(invented, "", "")
+    client.delete(f"/bozze/{draft['id']}")
+
+
 def test_analysis_shows_the_final_prompts_and_makes_no_image(monkeypatch):
     _fake_agents(monkeypatch)
     draft = _draft()
@@ -58,7 +71,7 @@ def test_analysis_shows_the_final_prompts_and_makes_no_image(monkeypatch):
     lab = result.json()["lab"]
     assert lab["category"] == "bijoux" and set(lab["prompts"]) == {"clean", "worn"}
     assert "ring worn on a hand" in lab["prompts"]["worn"]["text"] and "source-of-truth" in lab["prompts"]["worn"]["text"]
-    assert "short dark hair" in lab["prompts"]["worn"]["text"]
+    assert "@MODELLA" in lab["prompts"]["worn"]["text"]
     assert client.get(f"/bozze/{draft['id']}/prompt").json()["lab"]["analisi"].startswith("## IDENTIFICAZIONE")
     client.delete(f"/bozze/{draft['id']}")
 
@@ -120,7 +133,12 @@ def test_model_knowledge_loads_the_model_and_the_recipe():
     text = prompt_lab.model_knowledge("Seedream", "bijoux")
     assert "Seedream" in text and "Ricetta: bijoux" in text
     assert "Seedance 2.5" in prompt_lab.model_knowledge("Seedance 2.5", "abbigliamento")
+    assert "GPT Image" in prompt_lab.model_knowledge("GPT Image", "")
     assert prompt_lab.model_knowledge("", "") == ""
+    # every knowledge file the code points to exists and stays short (it goes whole into the prompt)
+    for name in set(prompt_lab.MODEL_FILES.values()):
+        text = (prompt_lab.KNOWLEDGE_DIR / name).read_text(encoding="utf-8")
+        assert 80 < len(text.split()) < 1100, name
 
 
 def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkeypatch):

@@ -622,11 +622,17 @@ def create_variants_ai_image(output_dir: Path, api_key: str, selected_model: str
     return f"{output_dir.name}/07_SHOWCASE/{VARIANTS_AI_PHOTO_NAME}"
 
 
-def controlled_site_prompt(prompt: str, key: str, woman: str = "", never: str = "") -> str:
+def controlled_site_prompt(prompt: str, key: str, woman: str = "", never: str = "", woman_token: str = "") -> str:
     """The full text the image model receives for a site photo: the art director's prompt, the woman of the
     piece (worn shots), and the fixed fidelity rules. The Studio shows this same text so it can be pasted by hand."""
     prompt = str(prompt).strip()
-    if key.startswith("worn") and woman:
+    if key.startswith("worn") and woman_token:
+        # the owner picks the model by hand (a trained character or another one): the prompt only names the slot
+        prompt = (
+            f"{prompt}\nThe woman is {woman_token}: use only her face and hair from that reference, "
+            "ignore any clothes she wears in it."
+        )
+    elif key.startswith("worn") and woman:
         prompt = f"{prompt}\nWOMAN (this replaces any other description of her): {woman}"
     return f"""{prompt}
 
