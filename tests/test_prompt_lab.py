@@ -327,3 +327,19 @@ def test_the_corrected_prompt_keeps_the_woman_tag():
     # end to end through the normalizer
     out = prompt_lab.normalize_critique({"prompt_corretto": "Better jacket prompt."}, "m", prompt_lab.CHECKLIST, original)
     assert "@MODELLA" in out["prompt_corretto"]
+
+
+def test_external_photo_of_a_garment_is_reviewed_as_a_garment(monkeypatch):
+    # bug: a photo made elsewhere on a piece never analysed had no category, so Codex used the jewellery checklist
+    draft = _draft()
+    did = draft["id"]
+    made = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "worn", "model": "Seedream", "prompt": "", "category": "abbigliamento"}).json()
+    assert made["lab"]["category"] == "abbigliamento"
+    attempt = made["lab"]["attempts"][0]
+    client.post(f"/bozze/{did}/prove/{attempt['id']}/risultato", files={"foto": ("r.jpg", _jpeg(), "image/jpeg")})
+    seen = {}
+    monkeypatch.setattr(server.fucina_codex, "run", lambda prompt, images, model="": seen.update(prompt=prompt) or '{"checklist": {}, "giudizio": "ok", "voto_proposto": 3, "correzione": "", "prompt_corretto": ""}')
+    assert client.post(f"/bozze/{did}/prove/{attempt['id']}/valuta", json={}).status_code == 200
+    assert "Motivo, colori e tessuto" in seen["prompt"] and "Numero delle pietre" not in seen["prompt"]
+    assert "ORDINE DI IMPORTANZA" in seen["prompt"] and "fedeltà" in seen["prompt"]
+    assert "Capo indossato" in seen["prompt"]  # the goal for the worn garment

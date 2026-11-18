@@ -118,7 +118,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   const [codexModel, setCodexModel] = useState('');
   const [sourceId, setSourceId] = useState('');
   const [zoom, setZoom] = useState<{ attempt: Attempt } | null>(null);
-  const [ext, setExt] = useState({ shot: 'worn', model: 'Seedream', prompt: '' });
+  const [ext, setExt] = useState({ shot: 'worn', model: 'Seedream', prompt: '', category: '' });
   const progressRef = useRef(onProgress);
   progressRef.current = onProgress;
 
@@ -233,7 +233,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
 
   // Una foto fatta altrove (un altro prompt, un altro strumento): si carica e si valuta senza passare dal prompt dello Studio.
   async function addExternal(file: File) {
-    const payload = await run(() => request('/prove', json('POST', { external: true, shot: ext.shot, model: ext.model, prompt: ext.prompt })), 'Non sono riuscito ad aggiungerla');
+    const payload = await run(() => request('/prove', json('POST', { external: true, shot: ext.shot, model: ext.model, prompt: ext.prompt, category: lab?.category || ext.category })), 'Non sono riuscito ad aggiungerla');
     const created = payload?.lab?.attempts[payload.lab.attempts.length - 1];
     if (created) {
       await upload(created, file);
@@ -720,6 +720,19 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
               ))}
             </select>
           </label>
+          {!lab?.category && (
+            <label>
+              Tipo di pezzo (cambia i punti che Codex controlla)
+              <select className="lab-select" value={ext.category} onChange={(e) => setExt({ ...ext, category: e.target.value })}>
+                <option value="">Lo capisce lo Studio dalla nota</option>
+                {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Che foto è
             <select className="lab-select" value={ext.shot} onChange={(e) => setExt({ ...ext, shot: e.target.value })}>

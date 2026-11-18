@@ -1553,7 +1553,15 @@ def lab_add_attempt(draft_id: str, body: dict):
     folder = _lab_folder(draft_id)
     if folder and body.get("external"):
         # a photo made outside the Studio's prompt: rated like the others, the prompt used is optional
-        lab = prompt_lab.store.add_external(folder, str(body.get("shot", "")), str(body.get("model", "")), str(body.get("prompt", "")))
+        meta = bozze_store.get(draft_id) or {}
+        category = str(body.get("category") or "").strip().lower()
+        if category not in prompt_lab.CATEGORIES:
+            category = categorie.category_from("", brief=meta.get("note", ""))
+        if category not in prompt_lab.CATEGORIES:
+            category = "bijoux"
+        lab = prompt_lab.store.add_external(
+            folder, str(body.get("shot", "")), str(body.get("model", "")), str(body.get("prompt", "")), category
+        )
     else:
         lab = prompt_lab.store.add_attempt(folder, str(body.get("shot", "")), str(body.get("model", ""))) if folder else None
     if not lab:

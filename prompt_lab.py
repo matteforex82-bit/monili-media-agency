@@ -240,7 +240,7 @@ class LabStore:
             self._write(folder, lab)
             return lab
 
-    def add_external(self, folder: Path, shot: str, model: str, prompt: str) -> dict:
+    def add_external(self, folder: Path, shot: str, model: str, prompt: str, category: str = "") -> dict:
         """A photo made elsewhere (another prompt, another tool): it can be rated without going through the Studio's prompt."""
         with _lock:
             lab = self.read(folder) or {
@@ -254,6 +254,9 @@ class LabStore:
                 "attempts": [],
                 "created_at": _now(),
             }
+            # without an analysis the lab has no category: the review would fall back to the jewellery checklist
+            if category in CATEGORIES and not lab.get("category"):
+                lab["category"] = category
             lab["attempts"].append(
                 {
                     "id": uuid.uuid4().hex[:8],
@@ -406,6 +409,10 @@ GOALS = {
         "una sola persona con anatomia naturale (mani, dita, gambe), luce coerente."
     ),
 }
+GOALS[("worn", "accessori")] = (
+    "Accessorio indossato o portato (borsa a tracolla o in mano, foulard, cintura): materiale, colori, cuciture e chiusure identici "
+    "alla foto vera, scala credibile rispetto al corpo, una sola persona con anatomia naturale, luce coerente."
+)
 GOALS[("worn_2", "abbigliamento")] = GOALS[("worn", "abbigliamento")]
 GOALS[("clean", "accessori")] = GOALS[("clean", "abbigliamento")]
 
@@ -426,6 +433,11 @@ def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:
         if category in ("abbigliamento", "accessori")
         else "se una pietra cambia colore o numero, il voto è 2 o meno"
     )
+    priority = (
+        "\nORDINE DI IMPORTANZA per il voto: 1) fedeltà del pezzo alla foto vera (è il criterio dominante: se il pezzo non è lui, "
+        "il voto è 2 o meno qualunque sia il resto); 2) luminosità e luce; 3) armonia di composizione e sfondo; "
+        "4) anatomia (mani, occhi, volto, gambe) solo dove c'è una persona; 5) niente di aggiunto.\n"
+    )
     mentions = list(dict.fromkeys(MENTION_RE.findall(attempt.get("prompt", ""))))
     keep = (
         f"\nNel prompt_corretto tieni IDENTICI i riferimenti alla modella: {', '.join(mentions)} deve restare scritto così, "
@@ -437,7 +449,7 @@ def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:
     return f"""Sei il revisore di immagini di I Monili Ravenna, una gioielleria di Ravenna.
 {"Hai quattro immagini: la PRIMA è la foto vera del pezzo (la verità), le altre tre sono fotogrammi (inizio, metà, fine) di un video creato con l'AI (" + attempt.get("model", "") + "). Oltre al pezzo controlla che tra un fotogramma e l'altro il capo, la donna e i colori restino uguali, e che non ci siano deformazioni o sfarfallii." if is_video else "Hai due immagini: la PRIMA è la foto vera del pezzo (la verità), la SECONDA è la foto creata con l'AI (" + attempt.get("model", "") + ").\nConfrontale con occhio critico: il pezzo nella seconda deve essere identico a quello della prima."}
 
-{goal_block}
+{goal_block}{priority}
 PROMPT USATO:
 {attempt.get("prompt", "")}
 
