@@ -28,6 +28,7 @@ SCENES = ("scena_1", "scena_2", "scena_3")
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm"}
 AUTO_MODELS = ("Nano Banana", "GPT Image")  # i modelli del flusso automatico dello Studio
 KNOWLEDGE_DIR = Path(__file__).parent / "knowledge" / "fucina"
+REVIEW_DIR = Path(__file__).parent / "knowledge" / "valutazione"
 MODEL_FILES = {
     "Seedream": "seedream.md",
     "Nano Banana": "nano-banana.md",
@@ -417,8 +418,26 @@ GOALS[("worn_2", "abbigliamento")] = GOALS[("worn", "abbigliamento")]
 GOALS[("clean", "accessori")] = GOALS[("clean", "abbigliamento")]
 
 
+def review_sheet(subtype: str, shot: str) -> str:
+    """What the photo must be for this kind of piece (knowledge/valutazione/valutazione-<tipo>.md, sections studio / indossata)."""
+    if not subtype or "/" in subtype or "\\" in subtype:
+        return ""
+    try:
+        text = (REVIEW_DIR / f"valutazione-{subtype}.md").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    sections = re.split(r"^## ", text, flags=re.MULTILINE)
+    wanted = "foto studio" if shot == "clean" else "foto indossata"
+    for section in sections:
+        head, _, body = section.partition("\n")
+        if head.strip().lower() == wanted:
+            return body.strip()
+    return ""
+
+
 def goal_for(attempt: dict, lab: dict) -> str:
-    return GOALS.get((attempt.get("shot", ""), lab.get("category", "")), "")
+    sheet = review_sheet(lab.get("subtype", ""), attempt.get("shot", "").replace("worn_2", "worn"))
+    return sheet or GOALS.get((attempt.get("shot", ""), lab.get("category", "")), "")
 
 
 def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:

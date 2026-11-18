@@ -343,3 +343,21 @@ def test_external_photo_of_a_garment_is_reviewed_as_a_garment(monkeypatch):
     assert "Motivo, colori e tessuto" in seen["prompt"] and "Numero delle pietre" not in seen["prompt"]
     assert "ORDINE DI IMPORTANZA" in seen["prompt"] and "fedeltà" in seen["prompt"]
     assert "Capo indossato" in seen["prompt"]  # the goal for the worn garment
+
+
+def test_each_kind_of_piece_has_its_own_review_sheet():
+    import categorie
+
+    assert categorie.subtype_from("", "anello con ametista 159 euro") == "anello"
+    assert categorie.subtype_from("", "orecchini a fiore smaltati") == "orecchini"
+    assert categorie.subtype_from("", "gilet ricamato", category="abbigliamento") == "capo"
+    assert categorie.subtype_from("", "qualcosa", category="accessori") == "foulard"
+    ring = prompt_lab.goal_for({"shot": "worn"}, {"category": "bijoux", "subtype": "anello"})
+    earring = prompt_lab.goal_for({"shot": "worn"}, {"category": "bijoux", "subtype": "orecchini"})
+    assert "dito" in ring and "orecchio" in earring and ring != earring
+    assert "fondo avorio" in prompt_lab.goal_for({"shot": "clean"}, {"category": "bijoux", "subtype": "collana"})
+    # no subtype: falls back to the category goal
+    assert prompt_lab.goal_for({"shot": "worn"}, {"category": "abbigliamento"}).startswith("Capo indossato")
+    # every sheet has both sections
+    for kind in ("anello", "orecchini", "collana", "bracciale", "capo", "borsa", "foulard"):
+        assert prompt_lab.review_sheet(kind, "clean") and prompt_lab.review_sheet(kind, "worn"), kind

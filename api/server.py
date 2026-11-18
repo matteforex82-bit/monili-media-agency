@@ -1718,7 +1718,10 @@ async def lab_critique(draft_id: str, attempt_id: str, body: dict | None = None)
             else:
                 images.append(result)
             is_video = len(images) > 2 or result.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS
-            text = fucina_codex.run(prompt_lab.critique_prompt(lab, attempt, is_video), images, model)
+            typed = {**lab, "subtype": lab.get("subtype") or categorie.subtype_from(
+                lab.get("analisi", ""), meta.get("note", ""), category=lab.get("category", "")
+            )}
+            text = fucina_codex.run(prompt_lab.critique_prompt(typed, attempt, is_video), images, model)
         parsed = studio_main.extract_json_object(text)
         if not parsed:
             raise fucina_codex.CodexError("La risposta di Codex non era leggibile.")

@@ -62,6 +62,29 @@ SHOT_GUIDE = {
 }
 
 
+# What kind of jewel / garment / accessory it is: each has its own review sheet (knowledge/valutazione/).
+SUBTYPE_WORDS = {
+    "anello": r"anell",
+    "orecchini": r"orecchin",
+    "collana": r"collan|ciondol",
+    "bracciale": r"braccial|cavigliera",
+    "borsa": r"\bbors|pochette|zain|portafogl",
+    "foulard": r"foulard|sciarp|stola|scial|cappell|cintur|occhial",
+}
+
+
+def subtype_from(*sources: str, category: str = "") -> str:
+    """anello, orecchini, collana, bracciale, capo, borsa or foulard: the first product word found, sources in order of reliability."""
+    if category == "abbigliamento":
+        return "capo"
+    for text in sources:
+        lowered = (text or "").lower()
+        found = [(m.start(), name) for name, pattern in SUBTYPE_WORDS.items() if (m := re.search(pattern, lowered))]
+        if found:
+            return min(found)[1]
+    return {"abbigliamento": "capo", "accessori": "foulard"}.get(category, "")
+
+
 def category_in(text: str) -> str | None:
     """The category of the first product word in the text (the item named first)."""
     lowered = text.lower()
