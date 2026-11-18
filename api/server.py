@@ -1647,6 +1647,35 @@ async def lab_attempt_result(draft_id: str, attempt_id: str, foto: UploadFile = 
     return _lab_public(draft_id, prompt_lab.store.set_result(folder, attempt_id, saved.name))
 
 
+@app.get("/canali")
+def channel_formats():
+    import channels
+
+    return {"channels": channels.channel_list()}
+
+
+@app.get("/bozze/{draft_id}/prove/{attempt_id}/canale/{channel}")
+def lab_attempt_for_channel(draft_id: str, attempt_id: str, channel: str):
+    """The approved photo in the format of a channel (Google Business, Tripadvisor, Instagram...)."""
+    import channels
+
+    folder = _lab_folder(draft_id)
+    attempt = prompt_lab.store.get_attempt(folder, attempt_id) if folder else None
+    if channel not in channels.CHANNELS:
+        return JSONResponse({"error": "Canale non riconosciuto"}, status_code=404)
+    if not attempt or not attempt.get("result"):
+        return JSONResponse({"error": "Risultato non trovato"}, status_code=404)
+    path = folder / prompt_lab.RESULTS_DIR / attempt["result"]
+    if not path.is_file() or path.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS:
+        return JSONResponse({"error": "Serve una foto, non un video."}, status_code=400)
+    with tempfile.TemporaryDirectory(prefix="canale-") as tmp:
+        out = channels.export_for_channel(path, channel, Path(tmp) / f"{channel}.jpg")
+        data = out.read_bytes()
+    return StreamingResponse(
+        io.BytesIO(data), media_type="image/jpeg", headers={"Content-Disposition": f'attachment; filename="monili-{channel}.jpg"'}
+    )
+
+
 @app.get("/bozze/{draft_id}/prove/{attempt_id}/risultato")
 def lab_attempt_result_get(draft_id: str, attempt_id: str, w: int = 0):
     folder = _lab_folder(draft_id)

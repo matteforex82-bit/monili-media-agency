@@ -1,0 +1,2 @@
+# Tripadvisor (descrizione dell'attività e del pezzo, per chi visita Ravenna)
+Tono informativo e accogliente, pensato per un turista: cosa si trova (bijoux artigianali in argento con pietre colorate, smalti, giacche e gilet ricamati, borse in cuoio), dove (via Cavour 17 e 21, centro storico di Ravenna), da quanto (dal 1996). Un pezzo che racconta il posto: legame con i colori e i mosaici di Ravenna solo se naturale. Massimo 70 parole, niente emoji, nessun prezzo, nessuna promessa di disponibilità.

@@ -375,3 +375,35 @@ def test_brand_rules_come_from_one_file_and_promise_no_fixed_days():
     assert reel_studio.FIXED_HASHTAGS is studio_main.FIXED_HASHTAGS
     assert studio_main.MAX_REEL_EXTRA_HASHTAGS == 5 and studio_main.MAX_EXTRA_HASHTAGS == 2
     assert "Mar/Gio/Sab" not in open("reel_studio.py", encoding="utf-8").read()
+
+
+def test_an_approved_photo_is_exported_for_each_channel():
+    import channels
+
+    sizes = {c["id"]: (c["width"], c["height"]) for c in client.get("/canali").json()["channels"]}
+    assert sizes["google-foto"] == (1200, 1200) and sizes["tripadvisor"] == (1800, 1200) and sizes["sito"] == (1080, 1350)
+    draft = _draft()
+    did = draft["id"]
+    made = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "worn", "model": "Seedream", "prompt": "", "category": "bijoux"}).json()
+    attempt = made["lab"]["attempts"][0]
+    client.post(f"/bozze/{did}/prove/{attempt['id']}/risultato", files={"foto": ("r.jpg", _jpeg(), "image/jpeg")})
+    from PIL import Image
+    import io as _io
+
+    for channel, size in sizes.items():
+        res = client.get(f"/bozze/{did}/prove/{attempt['id']}/canale/{channel}")
+        assert res.status_code == 200 and res.headers["content-type"] == "image/jpeg", channel
+        assert Image.open(_io.BytesIO(res.content)).size == size, channel
+    assert client.get(f"/bozze/{did}/prove/{attempt['id']}/canale/facebook").status_code == 404
+
+
+def test_texts_follow_one_set_of_platform_rules():
+    import main as studio_main
+
+    rules = studio_main.platform_rules()
+    for needle in ("non è X, ma Y", "Instagram", "WhatsApp", "Google Business", "Tripadvisor", "155 caratteri"):
+        assert needle in rules, needle
+    assert "tripadvisor_text" in studio_main.publish_pack_fallback()
+    pack = studio_main.normalize_publish_pack({"tripadvisor_text": "Negozio in via Cavour."})
+    assert pack["tripadvisor_text"] == "Negozio in via Cavour."
+    assert "## Tripadvisor" in studio_main.format_publish_pack_markdown(pack)

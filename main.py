@@ -787,6 +787,22 @@ def normalize_hashtags(tags: object) -> list[str]:
     return FIXED_HASHTAGS + extra[:MAX_EXTRA_HASHTAGS]
 
 
+TEXT_RULES_DIR = Path(__file__).parent / "knowledge" / "testi"
+TEXT_PLATFORMS = ("sito", "whatsapp", "google-business", "instagram", "tripadvisor")
+
+
+def platform_rules() -> str:
+    """Rules of each platform plus the human-voice rules (knowledge/testi/*.md): one source for every text the Studio writes."""
+    names = ["stile-umano", "seo-sito", "whatsapp", "google-business", "instagram", "tripadvisor"]
+    parts = []
+    for name in names:
+        try:
+            parts.append((TEXT_RULES_DIR / f"{name}.md").read_text(encoding="utf-8").strip())
+        except OSError:
+            continue
+    return "\n\n".join(parts)
+
+
 def publish_pack_fallback() -> dict:
     return {
         "product_name": "",
@@ -796,6 +812,7 @@ def publish_pack_fallback() -> dict:
         "gmb_title": "Nuovo arrivo in negozio",
         "gmb_text": "Pezzo disponibile in boutique in via Cavour, nel centro di Ravenna: passa a provarlo.",
         "caption": "Nuovo arrivo da I Monili Ravenna: scrivici, ti diciamo se è disponibile.",
+        "tripadvisor_text": "",
         "hashtags": [],
         "cta": "Scrivici su WhatsApp o passa in via Cavour: ti diciamo se è disponibile.",
     }
@@ -846,6 +863,9 @@ Brief utente: {brief if brief else "Nessun brief"}
 A cosa servono: far trovare il pezzo su Google e dalle AI, dare un link da girare su WhatsApp,
 portare la gente nei due negozi di via Cavour a Ravenna. La vendita avviene su WhatsApp e DM.
 
+REGOLE DI SCRITTURA (ogni testo nel registro della sua piattaforma, e scritto in modo naturale, come una persona):
+{platform_rules()}
+
 JSON esatto:
 {{
   "product_name": "nome breve e concreto del pezzo, es. Anello in argento con ametista",
@@ -854,6 +874,7 @@ JSON esatto:
   "whatsapp_share": "messaggio breve da mandare insieme al link del pezzo, chiude con 'ti diciamo se è disponibile'",
   "gmb_title": "titolo post Google Business",
   "gmb_text": "testo post Google Business, max 80 parole, con via Cavour e Ravenna",
+  "tripadvisor_text": "descrizione per Tripadvisor, max 70 parole, per chi visita Ravenna",
   "caption": "una caption breve per la storia che rimanda al pezzo, max 2 emoji",
   "hashtags": ["max 2 hashtag specifici del pezzo, i 3 fissi li aggiungo io"],
   "cta": "invito breve: scrivici in DM o passa in negozio"
@@ -879,6 +900,7 @@ def format_publish_pack_markdown(pack: dict) -> str:
         f"## Google (titolo e descrizione)\n{pack.get('seo_title') or '-'}\n\n{pack.get('seo_description') or '-'}\n\n"
         f"## WhatsApp\n{pack.get('whatsapp_share') or '-'}\n\n"
         f"## Google Business Post\nTitolo: {pack.get('gmb_title') or '-'}\n\nTesto: {pack.get('gmb_text') or '-'}\n\n"
+        f"## Tripadvisor\n{pack.get('tripadvisor_text') or '-'}\n\n"
         f"## Caption storia\n{pack.get('caption') or '-'}\n\n{' '.join(pack.get('hashtags') or [])}\n\n"
         f"## Invito\n{pack.get('cta') or '-'}\n"
     )

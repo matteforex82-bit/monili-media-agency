@@ -219,3 +219,15 @@ Ramo `studio-workspace-ux`, PR https://github.com/matteforex82-bit/monili-media-
 - **F, confronto al 100%:** nel passo Valutare il pulsante «Zoom al 100%, una accanto all'altra» apre foto vera e risultato a grandezza reale, in due riquadri che scorrono insieme (si chiude con Esc o «Chiudi»). Solo per le foto, non per i video (`ZoomCompare` in `PromptLab.tsx`).
 - **J, un blocco per passo:** nel passo Valutare ogni prova ha tre blocchi numerati: 1 Confronta, 2 Codex, 3 Il tuo voto.
 - Verificato: `npx tsc --noEmit` pulito. **Non provato a schermo** (zoom e scorrimento sincronizzato da vedere con lo Studio riavviato).
+
+## Riprogettazione del percorso Studio: Fase 1 in corso (18-19/11/2026, ramo `studio-percorso-unico`)
+Piano completo approvato in `C:\Users\matte\.claude\plans\dopo-questo-vorrei-insieme-glistening-hummingbird.md` (scelte: un solo percorso per pezzo, Aurora testimonial fissa, due foto base studio+indossata, libreria di clip proprie per Genjutsu, fonte unica in `knowledge/`, costi con stima+OK+tetto).
+Fatto finora:
+- **Bug categoria:** una foto fatta altrove su un pezzo mai analizzato veniva giudicata con i criteri dei gioielli; ora riceve la categoria (modulo + nota). Giudizio con ordine di importanza (fedeltà all'originale per prima).
+- **Valutazione per tipo di pezzo:** `knowledge/valutazione/valutazione-<tipo>.md` (anello, orecchini, collana, bracciale, capo, borsa, foulard), letti da `prompt_lab.goal_for`; tipo riconosciuto da `categorie.subtype_from`. `knowledge/come-si-indossa.md` (solo documento).
+- **Fonte unica del brand:** `knowledge/brand.md` (letto da `main.BRAND`), niente giorni fissi, hashtag Scheda 3+2 e Reel 3+5 (il 5 è una scelta da verificare con i Risultati), chiave `sessions` corretta.
+- **Aurora testimonial fissa** (`skills/_base/donne.md`, sezione Testimonial) in Scheda pezzo e Reel; `CLAUDE.md` allineato. La quota «un contenuto su tre senza volto» è solo scritta, non applicata dal codice.
+- **Foto per canale:** `channels.py` + `knowledge/formati-canali.md`, `GET /canali` e `/bozze/{id}/prove/{id}/canale/{canale}`, link «Scarica per canale» nel passo Valutare. Le misure di Google e Tripadvisor sono `[fonte]` (siti di terzi), da verificare sulle pagine ufficiali.
+- **Testi per piattaforma:** `knowledge/testi/*.md` (stile umano da skill humanizer, sito, WhatsApp, Google Business, Instagram, Tripadvisor) iniettati nel prompt dei testi; nuovo campo `tripadvisor_text` nella Scheda. Non passa ancora da un secondo giro di riscrittura con la skill: solo regole nel prompt.
+- Test: 167 passati, `tsc` pulito. Non provato a schermo né con generazioni vere.
+Da fare (Fase 1): pulsante «Vai al sito» sulla foto (indipendente dal voto); poi Fase 2 (percorso unico bozze+pezzi) e Fase 3 (automazione MCP).

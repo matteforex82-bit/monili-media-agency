@@ -117,6 +117,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   const [codex, setCodex] = useState<CodexInfo | null>(null);
   const [codexModel, setCodexModel] = useState('');
   const [sourceId, setSourceId] = useState('');
+  const [channels, setChannels] = useState<{ id: string; label: string }[]>([]);
   const [zoom, setZoom] = useState<{ attempt: Attempt } | null>(null);
   const [ext, setExt] = useState({ shot: 'worn', model: 'Seedream', prompt: '', category: '' });
   const progressRef = useRef(onProgress);
@@ -157,6 +158,10 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
         setCodexModel(info.models.some((m) => m.slug === saved) ? saved : '');
       })
       .catch(() => setCodex(null));
+    fetch(`${API_URL}/canali`, { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((info: { channels: { id: string; label: string }[] }) => setChannels(info.channels))
+      .catch(() => setChannels([]));
   }, [request, apply]);
 
   // Mentre Codex lavora, dice cosa sta facendo (non solo "Analizzo...").
@@ -699,6 +704,18 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
                   }
                 }}
               />
+              {!isVideo(attempt.result) && channels.length > 0 && (
+                <details className="lab-channels">
+                  <summary>Scarica per canale (Google, Tripadvisor, Instagram, sito)</summary>
+                  <div className="draft-actions">
+                    {channels.map((c) => (
+                      <a key={c.id} className="chip-btn" href={`${base}/prove/${attempt.id}/canale/${c.id}`} download>
+                        {c.label}
+                      </a>
+                    ))}
+                  </div>
+                </details>
+              )}
               <button
                 type="button"
                 className="link-btn"

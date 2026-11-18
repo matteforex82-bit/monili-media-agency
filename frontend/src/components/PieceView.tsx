@@ -20,6 +20,7 @@ type PublishPack = {
   whatsapp_share?: string;
   gmb_title?: string;
   gmb_text?: string;
+  tripadvisor_text?: string;
   caption?: string;
   hashtags?: string[];
   cta?: string;
@@ -511,6 +512,7 @@ export default function PieceView({ results, apiUrl, runId, summary, onChanged }
         <div className="stack">
           <TextCard title="WhatsApp" value={whatsapp} />
           <TextCard title="Google Business" value={gmb} />
+          {pack.tripadvisor_text ? <TextCard title="Tripadvisor" value={pack.tripadvisor_text} /> : null}
           <TextCard title="Instagram" value={[caption, hashtags, cta].filter(Boolean).join('\n\n')} />
           <TextCard title="Titolo e descrizione per Google" value={seo} />
         </div>
