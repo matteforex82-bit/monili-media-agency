@@ -183,6 +183,27 @@ export default function PieceWorkspace({ draft, onBack, onUpdate, onRemoved, onS
         ))}
       </nav>
 
+      {step !== 'foto' && cover && (
+        <button type="button" className="ws-photos" onClick={() => setStep('foto')} aria-label="Vedi e cambia le foto del pezzo">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <figure>
+            <img src={photoUrl(draft, cover, 240)} alt="Foto principale" />
+            <figcaption>Principale</figcaption>
+          </figure>
+          {draft.detail && draft.detail !== cover && (
+            <figure>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photoUrl(draft, draft.detail, 240)} alt="Foto dettaglio" />
+              <figcaption>Dettaglio</figcaption>
+            </figure>
+          )}
+          <span className="ws-photos-note">
+            Il prompt parte da {draft.detail && draft.detail !== cover ? 'queste foto' : 'questa foto'}.<br />
+            <b>Cambia</b>
+          </span>
+        </button>
+      )}
+
       {step === 'foto' ? (
         <>
           <div className="step-body">

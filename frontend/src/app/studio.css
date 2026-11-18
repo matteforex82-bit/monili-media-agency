@@ -535,3 +535,11 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .lab-checks .lab-esito-problema { background: #f6d9d4; color: var(--rose-err); }
 .lab-stars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .lab-stars .chip-btn { min-height: 50px; font-size: 18px; border-radius: 12px; }
+
+/* Le foto di cui parla il passo, sempre visibili */
+.ws-photos { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px; border: 1px solid var(--bot-border); border-radius: 12px; background: var(--bot-card); font: inherit; text-align: left; cursor: pointer; color: var(--bot-ink); }
+.ws-photos figure { margin: 0; display: grid; gap: 3px; justify-items: center; flex: 0 0 auto; }
+.ws-photos img { width: 76px; height: 96px; object-fit: cover; border-radius: 8px; display: block; background: var(--bot-card-soft); }
+.ws-photos figcaption { font-size: 11.5px; color: var(--bot-muted); }
+.ws-photos-note { font-size: 14px; color: var(--bot-ink-2); line-height: 1.4; }
+.ws-photos-note b { color: var(--bot-accent-dk); }
