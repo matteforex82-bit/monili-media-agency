@@ -1,5 +1,6 @@
 ## Ricetta: abbigliamento (giacche, gilet, abiti)
 Etichette: [verificato] = visto nei test o scelta del negozio; [fonte] = ricerca, non ancora provato; [ipotesi].
+**Obiettivo a regime per il sito (decisione di Matteo, 18/11/2026):** il capo indossato e il capo pulito da studio, ben illuminato. Le scene video con Seedance 2.5 vengono dopo. [verificato: decisione di Matteo, 18/11]
 Due passi: 1) il capo addosso alla donna; 2) le scene video con Seedance 2.5 partendo da quella foto.
 
 **Passo 1, foto indossata**

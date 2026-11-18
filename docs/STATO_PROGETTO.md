@@ -195,3 +195,8 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - **Conoscenza:** `knowledge/fucina/` (modelli + ricette per categoria + `AGENTS.md` per Codex), con etichette `[verificato]`, `[fonte]`, `[ipotesi]`. Primo seme: da completare con le guide ufficiali di Seedream/Seedance e con le prove vere.
 - **Codex:** provato il 18/11 con Codex 0.144.1: `gpt-5.6-sol` funziona e vede le immagini (predefinito della fucina, `FUCINA_CODEX_MODEL`); i `gpt-6.x` chiedono un Codex più recente (`npm i -g @openai/codex`).
 - Non provato: tutta la schermata nel browser, la qualità dei prompt Seedream/Seedance (nessuna prova vera ancora), il giudizio di Codex su foto di gioielli veri. Test: 154.
+
+## Obiettivo a regime per le foto del sito (decisione di Matteo, 18/11/2026)
+- **Anelli:** 2 foto statiche, il **prodotto pulito e ben illuminato** e l'**anello indossato su una mano realistica**.
+- **Abbigliamento:** il **capo indossato** e il **capo pulito da studio, ben illuminato**.
+- Il giudizio di Codex nella Fucina valuta ogni foto contro questo obiettivo (`prompt_lab.GOALS`, nel prompt di valutazione); le ricette in `knowledge/fucina/` lo riportano. Da affinare con le prove vere.

@@ -281,3 +281,14 @@ def test_a_photo_made_elsewhere_can_be_rated_without_the_studio_prompt(monkeypat
     after = client.post(f"/bozze/{did}/prompt", json={"category": "bijoux", "model": "Seedream"}).json()
     assert len(after["lab"]["attempts"]) == 1 and set(after["lab"]["prompts"]) == {"clean", "worn"}
     client.delete(f"/bozze/{did}")
+
+
+def test_critique_judges_each_photo_against_its_goal():
+    ring_worn = prompt_lab.critique_prompt({"category": "bijoux"}, {"shot": "worn", "model": "Seedream", "prompt": "p"})
+    assert "mano realistica" in ring_worn and "cinque dita" in ring_worn
+    ring_clean = prompt_lab.critique_prompt({"category": "bijoux"}, {"shot": "clean", "model": "Seedream", "prompt": "p"})
+    assert "pulita per il sito" in ring_clean and "cinque dita" not in ring_clean
+    clothes_clean = prompt_lab.critique_prompt({"category": "abbigliamento"}, {"shot": "clean", "model": "Seedream", "prompt": "p"})
+    assert "da studio" in clothes_clean and "gruccia" in clothes_clean
+    # no goal known (e.g. an unrated category): the checklist still works
+    assert "COSA DEVE ESSERE" not in prompt_lab.critique_prompt({"category": ""}, {"shot": "worn", "model": "x", "prompt": "p"})

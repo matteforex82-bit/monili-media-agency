@@ -343,12 +343,44 @@ CHECKLIST = (
 )
 
 
+# Cosa deve essere ogni foto per il sito (decisione di Matteo, 18/11/2026): per gli anelli due foto statiche, il prodotto
+# pulito e ben illuminato e l'anello indossato su una mano realistica; per l'abbigliamento il capo indossato e il capo
+# pulito da studio, ben illuminato. Codex giudica la foto contro questo obiettivo.
+GOALS = {
+    ("clean", "bijoux"): (
+        "Foto prodotto pulita per il sito: il pezzo da solo, centrato, nitido su tutta la superficie, fondo pulito e neutro, "
+        "luce morbida e uniforme, ombre dolci, nessun riflesso bruciato sul metallo o sulle pietre, colori fedeli alla foto vera."
+    ),
+    ("worn", "bijoux"): (
+        "Anello indossato su una mano realistica: cinque dita normali, proporzioni, pelle e unghie credibili, l'anello sul dito "
+        "giusto, in scala e ben appoggiato; inquadratura stretta con la mano tagliata a metà, sfondo bello ma sfocato, pezzo nitido."
+    ),
+    ("clean", "abbigliamento"): (
+        "Capo pulito da studio, ben illuminato: capo intero e in ordine (senza pieghe strane), fondo neutro, luce uniforme, "
+        "colori, motivo e proporzioni identici alla foto vera, senza cartellini, gruccia o ganci."
+    ),
+    ("worn", "abbigliamento"): (
+        "Capo indossato: vestibilità, lunghezza e caduta credibili, motivo, colori e dettagli identici alla foto vera, "
+        "una sola persona con anatomia naturale (mani, dita, gambe), luce coerente."
+    ),
+}
+GOALS[("worn_2", "abbigliamento")] = GOALS[("worn", "abbigliamento")]
+GOALS[("clean", "accessori")] = GOALS[("clean", "abbigliamento")]
+
+
+def goal_for(attempt: dict, lab: dict) -> str:
+    return GOALS.get((attempt.get("shot", ""), lab.get("category", "")), "")
+
+
 def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:
+    goal = goal_for(attempt, lab)
+    goal_block = f"\nCOSA DEVE ESSERE QUESTA FOTO (valutala contro questo obiettivo):\n{goal}\n" if goal and not is_video else ""
     checks = "\n".join(f'- "{key}": {label}' for key, label in CHECKLIST)
     knowledge = model_knowledge(attempt.get("model", ""), lab.get("category", ""))
     return f"""Sei il revisore di immagini di I Monili Ravenna, una gioielleria di Ravenna.
 {"Hai quattro immagini: la PRIMA è la foto vera del pezzo (la verità), le altre tre sono fotogrammi (inizio, metà, fine) di un video creato con l'AI (" + attempt.get("model", "") + "). Oltre al pezzo controlla che tra un fotogramma e l'altro il capo, la donna e i colori restino uguali, e che non ci siano deformazioni o sfarfallii." if is_video else "Hai due immagini: la PRIMA è la foto vera del pezzo (la verità), la SECONDA è la foto creata con l'AI (" + attempt.get("model", "") + ").\nConfrontale con occhio critico: il pezzo nella seconda deve essere identico a quello della prima."}
 
+{goal_block}
 PROMPT USATO:
 {attempt.get("prompt", "")}
 
