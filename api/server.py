@@ -1714,7 +1714,12 @@ async def lab_critique(draft_id: str, attempt_id: str, body: dict | None = None)
         parsed = studio_main.extract_json_object(text)
         if not parsed:
             raise fucina_codex.CodexError("La risposta di Codex non era leggibile.")
-        return prompt_lab.normalize_critique(parsed, model or fucina_codex.available_models()["default"])
+        return prompt_lab.normalize_critique(
+            parsed,
+            model or fucina_codex.available_models()["default"],
+            prompt_lab.checklist_for(lab.get("category", ""), attempt.get("shot", "")),
+            attempt.get("prompt", ""),
+        )
 
     try:
         critique = await asyncio.to_thread(work)

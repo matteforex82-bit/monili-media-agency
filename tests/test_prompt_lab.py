@@ -153,7 +153,7 @@ def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkey
     def fake_codex(prompt, images, model=""):
         seen.update(prompt=prompt, images=images)
         return (
-            '{"checklist": {"pietre_numero": {"esito": "ok", "nota": "3"}}, "giudizio": "bene", "voto_proposto": 4, '
+            '{"checklist": {"motivo_colori": {"esito": "ok", "nota": "3"}}, "giudizio": "bene", "voto_proposto": 4, '
             '"correzione": "niente", "prompt_corretto": "better prompt"}'
         )
 
@@ -188,7 +188,7 @@ def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkey
     judged = client.post(f"/bozze/{did}/prove/{photo_attempt}/valuta", json={})
     assert judged.status_code == 200 and len(seen["images"]) == 2
     critique = judged.json()["lab"]["attempts"][0]["critique"]
-    assert critique["voto_proposto"] == 4 and critique["checklist"]["pietre_numero"]["esito"] == "ok" and "metallo" in critique["checklist"]
+    assert critique["voto_proposto"] == 4 and "motivo_colori" in critique["checklist"] and "pietre_numero" not in critique["checklist"] and "dettagli" in critique["checklist"]
     client.post(f"/bozze/{did}/prove/{scene_attempt['id']}/valuta", json={})
     assert len(seen["images"]) == 4 and "fotogrammi" in seen["prompt"]
 
@@ -292,3 +292,38 @@ def test_critique_judges_each_photo_against_its_goal():
     assert "da studio" in clothes_clean and "gruccia" in clothes_clean
     # no goal known (e.g. an unrated category): the checklist still works
     assert "COSA DEVE ESSERE" not in prompt_lab.critique_prompt({"category": ""}, {"shot": "worn", "model": "x", "prompt": "p"})
+
+
+def test_clothing_is_judged_on_the_garment_not_on_stones_and_metal():
+    clothes = prompt_lab.critique_prompt({"category": "abbigliamento"}, {"shot": "worn", "model": "Seedream", "prompt": "p"})
+    assert "Motivo, colori e tessuto" in clothes and "Collo, chiusura" in clothes
+    assert "Numero delle pietre" not in clothes and "Metallo e finitura" not in clothes
+    assert "motivo, il colore o la forma del capo" in clothes
+    # a photo of the garment alone has no hands or body to check
+    clean = prompt_lab.critique_prompt({"category": "abbigliamento"}, {"shot": "clean", "model": "Seedream", "prompt": "p"})
+    assert "Mani, dita" not in clean
+    # jewellery keeps its stones and metal
+    ring = prompt_lab.critique_prompt({"category": "bijoux"}, {"shot": "worn", "model": "Seedream", "prompt": "p"})
+    assert "Numero delle pietre" in ring and "Metallo e finitura" in ring
+    result = prompt_lab.normalize_critique({"checklist": {"motivo_colori": {"esito": "ok", "nota": "x"}}}, "m", prompt_lab.checklist_for("abbigliamento", "worn"))
+    assert result["checklist"]["motivo_colori"]["label"] == "Motivo, colori e tessuto" and "pietre_numero" not in result["checklist"]
+
+
+def test_the_corrected_prompt_keeps_the_woman_tag():
+    original = "Keep the jacket. The woman is @MODELLA: use only her face and hair from that reference. No text."
+    # the model dropped the tag: it is put back
+    fixed = prompt_lab.keep_mentions("Keep the jacket, longer collar. No text.", original)
+    assert "@MODELLA" in fixed and "use only her face and hair" in fixed
+    # already there: untouched
+    same = "Keep the jacket. The woman is @MODELLA: use only her face and hair."
+    assert prompt_lab.keep_mentions(same, original) == same
+    # a character picked by hand in an external prompt is kept too
+    assert "@Modella-Monili-Denti" in prompt_lab.keep_mentions("new prompt", "Keep it on @Modella-Monili-Denti.")
+    # no tag in the original (a clean photo): nothing added
+    assert prompt_lab.keep_mentions("new prompt", "clean photo") == "new prompt"
+    # and the review is told to keep it
+    asked = prompt_lab.critique_prompt({"category": "abbigliamento"}, {"shot": "worn", "model": "Seedream", "prompt": original})
+    assert "@MODELLA deve restare scritto così" in asked
+    # end to end through the normalizer
+    out = prompt_lab.normalize_critique({"prompt_corretto": "Better jacket prompt."}, "m", prompt_lab.CHECKLIST, original)
+    assert "@MODELLA" in out["prompt_corretto"]
