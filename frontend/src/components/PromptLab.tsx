@@ -76,6 +76,7 @@ export default function PromptLab({ draftId, mainPhoto }: { draftId: string; mai
   const [category, setCategory] = useState('');
   const [target, setTarget] = useState(MODELS[0]);
   const [woman, setWoman] = useState('token');
+  const [engine, setEngine] = useState('codex');
   const [busy, setBusy] = useState(false);
   const [judging, setJudging] = useState('');
   const [error, setError] = useState('');
@@ -133,7 +134,7 @@ export default function PromptLab({ draftId, mainPhoto }: { draftId: string; mai
   async function analyze() {
     setBusy(true);
     await run(
-      () => request('/prompt', json('POST', { category, model: target, woman, text_model: loadSettings().textModel })),
+      () => request('/prompt', json('POST', { category, model: target, woman, engine, codex_model: codexModel, text_model: loadSettings().textModel })),
       'Non sono riuscito a preparare i prompt',
     );
     setBusy(false);
@@ -145,7 +146,7 @@ export default function PromptLab({ draftId, mainPhoto }: { draftId: string; mai
     if (!source) return;
     setBusy(true);
     await run(
-      () => request('/scene', json('POST', { attempt_id: source, text_model: loadSettings().textModel })),
+      () => request('/scene', json('POST', { attempt_id: source, engine, codex_model: codexModel, text_model: loadSettings().textModel })),
       'Non sono riuscito a scrivere le scene',
     );
     setBusy(false);
@@ -394,6 +395,10 @@ export default function PromptLab({ draftId, mainPhoto }: { draftId: string; mai
             <select className="lab-select" value={woman} onChange={(e) => setWoman(e.target.value)} aria-label="Come scrivere la donna nel prompt">
               <option value="token">Donna: @MODELLA (scelgo io)</option>
               <option value="invented">Donna: descritta dall&apos;AI</option>
+            </select>
+            <select className="lab-select" value={engine} onChange={(e) => setEngine(e.target.value)} aria-label="Chi scrive i prompt">
+              <option value="codex">Scrive: Codex ({codexModel || codex?.default || 'Terra'}, abbonamento)</option>
+              <option value="openrouter">Scrive: OpenRouter (a pagamento)</option>
             </select>
             <button type="button" className="btn-mission" onClick={analyze} disabled={busy}>
               {busy ? 'Analizzo...' : 'Analizza e prepara il prompt'}

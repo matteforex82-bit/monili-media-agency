@@ -1432,6 +1432,21 @@ def _video_frames(video: Path, out_dir: Path, count: int = 3) -> list[Path]:
     return frames
 
 
+def _lab_engine(body: dict) -> tuple[str, str] | JSONResponse:
+    """Who writes the prompts: the local Codex (default, the owner's plan, Terra) or OpenRouter (pay per token)."""
+    wanted = str(body.get("engine") or "").strip().lower()
+    if wanted != "openrouter" and fucina_codex.executable():
+        model = str(body.get("codex_model") or "").strip() or fucina_codex.DEFAULT_MODEL
+        return "", f"codex:{model}"
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse(
+            {"error": "Codex non è installato e OPENROUTER_API_KEY non è configurata: non c'è nessun motore per scrivere i prompt."},
+            status_code=400,
+        )
+    return api_key, str(body.get("text_model") or "").strip() or DEFAULT_OPENROUTER_TEXT_MODEL
+
+
 def _lab_folder(draft_id: str):
     return bozze_store.folder(draft_id)
 
@@ -1451,16 +1466,16 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
     folder = _lab_folder(draft_id)
     if not meta or not folder:
         return JSONResponse({"error": "Bozza non trovata"}, status_code=404)
-    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not api_key:
-        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend locale."}, status_code=400)
     main_name = meta.get("main") or (meta["photos"][0] if meta["photos"] else "")
     main_path = bozze_store.photo_path(draft_id, main_name)
     if not main_path:
         return JSONResponse({"error": "La foto principale non c'è più."}, status_code=400)
 
     body = body or {}
-    text_model = str(body.get("text_model") or "").strip() or DEFAULT_OPENROUTER_TEXT_MODEL
+    engine = _lab_engine(body)
+    if isinstance(engine, JSONResponse):
+        return engine
+    api_key, text_model = engine
     requested = str(body.get("category") or "").strip().lower()
     note = meta.get("note", "")
     target = str(body.get("model") or "").strip()
@@ -1549,10 +1564,10 @@ async def lab_scenes(draft_id: str, body: dict):
     result = folder / prompt_lab.RESULTS_DIR / attempt["result"] if attempt and attempt.get("result") else None
     if not attempt or not result or not result.is_file() or result.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS:
         return JSONResponse({"error": "Scegli una foto indossata già caricata."}, status_code=400)
-    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not api_key:
-        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend locale."}, status_code=400)
-    text_model = str(body.get("text_model") or "").strip() or DEFAULT_OPENROUTER_TEXT_MODEL
+    engine = _lab_engine(body)
+    if isinstance(engine, JSONResponse):
+        return engine
+    api_key, text_model = engine
 
     def work() -> dict:
         import main as studio_main

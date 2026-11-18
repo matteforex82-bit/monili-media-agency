@@ -17,8 +17,10 @@ CODEX_HOME = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex")
 TIMEOUT_SECONDS = int(os.environ.get("CODEX_TIMEOUT_SECONDS", "300"))
 
 
-# Provato il 18/11/2026 con Codex 0.144.1: i modelli gpt-6.x chiedono un Codex più recente, gpt-5.6-sol funziona e vede le immagini.
-DEFAULT_MODEL = os.environ.get("FUCINA_CODEX_MODEL", "gpt-5.6-sol")
+# Provato il 18/11/2026: con Codex 0.144.1 i gpt-6.x davano errore (serviva aggiornare); con Codex 0.170.0 gpt-6.2-sol,
+# gpt-6.2-astra e gpt-6.1-sol vedono le immagini e rispondono in ~13 s. Scelto Terra (18/11): efficiente e "eccelle nella
+# comprensione visiva" secondo Codex, circa 1/5 del costo di Astra.
+DEFAULT_MODEL = os.environ.get("FUCINA_CODEX_MODEL", "gpt-6.1-terra")
 
 
 class CodexError(RuntimeError):
@@ -69,7 +71,7 @@ def run(prompt: str, images: list[Path], model: str = "") -> str:
             raise CodexError(f"Codex non ha risposto entro {TIMEOUT_SECONDS // 60} minuti.") from error
         text = answer.read_text(encoding="utf-8", errors="replace").strip() if answer.exists() else ""
         if "requires a newer version" in (done.stderr or "") + (done.stdout or ""):
-            raise CodexError("Questo modello chiede un Codex più recente: aggiornalo (npm i -g @openai/codex) o scegli gpt-5.6-sol.")
+            raise CodexError("Questo modello chiede un Codex più recente: aggiornalo (npm i -g @openai/codex) o scegli un altro modello dell'elenco.")
         if done.returncode != 0 or not text:
             detail = (done.stderr or done.stdout or "").strip().splitlines()[-3:]
             raise CodexError("Codex non ha risposto: " + (" ".join(detail) or f"codice {done.returncode}"))

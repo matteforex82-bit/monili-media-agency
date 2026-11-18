@@ -180,6 +180,9 @@ def openrouter_chat_completion(
     return response.json()
 
 
+CODEX_PREFIX = "codex:"
+
+
 def generate_text_with_openrouter(
     api_key: str,
     model: str,
@@ -187,6 +190,12 @@ def generate_text_with_openrouter(
     image_path: Path | None = None,
     max_tokens: int = 2048,
 ) -> str:
+    if str(model).startswith(CODEX_PREFIX):
+        # the local Codex (the owner's ChatGPT plan, no per-token bill): same call, another engine.
+        # Errors are raised, not hidden in the text, so the Studio can show them.
+        import fucina_codex
+
+        return fucina_codex.run(prompt, [image_path] if image_path else [], str(model)[len(CODEX_PREFIX):])
     try:
         payload = openrouter_chat_completion(
             api_key=api_key,
