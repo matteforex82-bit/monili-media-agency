@@ -1,6 +1,6 @@
 ## Riferimento: la modella fissa Monili-Aurora e lo slot @MODELLA
 **Deciso il 18/11/2026:** nei prompt delle foto indossate e delle scene video la donna si scrive sempre come `@MODELLA`. Chi è (Aurora o un'altra modella) lo sceglie Matteo a mano quando genera su Higgsfield, sostituendo `@MODELLA` con il tag giusto. La Fucina non descrive il volto. Per far descrivere una donna all'AI c'è l'opzione "Descrizione inventata" nella schermata.
-Il flusso automatico dello Studio (missione "Scheda pezzo") continua a inventare una donna per pezzo come da regole del negozio.
+Dal 18/11/2026 (sera) Aurora è la testimonial fissa del negozio: anche il flusso automatico (Scheda pezzo, Reel) usa la sua descrizione fissa (`skills/_base/donne.md`, sezione Testimonial) invece di inventare una donna per pezzo.
 
 **Cos'è Aurora**
 - Soul ID `Monili-Aurora`, addestrato su 40 immagini (dataset in `MoniliStorage\Dataset_Modella_Monili`). Volto: sopracciglia scure marcate, occhi verde-nocciola, lentiggini chiare, mezzo sorriso leggermente asimmetrico, capelli castani mossi alle spalle con riga di lato, senza frangia. [verificato: STATUS e HANDOFF, 14-16/11]

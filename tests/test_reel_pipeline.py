@@ -1,3 +1,4 @@
+import casting
 import json
 
 import pytest
@@ -105,7 +106,7 @@ def test_state_file_is_valid_json(reel):
     assert data["woman"] is None  # senza Scheda pezzo la inventa il regista nello storyboard
 
 
-def test_director_invents_the_woman_once(reel, monkeypatch):
+def test_the_testimonial_is_chosen_once(reel, monkeypatch):
     prompts = []
 
     def fake_storyboard(state, photo):
@@ -115,9 +116,9 @@ def test_director_invents_the_woman_once(reel, monkeypatch):
     monkeypatch.setattr(rs, "agent_analisi", lambda *a, **k: "analisi")
     monkeypatch.setattr(rs, "agent_storyboard", fake_storyboard)
     rs.plan_reel(reel["id"], "k")
-    assert "la inventi tu" in prompts[0]
-    assert rs.load_state(reel["id"])["woman"] == "Donna inventata dal regista"
+    assert "testimonial fissa" in prompts[0]
+    assert rs.load_state(reel["id"])["woman"] == casting.testimonial()  # testimonial fissa, il regista non ne inventa un'altra
     # Ripianificando, la donna resta quella: il regista la riceve già scelta.
     rs.plan_reel(reel["id"], "k")
     assert "gia scelta" in prompts[1]
-    assert rs.load_state(reel["id"])["woman"] == "Donna inventata dal regista"
+    assert rs.load_state(reel["id"])["woman"] == casting.testimonial()

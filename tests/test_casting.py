@@ -43,3 +43,12 @@ def test_recent_women_and_scenes_come_from_schede_and_reels(storage_root):
     assert "Darsena al tramonto" in casting.recent_scenes(limit=50)
     assert "Darsena al tramonto" not in casting.recent_scenes(limit=50, exclude_reel="reel_casting_test")
     assert "non ripeterle" in casting.avoid_block("SCENE", ["x"]) and casting.avoid_block("SCENE", []) == ""
+
+
+def test_the_shop_has_one_fixed_testimonial(monkeypatch):
+    text = casting.testimonial()
+    assert "hazel-green eyes" in text and "not a fashion model" in text
+    assert casting.fallback_woman() == text
+    # without the section the AI invents again
+    monkeypatch.setattr(sk, "base_template", lambda name: "")
+    assert casting.testimonial() == "" and "real elegant woman" in casting.fallback_woman()

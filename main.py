@@ -511,6 +511,19 @@ def agent_scheda_plan(
         else ""
     )
 
+    fixed_woman = casting.testimonial()
+    if fixed_woman:
+        woman_rule = (
+            "LA DONNA: e sempre la testimonial fissa del negozio (Aurora), la stessa in tutti i pezzi, nei Reel e nelle Storie. "
+            f"Nel campo \"woman\" copia questa descrizione senza cambiarla: {fixed_woman}"
+        )
+    else:
+        woman_rule = (
+            f"LA DONNA DI QUESTO PEZZO: la inventi tu. {casting.woman_guide()}\n"
+            "Sara lei anche nei Reel di questo pezzo, come una modella ingaggiata per lui.\n"
+            + casting.avoid_block("DONNE GIA USATE DI RECENTE", casting.recent_women())
+        )
+
     prompt = f"""Sei l'art director del sito vetrina di I Monili Ravenna. Devi restituire SOLO un JSON valido.
 {BRAND}
 Knowledge prompt immagine:
@@ -523,9 +536,7 @@ COME FOTOGRAFARLO INDOSSATO: {categorie.SHOT_GUIDE.get(category, categorie.SHOT_
 {prompt_lab.model_knowledge(target_model, category)}
 {prompt_lab.hints(category, target_model)}
 
-LA DONNA DI QUESTO PEZZO: la inventi tu. {casting.woman_guide()}
-Sara lei anche nei Reel di questo pezzo, come una modella ingaggiata per lui.
-{casting.avoid_block("DONNE GIA USATE DI RECENTE", casting.recent_women())}
+{woman_rule}
 COSE DA NON MOSTRARE MAI: {"; ".join(casting.never_show()) or "nessuna"}
 
 JSON esatto:
@@ -551,7 +562,7 @@ Regole per i prompt:
         log("PIANO SCHEDA", "JSON non valido, uso prompt standard", "warn")
         return plan
     plan["styling"] = str(parsed.get("styling", "")).strip()
-    plan["woman"] = " ".join(str(parsed.get("woman", "")).split())[:600]
+    plan["woman"] = casting.testimonial() or " ".join(str(parsed.get("woman", "")).split())[:600]
     prompts = parsed.get("site_prompts") if isinstance(parsed.get("site_prompts"), dict) else {}
     for key in ("clean", "worn", "worn_2"):
         value = str(prompts.get(key, "")).strip()
@@ -959,7 +970,7 @@ def run_agency(
     try:
         import casting
 
-        woman = plan.get("woman") or casting.FALLBACK_WOMAN
+        woman = plan.get("woman") or casting.fallback_woman()
         log("SITO VISUAL", f"La donna di questo pezzo: {woman}", "data")
         ai_site_images = generate_showcase_images(
             output_dir, api_key, selected_image_model, foto, plan["site_prompts"], woman, shots

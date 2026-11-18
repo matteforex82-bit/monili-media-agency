@@ -1,4 +1,5 @@
 """Missione "scheda pezzo": 3 chiamate di testo, 2 foto AI + la foto reale, AI simulata."""
+import casting
 import base64
 import io
 import json
@@ -86,9 +87,9 @@ def test_mission_makes_only_what_the_site_needs(tmp_path, monkeypatch, capsys):
     assert pack["selected_whatsapp"] == f'{PACK["whatsapp_share"]} Rif. {results["piece_code"]}' and results["piece_code"].startswith("M-")
     clean, worn = (next(p for p in image_calls if PLAN["site_prompts"][k] in p) for k in ("clean", "worn"))
     assert "WOMAN" in worn and "WOMAN" not in clean
-    assert results["woman"] == PLAN["woman"] and PLAN["woman"] in worn  # la donna la inventa il piano, una per pezzo
+    assert results["woman"] == casting.testimonial() and casting.testimonial() in worn  # testimonial fissa (Aurora), non una donna per pezzo
     assert "NEVER SHOW" in worn and "NEVER SHOW" in clean
-    assert "LA DONNA DI QUESTO PEZZO: la inventi tu" in text_calls[1]
+    assert "testimonial fissa del negozio (Aurora)" in text_calls[1]
 
 
 def test_new_mission_builds_the_site_card(tmp_path, monkeypatch, capsys):

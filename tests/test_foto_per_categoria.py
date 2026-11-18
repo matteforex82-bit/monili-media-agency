@@ -1,4 +1,5 @@
 """Le foto del sito seguono il tipo di pezzo: copertina vera, all'AI solo gli indossati."""
+import casting
 import base64
 import io
 import json
@@ -79,7 +80,7 @@ def test_clothing_gets_the_real_cover_and_two_worn_shots(tmp_path, monkeypatch, 
     assert results["category"] == "abbigliamento"
     assert [s.rsplit("/", 1)[1] for s in sites] == [main.REAL_PHOTO_NAME, main.WORN_PHOTO_NAME, "site_04_worn_2.jpg"]
     # No AI catalog photo: the real one came out clean. Two worn shots, same woman.
-    assert len(calls["image"]) == 2 and all(PLAN["woman"] in prompt for prompt in calls["image"])
+    assert len(calls["image"]) == 2 and all(casting.testimonial() in prompt for prompt in calls["image"])
     assert "WORN-ONE" in calls["image"][0] and "WORN-TWO" in calls["image"][1]
     plan_prompt = next(p for p in calls["text"] if "art director del sito vetrina" in p)
     assert "CAPO DI ABBIGLIAMENTO" in plan_prompt and '"worn_2"' in plan_prompt

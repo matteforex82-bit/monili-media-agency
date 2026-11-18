@@ -1521,7 +1521,7 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
         if category not in prompt_lab.CATEGORIES:
             category = "bijoux"
         plan = studio_main.agent_scheda_plan(text_model, api_key, look, analisi, brief, category, target)
-        woman = plan.get("woman") or casting.FALLBACK_WOMAN
+        woman = plan.get("woman") or casting.fallback_woman()
         never = casting.never_line()
         shots = ["clean"] + categorie.AI_SHOTS.get(category, ["worn"])
         finals = {

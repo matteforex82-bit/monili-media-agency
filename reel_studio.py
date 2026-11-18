@@ -640,11 +640,14 @@ def _performance_hints() -> str:
 
 def _woman(state: dict) -> str:
     """La donna di questo Reel: quella della Scheda pezzo o quella inventata dal regista, uguale in ogni scena."""
-    return state.get("woman") or casting.FALLBACK_WOMAN
+    return state.get("woman") or casting.fallback_woman()
 
 
 def _woman_block(state: dict) -> str:
     same_woman = "Usa use_model true nelle inquadrature dove compare lei: in tutto il Reel e sempre la stessa donna."
+    fixed = casting.testimonial()
+    if fixed and not state.get("woman"):
+        return f"LA DONNA DI QUESTO REEL e la testimonial fissa del negozio, non inventarne un'altra: {fixed}\n{same_woman}"
     if state.get("woman"):
         return f"DONNA DI QUESTO PEZZO (gia scelta nella Scheda pezzo, non cambiarla): {state['woman']}\n{same_woman}"
     lines = (
@@ -891,7 +894,7 @@ def plan_reel(reel_id: str, api_key: str) -> None:
         storyboard = normalize_storyboard(state, raw_storyboard)
         state.pop("api_key", None)
         # La donna inventata dal regista (se il pezzo non ne aveva già una): da qui in poi è lei.
-        woman = state.get("woman") or " ".join(str(raw_storyboard.get("woman") or "").split())[:600] or None
+        woman = state.get("woman") or casting.testimonial() or " ".join(str(raw_storyboard.get("woman") or "").split())[:600] or None
         state["storyboard"] = storyboard
         state["estimate"] = estimate_reel(state)
         log(reel_id, "REGISTA", f"Storyboard pronto: {len(storyboard['shots'])} inquadrature", "success")
