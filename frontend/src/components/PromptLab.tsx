@@ -360,7 +360,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
           <div className="step-body">
             {errorBox}
             <p className="step-hint">
-              Lo Studio guarda la foto «Principale» e la nota e scrive il prompt giusto per il modello. Non crea nessuna immagine.
+              Lo Studio guarda le foto del pezzo (fino a 4: la principale per prima) e la nota, e scrive il prompt giusto per il modello. Non crea nessuna immagine.
             </p>
             {settings}
             {busy && (

@@ -1451,6 +1451,22 @@ def _lab_engine(body: dict) -> tuple[str, str] | JSONResponse:
     return api_key, str(body.get("text_model") or "").strip() or DEFAULT_OPENROUTER_TEXT_MODEL
 
 
+MAX_LAB_PHOTOS = 4
+
+
+def _lab_photos(meta: dict, draft_id: str, main_path: Path) -> list[Path]:
+    """The photos Codex looks at: the main one, then the detail one, then the others (up to four)."""
+    ordered = [meta.get("main"), meta.get("detail"), *meta.get("photos", [])]
+    found: list[Path] = []
+    for name in ordered:
+        path = bozze_store.photo_path(draft_id, name) if name else None
+        if path and path not in found:
+            found.append(path)
+    if main_path in found:
+        found.remove(main_path)
+    return ([main_path] + found)[:MAX_LAB_PHOTOS]
+
+
 def _lab_folder(draft_id: str):
     return bozze_store.folder(draft_id)
 
@@ -1474,6 +1490,7 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
     main_path = bozze_store.photo_path(draft_id, main_name)
     if not main_path:
         return JSONResponse({"error": "La foto principale non c'è più."}, status_code=400)
+    photos = _lab_photos(meta, draft_id, main_path)
 
     body = body or {}
     engine = _lab_engine(body)
@@ -1492,11 +1509,18 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
         import casting
         import main as studio_main
 
-        analisi = studio_main.agent_analisi(text_model, api_key, main_path, note)
+        brief = note
+        if len(photos) > 1:
+            brief = (
+                f"{note}\nFOTO ALLEGATE: {len(photos)} foto dello stesso pezzo. La prima è la principale; le altre mostrano "
+                "dettaglio, retro o altri lati. Guardale tutte: ciò che si vede in una foto vale per il pezzo."
+            ).strip()
+        look = photos if len(photos) > 1 else main_path
+        analisi = studio_main.agent_analisi(text_model, api_key, look, brief)
         category = requested if requested in prompt_lab.CATEGORIES else categorie.category_from(analisi, brief=note)
         if category not in prompt_lab.CATEGORIES:
             category = "bijoux"
-        plan = studio_main.agent_scheda_plan(text_model, api_key, main_path, analisi, note, category, target)
+        plan = studio_main.agent_scheda_plan(text_model, api_key, look, analisi, brief, category, target)
         woman = plan.get("woman") or casting.FALLBACK_WOMAN
         never = casting.never_line()
         shots = ["clean"] + categorie.AI_SHOTS.get(category, ["worn"])

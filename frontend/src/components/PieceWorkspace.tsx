@@ -8,6 +8,7 @@ import { formatDraftTime, type Draft, type Progress } from '@/lib/drafts';
 import { loadSettings } from '@/lib/settings';
 
 type Step = 'foto' | LabStep;
+const MAX_SEEN = 4;
 
 interface Props {
   draft: Draft;
@@ -44,6 +45,8 @@ export default function PieceWorkspace({ draft, onBack, onUpdate, onRemoved, onS
   const done = draft.status === 'scheda_pronta';
   const running = draft.status === 'in_corso';
   const cover = draft.main || draft.photos[0];
+  // Le foto che Codex guarda, nell'ordine dello Studio: principale, dettaglio, le altre (al massimo MAX_SEEN).
+  const seen = Array.from(new Set([cover, draft.detail, ...draft.photos].filter(Boolean) as string[])).slice(0, MAX_SEEN);
 
   async function call(path: string, init: RequestInit) {
     const res = await fetch(`${API_URL}/bozze/${draft.id}${path}`, init);
@@ -185,20 +188,17 @@ export default function PieceWorkspace({ draft, onBack, onUpdate, onRemoved, onS
 
       {step !== 'foto' && cover && (
         <button type="button" className="ws-photos" onClick={() => setStep('foto')} aria-label="Vedi e cambia le foto del pezzo">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <figure>
-            <img src={photoUrl(draft, cover, 240)} alt="Foto principale" />
-            <figcaption>Principale</figcaption>
-          </figure>
-          {draft.detail && draft.detail !== cover && (
-            <figure>
+          {seen.map((name, index) => (
+            <figure key={name}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoUrl(draft, draft.detail, 240)} alt="Foto dettaglio" />
-              <figcaption>Dettaglio</figcaption>
+              <img src={photoUrl(draft, name, 240)} alt={`Foto ${index + 1} del pezzo`} />
+              <figcaption>{name === cover ? 'Principale' : name === draft.detail ? 'Dettaglio' : `Foto ${index + 1}`}</figcaption>
             </figure>
-          )}
+          ))}
           <span className="ws-photos-note">
-            Il prompt parte da {draft.detail && draft.detail !== cover ? 'queste foto' : 'questa foto'}.<br />
+            {seen.length > 1 ? `Codex guarda tutte e ${seen.length} le foto.` : 'Codex guarda questa foto.'}
+            {draft.photos.length > seen.length && ` (Ne hai ${draft.photos.length}: ne usa al massimo ${MAX_SEEN}.)`}
+            <br />
             <b>Cambia</b>
           </span>
         </button>
@@ -265,7 +265,7 @@ export default function PieceWorkspace({ draft, onBack, onUpdate, onRemoved, onS
               }}
               placeholder="Prezzo, pietra, misura, colore"
             />
-            <p className="step-hint">Lo Studio usa la foto «Principale» e, se c&apos;è, quella «Dettaglio»; la nota guida il prompt.</p>
+            <p className="step-hint">Codex guarda fino a 4 foto: prima la «Principale», poi il «Dettaglio», poi le altre. La nota guida il prompt.</p>
           </div>
           <div className="action-bar">
             <button type="button" className="btn-mission" onClick={() => setStep('prompt')}>

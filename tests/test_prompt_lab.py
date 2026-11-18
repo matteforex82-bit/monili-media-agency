@@ -221,3 +221,33 @@ def test_progress_says_what_to_do_next(monkeypatch):
     listed = {i["id"]: i for i in client.get("/bozze").json()["items"]}[draft["id"]]
     assert listed["progress"]["stage"] == "carica"
     client.delete(f"/bozze/{draft['id']}")
+
+
+def test_all_photos_of_the_piece_reach_the_analysis(monkeypatch):
+    seen = {}
+
+    def fake_analisi(model, key, look, brief):
+        seen["look"] = look
+        seen["brief"] = brief
+        return "## IDENTIFICAZIONE"
+
+    monkeypatch.setattr(studio_main, "agent_analisi", fake_analisi)
+    monkeypatch.setattr(
+        studio_main,
+        "agent_scheda_plan",
+        lambda model, key, look, analisi, brief, category, target="": {
+            "styling": "", "woman": "w", "site_prompts": {"clean": "c", "worn": "w"}
+        },
+    )
+    files = [("foto", (f"{n}.jpg", _jpeg((n * 40, 90, 160)), "image/jpeg")) for n in range(1, 4)]
+    draft = client.post("/bozze", files=files, data={"nota": "giacca"}).json()
+    client.post(f"/bozze/{draft['id']}/prompt", json={"category": "abbigliamento", "model": "Seedream"})
+    assert isinstance(seen["look"], list) and len(seen["look"]) == 3
+    assert seen["look"][0].name == draft["main"] and "FOTO ALLEGATE: 3" in seen["brief"]
+    client.delete(f"/bozze/{draft['id']}")
+
+    # a piece with one photo keeps the single-photo call
+    one = client.post("/bozze", files=files[:1], data={"nota": "anello"}).json()
+    client.post(f"/bozze/{one['id']}/prompt", json={"category": "bijoux", "model": "Seedream"})
+    assert not isinstance(seen["look"], list) and "FOTO ALLEGATE" not in seen["brief"]
+    client.delete(f"/bozze/{one['id']}")

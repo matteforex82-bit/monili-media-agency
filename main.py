@@ -187,15 +187,17 @@ def generate_text_with_openrouter(
     api_key: str,
     model: str,
     prompt: str,
-    image_path: Path | None = None,
+    image_path: Path | list[Path] | None = None,
     max_tokens: int = 2048,
 ) -> str:
+    images = [image_path] if isinstance(image_path, Path) else list(image_path or [])
     if str(model).startswith(CODEX_PREFIX):
         # the local Codex (the owner's ChatGPT plan, no per-token bill): same call, another engine.
-        # Errors are raised, not hidden in the text, so the Studio can show them.
+        # It sees all the photos of the piece. Errors are raised, not hidden in the text, so the Studio can show them.
         import fucina_codex
 
-        return fucina_codex.run(prompt, [image_path] if image_path else [], str(model)[len(CODEX_PREFIX):])
+        return fucina_codex.run(prompt, images, str(model)[len(CODEX_PREFIX):])
+    image_path = images[0] if images else None  # OpenRouter: only the first photo
     try:
         payload = openrouter_chat_completion(
             api_key=api_key,
