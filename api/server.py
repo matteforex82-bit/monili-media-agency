@@ -1276,7 +1276,11 @@ async def draft_create(foto: list[UploadFile] = File(...), nota: str = Form(defa
 @app.get("/bozze")
 def draft_list():
     bozze_store.reset_stale({job_id for job_id, job in jobs.items() if job.get("status") == "running"})
-    return {"items": bozze_store.list()}
+    items = bozze_store.list()
+    for item in items:
+        folder = bozze_store.folder(item["id"])
+        item["progress"] = prompt_lab.progress(prompt_lab.store.read(folder) if folder else None)
+    return {"items": items}
 
 
 @app.get("/bozze/{draft_id}/scarica")
@@ -1413,7 +1417,7 @@ import tempfile  # noqa: E402
 
 
 def _lab_public(draft_id: str, lab: dict | None) -> dict:
-    return {"draft_id": draft_id, "lab": lab, "library": prompt_lab.library_summary()}
+    return {"draft_id": draft_id, "lab": lab, "progress": prompt_lab.progress(lab), "library": prompt_lab.library_summary()}
 
 
 def _video_frames(video: Path, out_dir: Path, count: int = 3) -> list[Path]:

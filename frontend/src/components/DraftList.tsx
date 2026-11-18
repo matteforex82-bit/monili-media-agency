@@ -1,11 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useCallback, useEffect, useImperativeHandle, useState, forwardRef } from 'react';
+import PieceWorkspace from '@/components/PieceWorkspace';
 import { API_URL } from '@/lib/apiUrl';
-import PromptLab from '@/components/PromptLab';
 import { formatDraftTime, type Draft } from '@/lib/drafts';
-import { loadSettings } from '@/lib/settings';
 
 export interface DraftListHandle {
   refresh: () => void;
@@ -14,18 +12,44 @@ export interface DraftListHandle {
 interface Props {
   // Called with the job id when "Crea la scheda" starts the work (the page then follows it).
   onStarted: (jobId: string) => void;
+  // The page hides the photo capture while a piece is open.
+  onOpenChange?: (open: boolean) => void;
 }
 
-const photoUrl = (draft: Draft, name: string, width = 480) =>
-  `${API_URL}/bozze/${draft.id}/foto/${encodeURIComponent(name)}?w=${width}`;
+const photoUrl = (draft: Draft, name: string, width = 360) => `${API_URL}/bozze/${draft.id}/foto/${encodeURIComponent(name)}?w=${width}`;
 
-// The pieces saved in the shop, waiting for their Scheda pezzo.
-const DraftList = forwardRef<DraftListHandle, Props>(function DraftList({ onStarted }, ref) {
+type Filter = 'tutti' | 'prompt' | 'crea' | 'valuta';
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: 'tutti', label: 'Tutti' },
+  { key: 'prompt', label: 'Prompt da fare' },
+  { key: 'crea', label: 'Foto da creare' },
+  { key: 'valuta', label: 'Da valutare' },
+];
+
+// «prossimo passo» di un pezzo: il testo della pillola e il suo colore (grigio = da iniziare, ocra = in attesa, verde = pronto)
+function nextStep(draft: Draft): { label: string; tone: 'todo' | 'wait' | 'ready'; filter: Filter } {
+  if (draft.status === 'scheda_pronta') return { label: 'Scheda pronta', tone: 'ready', filter: 'tutti' };
+  if (draft.status === 'in_corso') return { label: 'Scheda in preparazione', tone: 'wait', filter: 'tutti' };
+  switch (draft.progress?.stage) {
+    case 'crea':
+      return { label: 'Foto da creare su Higgsfield', tone: 'wait', filter: 'crea' };
+    case 'carica':
+      return { label: 'Carica il risultato', tone: 'wait', filter: 'crea' };
+    case 'valuta':
+      return { label: 'Da valutare', tone: 'ready', filter: 'valuta' };
+    case 'fatto':
+      return { label: 'Valutata', tone: 'ready', filter: 'tutti' };
+    default:
+      return { label: 'Prompt da fare', tone: 'todo', filter: 'prompt' };
+  }
+}
+
+// I pezzi salvati in negozio: un elenco che dice cosa manca a ciascuno, e il pezzo aperto come spazio di lavoro.
+const DraftList = forwardRef<DraftListHandle, Props>(function DraftList({ onStarted, onOpenChange }, ref) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [error, setError] = useState('');
-  const [open, setOpen] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>('tutti');
 
   const refresh = useCallback(() => {
     fetch(`${API_URL}/bozze`, { cache: 'no-store' })
@@ -45,6 +69,10 @@ const DraftList = forwardRef<DraftListHandle, Props>(function DraftList({ onStar
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    onOpenChange?.(openId !== null);
+  }, [openId, onOpenChange]);
+
   // While a Scheda is being made, look again now and then.
   useEffect(() => {
     if (!drafts?.some((draft) => draft.status === 'in_corso')) return;
@@ -54,77 +82,33 @@ const DraftList = forwardRef<DraftListHandle, Props>(function DraftList({ onStar
 
   const replace = (next: Draft) => setDrafts((list) => (list ? list.map((d) => (d.id === next.id ? next : d)) : list));
 
-  async function call(draft: Draft, path: string, init: RequestInit) {
-    const res = await fetch(`${API_URL}/bozze/${draft.id}${path}`, init);
-    const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
-    return data;
-  }
-
-  async function saveChoices(draft: Draft, patch: Partial<Pick<Draft, 'note' | 'main' | 'detail'>>) {
-    try {
-      replace(await call(draft, '', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) }));
-    } catch (err) {
-      setError(`Non sono riuscito a salvare la modifica: ${err instanceof Error ? err.message : err}`);
-    }
-  }
-
-  async function create(draft: Draft) {
-    setBusy(draft.id);
-    setError('');
-    try {
-      const settings = loadSettings();
-      const data = await call(draft, '/crea', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text_model: settings.textModel, image_model: settings.imageModel }),
-      });
-      onStarted(data.job_id);
-    } catch (err) {
-      setError(`Non riesco a creare la scheda: ${err instanceof Error ? err.message : err}`);
-      refresh();
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function remove(draft: Draft) {
-    setBusy(draft.id);
-    try {
-      await call(draft, '', { method: 'DELETE' });
-      setDrafts((list) => (list ? list.filter((d) => d.id !== draft.id) : list));
-      setConfirming(null);
-      setOpen(null);
-    } catch (err) {
-      setError(`Non sono riuscito a eliminare: ${err instanceof Error ? err.message : err}`);
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function removePhoto(draft: Draft, name: string) {
-    try {
-      replace(await call(draft, `/foto/${encodeURIComponent(name)}`, { method: 'DELETE' }));
-    } catch (err) {
-      setError(`Non sono riuscito a togliere la foto: ${err instanceof Error ? err.message : err}`);
-    }
-  }
-
-  async function addPhotos(draft: Draft, files: FileList | null) {
-    if (!files || files.length === 0) return;
-    const form = new FormData();
-    Array.from(files).forEach((file) => form.append('foto', file));
-    try {
-      replace(await call(draft, '/foto', { method: 'POST', body: form }));
-    } catch (err) {
-      setError(`Non sono riuscito ad aggiungere la foto: ${err instanceof Error ? err.message : err}`);
-    }
-  }
-
-  const todo = drafts?.filter((d) => d.status !== 'scheda_pronta') ?? [];
-  const ready = drafts?.filter((d) => d.status === 'scheda_pronta') ?? [];
-
   if (drafts === null && !error) return <p className="page-lead">Carico i pezzi salvati...</p>;
+
+  const open = openId ? drafts?.find((d) => d.id === openId) : undefined;
+  if (open) {
+    return (
+      <PieceWorkspace
+        key={open.id}
+        draft={open}
+        onBack={() => {
+          setOpenId(null);
+          refresh();
+        }}
+        onUpdate={replace}
+        onRemoved={(id) => {
+          setDrafts((list) => (list ? list.filter((d) => d.id !== id) : list));
+          setOpenId(null);
+        }}
+        onStarted={onStarted}
+      />
+    );
+  }
+
+  const all = drafts ?? [];
+  const todo = all.filter((d) => d.status !== 'scheda_pronta');
+  const ready = all.filter((d) => d.status === 'scheda_pronta');
+  const count = (f: Filter) => (f === 'tutti' ? todo.length : todo.filter((d) => nextStep(d).filter === f).length);
+  const shown = (filter === 'tutti' ? todo : todo.filter((d) => nextStep(d).filter === filter)).concat(filter === 'tutti' ? ready : []);
 
   return (
     <section className="drafts" aria-label="Pezzi salvati da lavorare">
@@ -138,141 +122,47 @@ const DraftList = forwardRef<DraftListHandle, Props>(function DraftList({ onStar
       )}
       {drafts && todo.length === 0 && <p className="page-lead">Niente in attesa. I pezzi che salvi dal negozio compaiono qui.</p>}
 
+      {todo.length > 0 && (
+        <div className="filter-chips" role="group" aria-label="Filtra per passo">
+          {FILTERS.map((f) => (
+            <button key={f.key} type="button" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
+              {f.label} <b>{count(f.key)}</b>
+            </button>
+          ))}
+        </div>
+      )}
+      {todo.length > 0 && shown.length === 0 && <p className="page-lead">Nessun pezzo in questo passo.</p>}
+
       <ul className="draft-list">
-        {[...todo, ...ready].map((draft) => {
+        {shown.map((draft) => {
           const cover = draft.main || draft.photos[0];
-          const isOpen = open === draft.id;
-          const running = draft.status === 'in_corso';
-          const done = draft.status === 'scheda_pronta';
           const facts = draft.facts || {};
+          const step = nextStep(draft);
           return (
-            <li key={draft.id} className={`draft ${done ? 'draft-done' : ''}`}>
-              <button type="button" className="draft-head" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : draft.id)}>
+            <li key={draft.id} className={`draft ${draft.status === 'scheda_pronta' ? 'draft-done' : ''}`}>
+              <button type="button" className="draft-head" onClick={() => setOpenId(draft.id)}>
                 {cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoUrl(draft, cover, 360)} alt="" loading="lazy" />
+                  <img src={photoUrl(draft, cover)} alt="" loading="lazy" />
                 ) : (
                   <span className="piece-thumb-empty" />
                 )}
                 <span className="draft-text">
+                  <span className="draft-note">{draft.note || 'Nessuna nota'}</span>
                   <span className="draft-chips">
                     {facts.pietre?.map((stone) => (
-                      <span className="chip" key={stone}>{stone}</span>
+                      <span className="chip" key={stone}>
+                        {stone}
+                      </span>
                     ))}
                     {facts.prezzo !== undefined && <span className="chip chip-price">{facts.prezzo} €</span>}
                     {facts.misura && <span className="chip">mis. {facts.misura}</span>}
                   </span>
-                  <span className="draft-note">{draft.note || 'Nessuna nota'}</span>
                   <span className="draft-meta">
-                    {formatDraftTime(draft.created_at)} · {draft.photos.length} foto
-                    {running && ' · scheda in preparazione'}
-                    {done && ' · scheda pronta'}
+                    <span className={`step-pill step-${step.tone}`}>{step.label}</span> {formatDraftTime(draft.created_at)} · {draft.photos.length} foto
                   </span>
                 </span>
               </button>
-
-              {draft.error && !running && !done && <p className="draft-error">{draft.error}</p>}
-
-              {isOpen && (
-                <div className="draft-body">
-                  <div className="draft-photos">
-                    {draft.photos.map((name) => (
-                      <div className="draft-photo" key={name}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photoUrl(draft, name)} alt="" loading="lazy" />
-                        <div className="draft-photo-actions">
-                          <button type="button" className="chip-btn" aria-pressed={draft.main === name} onClick={() => saveChoices(draft, { main: name })}>
-                            Principale
-                          </button>
-                          <button
-                            type="button"
-                            className="chip-btn"
-                            aria-pressed={draft.detail === name}
-                            disabled={draft.main === name}
-                            onClick={() => saveChoices(draft, { detail: draft.detail === name ? '' : name })}
-                          >
-                            Dettaglio
-                          </button>
-                          <a
-                            className="chip-btn"
-                            href={`${API_URL}/bozze/${draft.id}/foto/${encodeURIComponent(name)}?scarica=1`}
-                            download
-                            style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
-                          >
-                            Scarica
-                          </a>
-                          {draft.photos.length > 1 && (
-                            <button type="button" className="chip-btn" onClick={() => removePhoto(draft, name)} aria-label="Togli questa foto">
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {draft.photos.length < 8 && (
-                      <label className="quick-add draft-add">
-                        <span aria-hidden="true">+</span>
-                        Foto
-                        <input type="file" accept="image/*,.heic,.heif" multiple onChange={(e) => { void addPhotos(draft, e.target.files); e.target.value = ''; }} />
-                      </label>
-                    )}
-                  </div>
-
-                  <label className="field-label" htmlFor={`note-${draft.id}`}>Nota</label>
-                  <textarea
-                    id={`note-${draft.id}`}
-                    className="brief-area"
-                    rows={3}
-                    defaultValue={draft.note}
-                    onBlur={(e) => {
-                      if (e.target.value.trim() !== draft.note) void saveChoices(draft, { note: e.target.value });
-                    }}
-                    placeholder="Prezzo, pietra, misura, colore"
-                  />
-                  <p className="draft-hint">
-                    Alla creazione uso la foto «Principale» e, se c&apos;è, quella «Dettaglio»; la nota guida la scheda.
-                  </p>
-
-                  <PromptLab draftId={draft.id} mainPhoto={cover ?? ""} />
-
-                  <div className="draft-actions">
-                    {done && draft.run_id ? (
-                      <Link href={`/pezzi/${encodeURIComponent(draft.run_id)}`} className="btn-mission" style={{ textDecoration: 'none' }}>
-                        Apri la scheda
-                      </Link>
-                    ) : (
-                      <button type="button" className="btn-mission" disabled={busy === draft.id || running} onClick={() => create(draft)}>
-                        {running ? 'In preparazione...' : busy === draft.id ? 'Avvio...' : 'Crea la scheda'}
-                      </button>
-                    )}
-                    <a
-                      className="btn-secondary"
-                      href={`${API_URL}/bozze/${draft.id}/scarica`}
-                      download
-                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
-                    >
-                      Scarica tutte (originali)
-                    </a>
-                    <button type="button" className="btn-secondary" onClick={() => setConfirming(confirming === draft.id ? null : draft.id)}>
-                      Elimina
-                    </button>
-                  </div>
-
-                  {confirming === draft.id && (
-                    <div className="piece-confirm" role="group" aria-label="Conferma eliminazione">
-                      <p>Tolgo questo pezzo salvato? Finisce nel cestino sul PC.</p>
-                      <div>
-                        <button type="button" className="btn-mission" disabled={busy === draft.id} onClick={() => remove(draft)}>
-                          Sì, elimina
-                        </button>
-                        <button type="button" className="btn-secondary" onClick={() => setConfirming(null)}>
-                          Annulla
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </li>
           );
         })}

@@ -196,3 +196,28 @@ def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkey
     edited = client.put(f"/bozze/{did}/prompt/scena_2", json={"text": "closer on the embroidery"}).json()["lab"]
     assert edited["scenes"]["scena_2"]["edited"] is True
     client.delete(f"/bozze/{did}")
+
+
+def test_progress_says_what_to_do_next(monkeypatch):
+    assert prompt_lab.progress(None)["stage"] == "prompt"
+    lab = {"attempts": []}
+    assert prompt_lab.progress(lab)["stage"] == "crea" and prompt_lab.progress(lab)["done"]["prompt"] is True
+    lab["attempts"].append({"id": "a", "result": "", "rating": 0})
+    assert prompt_lab.progress(lab)["stage"] == "carica"
+    lab["attempts"][0]["result"] = "r.jpg"
+    assert prompt_lab.progress(lab)["stage"] == "valuta" and prompt_lab.progress(lab)["done"]["generare"] is True
+    lab["attempts"][0]["rating"] = 4
+    done = prompt_lab.progress(lab)
+    assert done["stage"] == "fatto" and done["done"]["valutare"] is True and done["label"] == "Valutata"
+
+    # the list of drafts and the lab payload carry it
+    _fake_agents(monkeypatch)
+    draft = _draft()
+    listed = {i["id"]: i for i in client.get("/bozze").json()["items"]}[draft["id"]]
+    assert listed["progress"]["stage"] == "prompt"
+    client.post(f"/bozze/{draft['id']}/prompt", json={"category": "bijoux", "model": "Seedream"})
+    payload = client.post(f"/bozze/{draft['id']}/prove", json={"shot": "worn"}).json()
+    assert payload["progress"]["stage"] == "carica"
+    listed = {i["id"]: i for i in client.get("/bozze").json()["items"]}[draft["id"]]
+    assert listed["progress"]["stage"] == "carica"
+    client.delete(f"/bozze/{draft['id']}")

@@ -394,3 +394,35 @@ JSON esatto:
   "idea": "una frase in italiano: il filo del video",
   "scene": {{"scena_1": "...", "scena_2": "...", "scena_3": "..."}}
 }}"""
+
+
+# -- a che punto è il pezzo (lista e spazio di lavoro) ----------------------------------------------------------------
+STAGE_LABELS = {
+    "prompt": "Prompt da fare",
+    "crea": "Foto da creare su Higgsfield",
+    "carica": "Carica il risultato",
+    "valuta": "Da valutare",
+    "fatto": "Valutata",
+}
+
+
+def progress(lab: dict | None) -> dict:
+    """The next thing to do for a piece, from its lab: prompt, create the photo by hand, upload it, rate it."""
+    attempts = (lab or {}).get("attempts", [])
+    with_result = [a for a in attempts if a.get("result")]
+    rated = [a for a in with_result if a.get("rating")]
+    if not lab:
+        stage = "prompt"
+    elif not attempts:
+        stage = "crea"
+    elif any(not a.get("rating") for a in with_result):
+        stage = "valuta"
+    elif any(not a.get("result") for a in attempts):
+        stage = "carica"
+    else:
+        stage = "fatto"
+    return {
+        "stage": stage,
+        "label": STAGE_LABELS[stage],
+        "done": {"prompt": bool(lab), "generare": bool(with_result), "valutare": bool(rated)},
+    }
