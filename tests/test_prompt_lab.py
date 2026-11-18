@@ -361,3 +361,17 @@ def test_each_kind_of_piece_has_its_own_review_sheet():
     # every sheet has both sections
     for kind in ("anello", "orecchini", "collana", "bracciale", "capo", "borsa", "foulard"):
         assert prompt_lab.review_sheet(kind, "clean") and prompt_lab.review_sheet(kind, "worn"), kind
+
+
+def test_brand_rules_come_from_one_file_and_promise_no_fixed_days():
+    import main as studio_main
+
+    text = studio_main.BRAND
+    assert "I Monili Ravenna" in text and studio_main.SEASON in text and "{SEASON}" not in text
+    assert "Martedi" not in text and "nessun giorno" in text.lower()
+    assert all(tag in text for tag in studio_main.FIXED_HASHTAGS)
+    import reel_studio
+
+    assert reel_studio.FIXED_HASHTAGS is studio_main.FIXED_HASHTAGS
+    assert studio_main.MAX_REEL_EXTRA_HASHTAGS == 5 and studio_main.MAX_EXTRA_HASHTAGS == 2
+    assert "Mar/Gio/Sab" not in open("reel_studio.py", encoding="utf-8").read()

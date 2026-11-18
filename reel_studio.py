@@ -29,6 +29,8 @@ import skills_loader as skills
 from piece_code import add_reference, piece_code
 from main import (
     BRAND,
+    FIXED_HASHTAGS,
+    MAX_REEL_EXTRA_HASHTAGS,
     MEMORY_ROOT,
     OUTPUT_ROOT,
     SEASON,
@@ -441,7 +443,6 @@ CLOSING_SECONDS = 2.5
 CLOSING_FADE = "dissolve"
 EXTERNAL_MAX_SECONDS = WEB_REEL_MAX_SECONDS - CLOSING_SECONDS
 FONT_DIR = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
-FIXED_HASHTAGS = ["#imoniliravenna", "#ravenna", "#romagnastyle"]
 
 
 def probe_size(path: Path) -> tuple[int, int]:
@@ -1159,16 +1160,16 @@ Rispondi SOLO con JSON valido:
   "first_comment": "primo commento da pubblicare",
   "story_stickers": ["idea sticker sondaggio/domanda 1", "idea 2"],
   "music_suggestion": "che tipo di audio di tendenza cercare su Instagram",
-  "best_slot": "giorno e ora consigliati (Mar/Gio/Sab 18:30-20:00)",
+  "best_slot": "momento consigliato per pubblicare; nessun giorno fisso promesso, se non sei sicuro scrivi 'da verificare'",
   "alt_text": "descrizione accessibile del video"
 }}"""
     raw = generate_text_with_openrouter(api_key, state["text_model"], prompt, max_tokens=1600)
     copy = extract_json_object(raw)
     if not copy:
         copy = {"caption": raw}
-    fixed = ["#imoniliravenna", "#ravenna", "#romagnastyle"]
+    fixed = list(FIXED_HASHTAGS)
     tags = [str(t).strip() for t in copy.get("hashtags") or [] if str(t).strip()]
-    copy["hashtags"] = (fixed + [t for t in tags if t.lower() not in fixed])[:14]
+    copy["hashtags"] = (fixed + [t for t in tags if t.lower() not in fixed])[: len(fixed) + MAX_REEL_EXTRA_HASHTAGS]
     return _with_piece_code(state, copy)
 
 
