@@ -583,7 +583,7 @@ DETAIL_PHOTO_NAME = "site_05_detail.jpg"
 VARIANTS_PHOTO_NAME = "site_06_variants.jpg"  # real photo of the colour options, cleaned on the PC
 VARIANTS_AI_PHOTO_NAME = "site_07_variants_ai.jpg"  # the same options tidied by the AI (only when the real one does not fit)
 # Photos made by the AI: the site labels them "AI" when they are sent.
-AI_WORN_PHOTO_NAMES = (WORN_PHOTO_NAME, SITE_IMAGE_SPECS["worn_2"][1], VARIANTS_AI_PHOTO_NAME)
+AI_WORN_PHOTO_NAMES = (SITE_IMAGE_SPECS["clean"][1], WORN_PHOTO_NAME, SITE_IMAGE_SPECS["worn_2"][1], VARIANTS_AI_PHOTO_NAME)
 
 
 def generate_image_with_fallback(api_key: str, model: str, prompt: str, foto: Path | list[Path], label: str) -> list[str]:

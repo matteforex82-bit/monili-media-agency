@@ -319,6 +319,17 @@ class LabStore:
         record(snapshot, category, draft_id)
         return lab
 
+    def mark_site(self, folder: Path, attempt_id: str, run_id: str, name: str) -> dict | None:
+        """The owner said OK: this photo went to the piece's site photos."""
+        with _lock:
+            lab = self.read(folder)
+            attempt = self._attempt(lab, attempt_id) if lab else None
+            if not attempt:
+                return None
+            attempt["site"] = {"run_id": run_id, "name": name, "at": _now()}
+            self._write(folder, lab)
+        return lab
+
     def delete_attempt(self, folder: Path, attempt_id: str) -> dict | None:
         with _lock:
             lab = self.read(folder)

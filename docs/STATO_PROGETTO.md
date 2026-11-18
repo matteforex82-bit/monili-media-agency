@@ -230,4 +230,5 @@ Fatto finora:
 - **Foto per canale:** `channels.py` + `knowledge/formati-canali.md`, `GET /canali` e `/bozze/{id}/prove/{id}/canale/{canale}`, link «Scarica per canale» nel passo Valutare. Le misure di Google e Tripadvisor sono `[fonte]` (siti di terzi), da verificare sulle pagine ufficiali.
 - **Testi per piattaforma:** `knowledge/testi/*.md` (stile umano da skill humanizer, sito, WhatsApp, Google Business, Instagram, Tripadvisor) iniettati nel prompt dei testi; nuovo campo `tripadvisor_text` nella Scheda. Non passa ancora da un secondo giro di riscrittura con la skill: solo regole nel prompt.
 - Test: 167 passati, `tsc` pulito. Non provato a schermo né con generazioni vere.
-Da fare (Fase 1): pulsante «Vai al sito» sulla foto (indipendente dal voto); poi Fase 2 (percorso unico bozze+pezzi) e Fase 3 (automazione MCP).
+- **Vai al sito (19/11):** pulsante nel passo Valutare, indipendente dal voto: la foto (catalogo o indossata) diventa foto del sito 4:5 del pezzo (`POST /bozze/{id}/prove/{id}/sito`), nella stessa scheda del pezzo (creata se non c'è); la foto catalogo AI porta ora l'etichetta «AI». Il pezzo creato così non ha ancora i testi (Fase 2).
+Fase 1 completata. Da fare: Fase 2 (percorso unico bozze+pezzi) e Fase 3 (automazione MCP).

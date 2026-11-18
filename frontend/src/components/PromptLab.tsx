@@ -30,6 +30,7 @@ interface Attempt {
   rating: number;
   note: string;
   critique?: Critique;
+  site?: { run_id: string; name: string };
 }
 
 interface Lab {
@@ -704,6 +705,23 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
                   }
                 }}
               />
+              {!isVideo(attempt.result) && ['clean', 'worn', 'worn_2'].includes(attempt.shot) && (
+                <div className="lab-site">
+                  {attempt.site ? (
+                    <p className="step-hint">
+                      Sul sito come foto del pezzo ✓ <a href={`/pezzi/${encodeURIComponent(attempt.site.run_id)}`}>Apri il pezzo</a>
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => run(() => request(`/prove/${attempt.id}/sito`, { method: 'POST' }), 'Non sono riuscito a mandarla al sito')}
+                    >
+                      Vai al sito (è ok così)
+                    </button>
+                  )}
+                </div>
+              )}
               {!isVideo(attempt.result) && channels.length > 0 && (
                 <details className="lab-channels">
                   <summary>Scarica per canale (Google, Tripadvisor, Instagram, sito)</summary>

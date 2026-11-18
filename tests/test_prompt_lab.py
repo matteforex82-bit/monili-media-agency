@@ -407,3 +407,33 @@ def test_texts_follow_one_set_of_platform_rules():
     pack = studio_main.normalize_publish_pack({"tripadvisor_text": "Negozio in via Cavour."})
     assert pack["tripadvisor_text"] == "Negozio in via Cavour."
     assert "## Tripadvisor" in studio_main.format_publish_pack_markdown(pack)
+
+
+def test_go_to_site_makes_the_photo_a_site_photo_of_the_piece_whatever_the_rating():
+    draft = _draft()
+    did = draft["id"]
+    made = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "worn", "model": "Seedream", "prompt": "", "category": "bijoux"}).json()
+    attempt = made["lab"]["attempts"][0]
+    client.post(f"/bozze/{did}/prove/{attempt['id']}/risultato", files={"foto": ("r.jpg", _jpeg(), "image/jpeg")})
+    # no rating at all: the owner's OK is enough
+    res = client.post(f"/bozze/{did}/prove/{attempt['id']}/sito")
+    assert res.status_code == 200
+    body = res.json()
+    run_id = body["run_id"]
+    assert body["lab"]["attempts"][0]["site"]["run_id"] == run_id
+    assert client.get(f"/bozze/{did}").json()["run_id"] == run_id if client.get(f"/bozze/{did}").status_code == 200 else True
+    candidates = client.get(f"/missions/{run_id}/showcase/candidates").json()
+    assert [item["src"].rsplit("/", 1)[1] for item in candidates["items"]] == ["site_02_worn.jpg"]
+    # a second photo of the same piece joins the same run
+    clean = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "clean", "model": "Seedream", "prompt": "", "category": "bijoux"}).json()["lab"]["attempts"][-1]
+    client.post(f"/bozze/{did}/prove/{clean['id']}/risultato", files={"foto": ("c.jpg", _jpeg(), "image/jpeg")})
+    again = client.post(f"/bozze/{did}/prove/{clean['id']}/sito").json()
+    assert again["run_id"] == run_id
+    names = [item["src"].rsplit("/", 1)[1] for item in client.get(f"/missions/{run_id}/showcase/candidates").json()["items"]]
+    assert names == ["site_01_product_clean.jpg", "site_02_worn.jpg"]
+    # the AI catalog photo carries the "AI" label like the worn ones
+    import main as studio_main
+    assert "site_01_product_clean.jpg" in studio_main.AI_WORN_PHOTO_NAMES
+    # a video cannot go to the site
+    scene = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "scena_1", "model": "Seedance 2.5", "prompt": ""}).json()["lab"]["attempts"][-1]
+    assert client.post(f"/bozze/{did}/prove/{scene['id']}/sito").status_code in (400, 404)

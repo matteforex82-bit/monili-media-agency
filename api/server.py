@@ -1647,6 +1647,65 @@ async def lab_attempt_result(draft_id: str, attempt_id: str, foto: UploadFile = 
     return _lab_public(draft_id, prompt_lab.store.set_result(folder, attempt_id, saved.name))
 
 
+SITE_SHOTS = {"clean": 1, "worn": 2, "worn_2": 4}  # same numbering as main.SITE_IMAGE_SPECS
+
+
+@app.post("/bozze/{draft_id}/prove/{attempt_id}/sito")
+def lab_attempt_to_site(draft_id: str, attempt_id: str):
+    """«Vai al sito»: the owner's OK (the rating does not matter). The photo becomes a site photo of the piece (4:5),
+    on the piece's run (created here if the draft has none), ready for the usual «invia al sito» of the piece page."""
+    import channels
+    import main as studio_main
+
+    meta = bozze_store.get(draft_id)
+    folder = _lab_folder(draft_id)
+    lab = prompt_lab.store.read(folder) if folder else None
+    attempt = prompt_lab.store.get_attempt(folder, attempt_id) if folder else None
+    if not meta or not lab or not attempt or not attempt.get("result"):
+        return JSONResponse({"error": "Prova non trovata"}, status_code=404)
+    number = SITE_SHOTS.get(attempt.get("shot", ""))
+    path = folder / prompt_lab.RESULTS_DIR / attempt["result"]
+    if not number or path.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS or not path.is_file():
+        return JSONResponse({"error": "Al sito vanno le foto (catalogo o indossata), non i video."}, status_code=400)
+
+    run_id = str(meta.get("run_id") or "")
+    found = _find_manifest_by_run_id(run_id) if run_id else None
+    if found:
+        manifest_path, manifest = found
+    else:
+        run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+        run_dir = OUTPUT_DIR / f"{run_id}_{draft_id}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = run_dir / "run_manifest.json"
+        main_name = meta.get("main") or (meta["photos"][0] if meta["photos"] else "")
+        manifest = {
+            "run_id": run_id,
+            "created_at": datetime.now().isoformat(),
+            "source_photo": str(bozze_store.photo_path(draft_id, main_name) or ""),
+            "brief": meta.get("note", ""),
+            "output_dir": str(run_dir),
+            "status": "done",
+            "results": {
+                "kind": "scheda_pezzo",
+                "piece_code": studio_main.piece_code(run_id),
+                "category": lab.get("category") or "bijoux",
+                "analisi": f"# Scheda Prodotto\n\n{lab.get('analisi', '')}",
+                "source": "fucina",
+            },
+        }
+    run_dir = manifest_path.parent
+    name = studio_main.SITE_IMAGE_SPECS[attempt["shot"]][1]
+    final_dir = run_dir / "07_SHOWCASE"
+    final_dir.mkdir(parents=True, exist_ok=True)
+    channels.export_for_channel(path, "sito", final_dir / name)
+    results = manifest.setdefault("results", {})
+    results[f"image_site_{number}"] = f"{run_dir.name}/07_SHOWCASE/{name}"
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    bozze_store.update(draft_id, status=bozze.STATUS_DONE, run_id=run_id, error="")
+    updated = prompt_lab.store.mark_site(folder, attempt_id, run_id, name)
+    return {**_lab_public(draft_id, updated), "run_id": run_id}
+
+
 @app.get("/canali")
 def channel_formats():
     import channels
