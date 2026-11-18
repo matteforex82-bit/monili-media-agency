@@ -13,6 +13,8 @@ Etichette: [verificato] = visto nei test di Matteo; [fonte] = dalla ricerca (rep
 - Una sola modifica per turno, ripetendo ogni volta cosa non deve cambiare. Il drift cresce se chiedi più cose insieme. [fonte: report 13/11; Playbook 13/11]
 - Ogni immagine allegata ha un ruolo scritto ("Image 1: il capo vero, Image 3: solo volto e capelli"). Mai citare immagini non allegate ("image 4"): il modello le ignora o inventa. [verificato: 16/11, errore visto]
 - Il solo riferimento visivo non basta per un capo: va descritto a parole (tessuto, colori, motivo, collo, zip, orlo). [verificato: 16/11, giacca reinterpretata senza descrizione: base quasi nera, fiori tondi, capo troppo lungo]
+- Se nel prompt descrivi un capo diverso da quello delle foto, vince la descrizione: con tre foto di una giacca a quadri marrone e la descrizione di una giacca verde ricamata, Seedream 5.0 lite ha disegnato la giacca verde. La descrizione deve essere del pezzo vero, scritta guardando le sue foto. [verificato: 18/11, prova di Matteo]
+- Il testo scritto nell'immagine esce solo se lo chiedi: parole esatte tra virgolette, e senza "No text" nel prompt. Seedream 5.0 Pro, Flash e 5.5 scrivono bene il testo in più lingue; per la Lite non è documentato. Controllare ogni lettera e gli accenti. [fonte: report 13/11; prova con "No text": nessun testo, come previsto]
 - Foto intera, frontale e nitida del capo come riferimento, non solo dettagli piccoli. [verificato: 16/11, stessa prova]
 - Descrivere materiali veri ("sterling silver", "velvet", "sherpa"), mai aggettivi vuoti ("8k", "masterpiece", "hyperrealistic"). [fonte: report 13/11; Playbook]
 

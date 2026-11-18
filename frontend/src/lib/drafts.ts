@@ -5,6 +5,12 @@ export interface DraftFacts {
   pietre?: string[];
 }
 
+export interface Progress {
+  stage: 'prompt' | 'crea' | 'carica' | 'valuta' | 'fatto';
+  label: string;
+  done: { prompt: boolean; generare: boolean; valutare: boolean };
+}
+
 export interface Draft {
   id: string;
   created_at: string;
@@ -17,6 +23,7 @@ export interface Draft {
   run_id: string;
   error: string;
   facts: DraftFacts;
+  progress?: Progress;
 }
 
 export const ACTIVE_JOB_STORAGE_KEY = 'monili_active_job_id';

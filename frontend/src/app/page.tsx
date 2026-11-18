@@ -52,6 +52,8 @@ export default function NewPiecePage() {
   // Di base si salva per dopo (in negozio); «subito» è il flusso di prima: foto, scheda, attesa.
   const [mode, setMode] = useState<'later' | 'now'>('later');
   const draftsRef = useRef<DraftListHandle>(null);
+  // Con un pezzo aperto (spazio di lavoro) la cattura foto e il titolo si nascondono.
+  const [pieceOpen, setPieceOpen] = useState(false);
   const stopRef = useRef<() => void>(() => undefined);
 
   const addLog = useCallback((msg: string) => setLogs((prev) => [...prev.slice(-80), msg]), []);
@@ -289,6 +291,7 @@ export default function NewPiecePage() {
 
   return (
     <div className="page new-piece">
+      {!(mode === 'later' && pieceOpen) && (
       <div>
         <h1 className="page-title">Nuovo pezzo</h1>
         <p className="page-lead">
@@ -297,7 +300,9 @@ export default function NewPiecePage() {
             : 'Carica la foto del pezzo, aggiungi una nota se serve: lo Studio prepara la scheda per il sito, WhatsApp e Google.'}
         </p>
       </div>
+      )}
 
+      {!(mode === 'later' && pieceOpen) && (
       <div className="mode-switch" role="group" aria-label="Come vuoi lavorare">
         <button type="button" aria-pressed={mode === 'later'} onClick={() => chooseMode('later')}>
           Salva per dopo
@@ -306,6 +311,7 @@ export default function NewPiecePage() {
           Crea subito
         </button>
       </div>
+      )}
 
       {state === 'error' && (
         <div className="notice error" role="alert">
@@ -321,8 +327,8 @@ export default function NewPiecePage() {
 
       {mode === 'later' ? (
         <>
-          <QuickCapture onSaved={() => draftsRef.current?.refresh()} />
-          <DraftList ref={draftsRef} onStarted={startFromDraft} />
+          {!pieceOpen && <QuickCapture onSaved={() => draftsRef.current?.refresh()} />}
+          <DraftList ref={draftsRef} onStarted={startFromDraft} onOpenChange={setPieceOpen} />
         </>
       ) : (
         <>

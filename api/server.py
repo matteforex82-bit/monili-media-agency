@@ -1276,7 +1276,11 @@ async def draft_create(foto: list[UploadFile] = File(...), nota: str = Form(defa
 @app.get("/bozze")
 def draft_list():
     bozze_store.reset_stale({job_id for job_id, job in jobs.items() if job.get("status") == "running"})
-    return {"items": bozze_store.list()}
+    items = bozze_store.list()
+    for item in items:
+        folder = bozze_store.folder(item["id"])
+        item["progress"] = prompt_lab.progress(prompt_lab.store.read(folder) if folder else None)
+    return {"items": items}
 
 
 @app.get("/bozze/{draft_id}/scarica")
@@ -1413,7 +1417,7 @@ import tempfile  # noqa: E402
 
 
 def _lab_public(draft_id: str, lab: dict | None) -> dict:
-    return {"draft_id": draft_id, "lab": lab, "library": prompt_lab.library_summary()}
+    return {"draft_id": draft_id, "lab": lab, "progress": prompt_lab.progress(lab), "library": prompt_lab.library_summary()}
 
 
 def _video_frames(video: Path, out_dir: Path, count: int = 3) -> list[Path]:
@@ -1447,6 +1451,22 @@ def _lab_engine(body: dict) -> tuple[str, str] | JSONResponse:
     return api_key, str(body.get("text_model") or "").strip() or DEFAULT_OPENROUTER_TEXT_MODEL
 
 
+MAX_LAB_PHOTOS = 4
+
+
+def _lab_photos(meta: dict, draft_id: str, main_path: Path) -> list[Path]:
+    """The photos Codex looks at: the main one, then the detail one, then the others (up to four)."""
+    ordered = [meta.get("main"), meta.get("detail"), *meta.get("photos", [])]
+    found: list[Path] = []
+    for name in ordered:
+        path = bozze_store.photo_path(draft_id, name) if name else None
+        if path and path not in found:
+            found.append(path)
+    if main_path in found:
+        found.remove(main_path)
+    return ([main_path] + found)[:MAX_LAB_PHOTOS]
+
+
 def _lab_folder(draft_id: str):
     return bozze_store.folder(draft_id)
 
@@ -1470,6 +1490,7 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
     main_path = bozze_store.photo_path(draft_id, main_name)
     if not main_path:
         return JSONResponse({"error": "La foto principale non c'è più."}, status_code=400)
+    photos = _lab_photos(meta, draft_id, main_path)
 
     body = body or {}
     engine = _lab_engine(body)
@@ -1488,11 +1509,18 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
         import casting
         import main as studio_main
 
-        analisi = studio_main.agent_analisi(text_model, api_key, main_path, note)
+        brief = note
+        if len(photos) > 1:
+            brief = (
+                f"{note}\nFOTO ALLEGATE: {len(photos)} foto dello stesso pezzo. La prima è la principale; le altre mostrano "
+                "dettaglio, retro o altri lati. Guardale tutte: ciò che si vede in una foto vale per il pezzo."
+            ).strip()
+        look = photos if len(photos) > 1 else main_path
+        analisi = studio_main.agent_analisi(text_model, api_key, look, brief)
         category = requested if requested in prompt_lab.CATEGORIES else categorie.category_from(analisi, brief=note)
         if category not in prompt_lab.CATEGORIES:
             category = "bijoux"
-        plan = studio_main.agent_scheda_plan(text_model, api_key, main_path, analisi, note, category, target)
+        plan = studio_main.agent_scheda_plan(text_model, api_key, look, analisi, brief, category, target)
         woman = plan.get("woman") or casting.FALLBACK_WOMAN
         never = casting.never_line()
         shots = ["clean"] + categorie.AI_SHOTS.get(category, ["worn"])
@@ -1523,7 +1551,11 @@ def lab_edit_prompt(draft_id: str, shot: str, body: dict):
 def lab_add_attempt(draft_id: str, body: dict):
     """«Fatta su Higgsfield»: the prompt as it is now is frozen in a new attempt."""
     folder = _lab_folder(draft_id)
-    lab = prompt_lab.store.add_attempt(folder, str(body.get("shot", "")), str(body.get("model", ""))) if folder else None
+    if folder and body.get("external"):
+        # a photo made outside the Studio's prompt: rated like the others, the prompt used is optional
+        lab = prompt_lab.store.add_external(folder, str(body.get("shot", "")), str(body.get("model", "")), str(body.get("prompt", "")))
+    else:
+        lab = prompt_lab.store.add_attempt(folder, str(body.get("shot", "")), str(body.get("model", ""))) if folder else None
     if not lab:
         return JSONResponse({"error": "Prompt non trovato"}, status_code=404)
     return _lab_public(draft_id, lab)
@@ -1682,7 +1714,12 @@ async def lab_critique(draft_id: str, attempt_id: str, body: dict | None = None)
         parsed = studio_main.extract_json_object(text)
         if not parsed:
             raise fucina_codex.CodexError("La risposta di Codex non era leggibile.")
-        return prompt_lab.normalize_critique(parsed, model or fucina_codex.available_models()["default"])
+        return prompt_lab.normalize_critique(
+            parsed,
+            model or fucina_codex.available_models()["default"],
+            prompt_lab.checklist_for(lab.get("category", ""), attempt.get("shot", "")),
+            attempt.get("prompt", ""),
+        )
 
     try:
         critique = await asyncio.to_thread(work)

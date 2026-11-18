@@ -1,6 +1,8 @@
 ## Ricetta: bijoux e gioielli (anelli, orecchini, collane, bracciali)
 Etichette: [verificato] = visto nei test o scelta di Matteo; [fonte] = ricerca, non ancora provato; [ipotesi].
 
+**Obiettivo a regime per il sito (decisione di Matteo, 18/11/2026):** per gli anelli due foto statiche: il prodotto pulito e ben illuminato, e l'anello indossato su una mano realistica. La Fucina e il giudizio di Codex puntano a queste due. [verificato: decisione di Matteo, 18/11]
+
 **Inquadratura e scena**
 - Inquadratura stretta sulla parte del corpo giusta, il pezzo grande e nitido. Per anelli e bracciali solo il dito con le nocche vicine, mai mano intera, polso o braccio. [verificato: scelta di Matteo, 07/11]
 - Sfondo bello ma sfocato (muro caldo, mosaico, tessuto), mai neutro e vuoto. [verificato: scelta di Matteo, 07/11]

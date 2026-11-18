@@ -153,7 +153,7 @@ def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkey
     def fake_codex(prompt, images, model=""):
         seen.update(prompt=prompt, images=images)
         return (
-            '{"checklist": {"pietre_numero": {"esito": "ok", "nota": "3"}}, "giudizio": "bene", "voto_proposto": 4, '
+            '{"checklist": {"motivo_colori": {"esito": "ok", "nota": "3"}}, "giudizio": "bene", "voto_proposto": 4, '
             '"correzione": "niente", "prompt_corretto": "better prompt"}'
         )
 
@@ -188,7 +188,7 @@ def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkey
     judged = client.post(f"/bozze/{did}/prove/{photo_attempt}/valuta", json={})
     assert judged.status_code == 200 and len(seen["images"]) == 2
     critique = judged.json()["lab"]["attempts"][0]["critique"]
-    assert critique["voto_proposto"] == 4 and critique["checklist"]["pietre_numero"]["esito"] == "ok" and "metallo" in critique["checklist"]
+    assert critique["voto_proposto"] == 4 and "motivo_colori" in critique["checklist"] and "pietre_numero" not in critique["checklist"] and "dettagli" in critique["checklist"]
     client.post(f"/bozze/{did}/prove/{scene_attempt['id']}/valuta", json={})
     assert len(seen["images"]) == 4 and "fotogrammi" in seen["prompt"]
 
@@ -196,3 +196,134 @@ def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkey
     edited = client.put(f"/bozze/{did}/prompt/scena_2", json={"text": "closer on the embroidery"}).json()["lab"]
     assert edited["scenes"]["scena_2"]["edited"] is True
     client.delete(f"/bozze/{did}")
+
+
+def test_progress_says_what_to_do_next(monkeypatch):
+    assert prompt_lab.progress(None)["stage"] == "prompt"
+    lab = {"prompts": {"worn": {"text": "x"}}, "attempts": []}
+    assert prompt_lab.progress(lab)["stage"] == "crea" and prompt_lab.progress(lab)["done"]["prompt"] is True
+    lab["attempts"].append({"id": "a", "result": "", "rating": 0})
+    assert prompt_lab.progress(lab)["stage"] == "carica"
+    lab["attempts"][0]["result"] = "r.jpg"
+    assert prompt_lab.progress(lab)["stage"] == "valuta" and prompt_lab.progress(lab)["done"]["generare"] is True
+    lab["attempts"][0]["rating"] = 4
+    done = prompt_lab.progress(lab)
+    assert done["stage"] == "fatto" and done["done"]["valutare"] is True and done["label"] == "Valutata"
+
+    # the list of drafts and the lab payload carry it
+    _fake_agents(monkeypatch)
+    draft = _draft()
+    listed = {i["id"]: i for i in client.get("/bozze").json()["items"]}[draft["id"]]
+    assert listed["progress"]["stage"] == "prompt"
+    client.post(f"/bozze/{draft['id']}/prompt", json={"category": "bijoux", "model": "Seedream"})
+    payload = client.post(f"/bozze/{draft['id']}/prove", json={"shot": "worn"}).json()
+    assert payload["progress"]["stage"] == "carica"
+    listed = {i["id"]: i for i in client.get("/bozze").json()["items"]}[draft["id"]]
+    assert listed["progress"]["stage"] == "carica"
+    client.delete(f"/bozze/{draft['id']}")
+
+
+def test_all_photos_of_the_piece_reach_the_analysis(monkeypatch):
+    seen = {}
+
+    def fake_analisi(model, key, look, brief):
+        seen["look"] = look
+        seen["brief"] = brief
+        return "## IDENTIFICAZIONE"
+
+    monkeypatch.setattr(studio_main, "agent_analisi", fake_analisi)
+    monkeypatch.setattr(
+        studio_main,
+        "agent_scheda_plan",
+        lambda model, key, look, analisi, brief, category, target="": {
+            "styling": "", "woman": "w", "site_prompts": {"clean": "c", "worn": "w"}
+        },
+    )
+    files = [("foto", (f"{n}.jpg", _jpeg((n * 40, 90, 160)), "image/jpeg")) for n in range(1, 4)]
+    draft = client.post("/bozze", files=files, data={"nota": "giacca"}).json()
+    client.post(f"/bozze/{draft['id']}/prompt", json={"category": "abbigliamento", "model": "Seedream"})
+    assert isinstance(seen["look"], list) and len(seen["look"]) == 3
+    assert seen["look"][0].name == draft["main"] and "FOTO ALLEGATE: 3" in seen["brief"]
+    client.delete(f"/bozze/{draft['id']}")
+
+    # a piece with one photo keeps the single-photo call
+    one = client.post("/bozze", files=files[:1], data={"nota": "anello"}).json()
+    client.post(f"/bozze/{one['id']}/prompt", json={"category": "bijoux", "model": "Seedream"})
+    assert not isinstance(seen["look"], list) and "FOTO ALLEGATE" not in seen["brief"]
+    client.delete(f"/bozze/{one['id']}")
+
+
+def test_a_photo_made_elsewhere_can_be_rated_without_the_studio_prompt(monkeypatch):
+    draft = _draft()
+    did = draft["id"]
+    assert client.get(f"/bozze/{did}/prompt").json()["progress"]["stage"] == "prompt"
+
+    made = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "worn", "model": "Seedream", "prompt": "my own prompt"})
+    assert made.status_code == 200
+    payload = made.json()
+    attempt = payload["lab"]["attempts"][0]
+    assert attempt["external"] is True and attempt["prompt"] == "my own prompt" and payload["lab"]["prompts"] == {}
+    assert payload["progress"]["stage"] == "carica" and payload["progress"]["done"]["prompt"] is False
+
+    up = client.post(f"/bozze/{did}/prove/{attempt['id']}/risultato", files={"foto": ("r.jpg", _jpeg(), "image/jpeg")}).json()
+    assert up["progress"]["stage"] == "valuta"
+
+    # Codex can judge it: the prompt used is in its request
+    seen = {}
+    monkeypatch.setattr(server.fucina_codex, "run", lambda prompt, images, model="": seen.update(prompt=prompt) or '{"checklist": {}, "giudizio": "ok", "voto_proposto": 3, "correzione": "", "prompt_corretto": ""}')
+    assert client.post(f"/bozze/{did}/prove/{attempt['id']}/valuta", json={}).status_code == 200
+    assert "my own prompt" in seen["prompt"]
+    rated = client.put(f"/bozze/{did}/prove/{attempt['id']}", json={"rating": 4, "note": ""}).json()
+    assert rated["progress"]["stage"] == "fatto"
+
+    # the Studio can still write its own prompts afterwards, and the attempt stays
+    _fake_agents(monkeypatch)
+    after = client.post(f"/bozze/{did}/prompt", json={"category": "bijoux", "model": "Seedream"}).json()
+    assert len(after["lab"]["attempts"]) == 1 and set(after["lab"]["prompts"]) == {"clean", "worn"}
+    client.delete(f"/bozze/{did}")
+
+
+def test_critique_judges_each_photo_against_its_goal():
+    ring_worn = prompt_lab.critique_prompt({"category": "bijoux"}, {"shot": "worn", "model": "Seedream", "prompt": "p"})
+    assert "mano realistica" in ring_worn and "cinque dita" in ring_worn
+    ring_clean = prompt_lab.critique_prompt({"category": "bijoux"}, {"shot": "clean", "model": "Seedream", "prompt": "p"})
+    assert "pulita per il sito" in ring_clean and "cinque dita" not in ring_clean
+    clothes_clean = prompt_lab.critique_prompt({"category": "abbigliamento"}, {"shot": "clean", "model": "Seedream", "prompt": "p"})
+    assert "da studio" in clothes_clean and "gruccia" in clothes_clean
+    # no goal known (e.g. an unrated category): the checklist still works
+    assert "COSA DEVE ESSERE" not in prompt_lab.critique_prompt({"category": ""}, {"shot": "worn", "model": "x", "prompt": "p"})
+
+
+def test_clothing_is_judged_on_the_garment_not_on_stones_and_metal():
+    clothes = prompt_lab.critique_prompt({"category": "abbigliamento"}, {"shot": "worn", "model": "Seedream", "prompt": "p"})
+    assert "Motivo, colori e tessuto" in clothes and "Collo, chiusura" in clothes
+    assert "Numero delle pietre" not in clothes and "Metallo e finitura" not in clothes
+    assert "motivo, il colore o la forma del capo" in clothes
+    # a photo of the garment alone has no hands or body to check
+    clean = prompt_lab.critique_prompt({"category": "abbigliamento"}, {"shot": "clean", "model": "Seedream", "prompt": "p"})
+    assert "Mani, dita" not in clean
+    # jewellery keeps its stones and metal
+    ring = prompt_lab.critique_prompt({"category": "bijoux"}, {"shot": "worn", "model": "Seedream", "prompt": "p"})
+    assert "Numero delle pietre" in ring and "Metallo e finitura" in ring
+    result = prompt_lab.normalize_critique({"checklist": {"motivo_colori": {"esito": "ok", "nota": "x"}}}, "m", prompt_lab.checklist_for("abbigliamento", "worn"))
+    assert result["checklist"]["motivo_colori"]["label"] == "Motivo, colori e tessuto" and "pietre_numero" not in result["checklist"]
+
+
+def test_the_corrected_prompt_keeps_the_woman_tag():
+    original = "Keep the jacket. The woman is @MODELLA: use only her face and hair from that reference. No text."
+    # the model dropped the tag: it is put back
+    fixed = prompt_lab.keep_mentions("Keep the jacket, longer collar. No text.", original)
+    assert "@MODELLA" in fixed and "use only her face and hair" in fixed
+    # already there: untouched
+    same = "Keep the jacket. The woman is @MODELLA: use only her face and hair."
+    assert prompt_lab.keep_mentions(same, original) == same
+    # a character picked by hand in an external prompt is kept too
+    assert "@Modella-Monili-Denti" in prompt_lab.keep_mentions("new prompt", "Keep it on @Modella-Monili-Denti.")
+    # no tag in the original (a clean photo): nothing added
+    assert prompt_lab.keep_mentions("new prompt", "clean photo") == "new prompt"
+    # and the review is told to keep it
+    asked = prompt_lab.critique_prompt({"category": "abbigliamento"}, {"shot": "worn", "model": "Seedream", "prompt": original})
+    assert "@MODELLA deve restare scritto così" in asked
+    # end to end through the normalizer
+    out = prompt_lab.normalize_critique({"prompt_corretto": "Better jacket prompt."}, "m", prompt_lab.CHECKLIST, original)
+    assert "@MODELLA" in out["prompt_corretto"]

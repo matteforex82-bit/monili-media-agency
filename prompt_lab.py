@@ -9,6 +9,7 @@ Libreria comune: <storage>/memory/prompt_lab.json
 from __future__ import annotations
 
 import json
+import re
 import threading
 import uuid
 from datetime import datetime
@@ -239,6 +240,36 @@ class LabStore:
             self._write(folder, lab)
             return lab
 
+    def add_external(self, folder: Path, shot: str, model: str, prompt: str) -> dict:
+        """A photo made elsewhere (another prompt, another tool): it can be rated without going through the Studio's prompt."""
+        with _lock:
+            lab = self.read(folder) or {
+                "category": "",
+                "target_model": "",
+                "woman_token": "",
+                "analisi": "",
+                "styling": "",
+                "woman": "",
+                "prompts": {},
+                "attempts": [],
+                "created_at": _now(),
+            }
+            lab["attempts"].append(
+                {
+                    "id": uuid.uuid4().hex[:8],
+                    "shot": shot if shot in (*SHOTS, *SCENES) else "worn",
+                    "model": _clean(model, 60) or "Altro",
+                    "prompt": _clean(prompt),
+                    "external": True,
+                    "created_at": _now(),
+                    "result": "",
+                    "rating": 0,
+                    "note": "",
+                }
+            )
+            self._write(folder, lab)
+            return lab
+
     def _attempt(self, lab: dict, attempt_id: str) -> dict | None:
         return next((a for a in lab.get("attempts", []) if a.get("id") == attempt_id), None)
 
@@ -313,12 +344,100 @@ CHECKLIST = (
 )
 
 
+CHECKLIST_CLOTHES = (
+    ("motivo_colori", "Motivo, colori e tessuto"),
+    ("forma_vestibilita", "Forma, lunghezza e vestibilità"),
+    ("dettagli", "Collo, chiusura, bottoni e polsini"),
+    ("mani_corpo", "Mani, dita e corpo naturali"),
+    ("inquadratura", "Inquadratura, luce e sfondo"),
+    ("extra", "Niente di aggiunto (testo, loghi, cartellini, gruccia)"),
+)
+CHECKLIST_ACCESSORIES = (
+    ("materiale_colori", "Materiale, colori e cuciture"),
+    ("forma", "Forma e proporzioni"),
+    ("dettagli", "Chiusure, borchie e minuteria"),
+    ("mani_corpo", "Mani, dita e corpo naturali"),
+    ("inquadratura", "Inquadratura, luce e sfondo"),
+    ("extra", "Niente di aggiunto (testo, loghi, cartellini)"),
+)
+
+
+def checklist_for(category: str, shot: str = "") -> tuple:
+    """The points Codex checks, by kind of piece: stones and metal only make sense for jewellery."""
+    base = {"abbigliamento": CHECKLIST_CLOTHES, "accessori": CHECKLIST_ACCESSORIES}.get(category, CHECKLIST)
+    if shot == "clean":  # a photo without people: no hands or body to check
+        return tuple(item for item in base if item[0] != "mani_corpo")
+    return base
+
+
+MENTION_RE = re.compile(r"@[A-Za-z0-9_\-]+")
+
+
+def keep_mentions(corrected: str, original: str) -> str:
+    """The woman tag (@MODELLA, or the character picked by hand) used in the prompt must survive a correction."""
+    text = corrected
+    for mention in dict.fromkeys(MENTION_RE.findall(original or "")):
+        if mention not in text:
+            text = (
+                f"{text}\nThe woman is {mention}: use only her face and hair from that reference, "
+                "ignore any clothes she wears in it."
+            ).strip()
+    return text
+
+
+# Cosa deve essere ogni foto per il sito (decisione di Matteo, 18/11/2026): per gli anelli due foto statiche, il prodotto
+# pulito e ben illuminato e l'anello indossato su una mano realistica; per l'abbigliamento il capo indossato e il capo
+# pulito da studio, ben illuminato. Codex giudica la foto contro questo obiettivo.
+GOALS = {
+    ("clean", "bijoux"): (
+        "Foto prodotto pulita per il sito: il pezzo da solo, centrato, nitido su tutta la superficie, fondo pulito e neutro, "
+        "luce morbida e uniforme, ombre dolci, nessun riflesso bruciato sul metallo o sulle pietre, colori fedeli alla foto vera."
+    ),
+    ("worn", "bijoux"): (
+        "Anello indossato su una mano realistica: cinque dita normali, proporzioni, pelle e unghie credibili, l'anello sul dito "
+        "giusto, in scala e ben appoggiato; inquadratura stretta con la mano tagliata a metà, sfondo bello ma sfocato, pezzo nitido."
+    ),
+    ("clean", "abbigliamento"): (
+        "Capo pulito da studio, ben illuminato: capo intero e in ordine (senza pieghe strane), fondo neutro, luce uniforme, "
+        "colori, motivo e proporzioni identici alla foto vera, senza cartellini, gruccia o ganci."
+    ),
+    ("worn", "abbigliamento"): (
+        "Capo indossato: vestibilità, lunghezza e caduta credibili, motivo, colori e dettagli identici alla foto vera, "
+        "una sola persona con anatomia naturale (mani, dita, gambe), luce coerente."
+    ),
+}
+GOALS[("worn_2", "abbigliamento")] = GOALS[("worn", "abbigliamento")]
+GOALS[("clean", "accessori")] = GOALS[("clean", "abbigliamento")]
+
+
+def goal_for(attempt: dict, lab: dict) -> str:
+    return GOALS.get((attempt.get("shot", ""), lab.get("category", "")), "")
+
+
 def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:
-    checks = "\n".join(f'- "{key}": {label}' for key, label in CHECKLIST)
-    knowledge = model_knowledge(attempt.get("model", ""), lab.get("category", ""))
+    goal = goal_for(attempt, lab)
+    goal_block = f"\nCOSA DEVE ESSERE QUESTA FOTO (valutala contro questo obiettivo):\n{goal}\n" if goal and not is_video else ""
+    category = lab.get("category", "")
+    points = checklist_for(category, attempt.get("shot", ""))
+    checks = "\n".join(f'- "{key}": {label}' for key, label in points)
+    first_key = points[0][0]
+    strict = (
+        "se il motivo, il colore o la forma del capo cambiano in modo evidente, il voto è 2 o meno"
+        if category in ("abbigliamento", "accessori")
+        else "se una pietra cambia colore o numero, il voto è 2 o meno"
+    )
+    mentions = list(dict.fromkeys(MENTION_RE.findall(attempt.get("prompt", ""))))
+    keep = (
+        f"\nNel prompt_corretto tieni IDENTICI i riferimenti alla modella: {', '.join(mentions)} deve restare scritto così, "
+        "con la sua frase, come nel prompt usato.\n"
+        if mentions
+        else ""
+    )
+    knowledge = model_knowledge(attempt.get("model", ""), category)
     return f"""Sei il revisore di immagini di I Monili Ravenna, una gioielleria di Ravenna.
 {"Hai quattro immagini: la PRIMA è la foto vera del pezzo (la verità), le altre tre sono fotogrammi (inizio, metà, fine) di un video creato con l'AI (" + attempt.get("model", "") + "). Oltre al pezzo controlla che tra un fotogramma e l'altro il capo, la donna e i colori restino uguali, e che non ci siano deformazioni o sfarfallii." if is_video else "Hai due immagini: la PRIMA è la foto vera del pezzo (la verità), la SECONDA è la foto creata con l'AI (" + attempt.get("model", "") + ").\nConfrontale con occhio critico: il pezzo nella seconda deve essere identico a quello della prima."}
 
+{goal_block}
 PROMPT USATO:
 {attempt.get("prompt", "")}
 
@@ -330,19 +449,19 @@ Per ogni punto dì "ok", "dubbio" o "problema" e spiega in una frase cosa vedi, 
 
 Rispondi SOLO con un JSON valido:
 {{
-  "checklist": {{"pietre_numero": {{"esito": "ok", "nota": "..."}}, ...tutti i punti sopra}},
+  "checklist": {{"{first_key}": {{"esito": "ok", "nota": "..."}}, ...tutti i punti sopra}},
   "giudizio": "2-3 frasi in italiano: com'è venuta e perché",
   "voto_proposto": 1-5,
   "correzione": "cosa cambiare nel prompt, in italiano, in una o due frasi",
   "prompt_corretto": "il prompt completo, in inglese, già corretto"
 }}
-Non essere indulgente: se una pietra cambia colore o numero, il voto è 2 o meno. Non scrivere altro fuori dal JSON."""
+{keep}Non essere indulgente: {strict}. Non scrivere altro fuori dal JSON."""
 
 
-def normalize_critique(parsed: dict, model: str) -> dict:
+def normalize_critique(parsed: dict, model: str, points: tuple = CHECKLIST, original_prompt: str = "") -> dict:
     checklist = {}
     raw = parsed.get("checklist") if isinstance(parsed.get("checklist"), dict) else {}
-    for key, label in CHECKLIST:
+    for key, label in points:
         item = raw.get(key) if isinstance(raw.get(key), dict) else {}
         esito = str(item.get("esito", "dubbio")).lower()
         checklist[key] = {
@@ -359,7 +478,7 @@ def normalize_critique(parsed: dict, model: str) -> dict:
         "giudizio": _clean(parsed.get("giudizio", ""), 800),
         "voto_proposto": score,
         "correzione": _clean(parsed.get("correzione", ""), 600),
-        "prompt_corretto": _clean(parsed.get("prompt_corretto", "")),
+        "prompt_corretto": keep_mentions(_clean(parsed.get("prompt_corretto", "")), original_prompt) if parsed.get("prompt_corretto") else "",
         "codex_model": model,
         "created_at": _now(),
     }
@@ -394,3 +513,36 @@ JSON esatto:
   "idea": "una frase in italiano: il filo del video",
   "scene": {{"scena_1": "...", "scena_2": "...", "scena_3": "..."}}
 }}"""
+
+
+# -- a che punto è il pezzo (lista e spazio di lavoro) ----------------------------------------------------------------
+STAGE_LABELS = {
+    "prompt": "Prompt da fare",
+    "crea": "Foto da creare su Higgsfield",
+    "carica": "Carica il risultato",
+    "valuta": "Da valutare",
+    "fatto": "Valutata",
+}
+
+
+def progress(lab: dict | None) -> dict:
+    """The next thing to do for a piece, from its lab: prompt, create the photo by hand, upload it, rate it."""
+    attempts = (lab or {}).get("attempts", [])
+    with_result = [a for a in attempts if a.get("result")]
+    rated = [a for a in with_result if a.get("rating")]
+    has_prompts = bool(lab and lab.get("prompts"))
+    if not has_prompts and not attempts:
+        stage = "prompt"
+    elif not attempts:
+        stage = "crea"
+    elif any(not a.get("rating") for a in with_result):
+        stage = "valuta"
+    elif any(not a.get("result") for a in attempts):
+        stage = "carica"
+    else:
+        stage = "fatto"
+    return {
+        "stage": stage,
+        "label": STAGE_LABELS[stage],
+        "done": {"prompt": has_prompts, "generare": bool(with_result), "valutare": bool(rated)},
+    }
