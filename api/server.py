@@ -1706,6 +1706,54 @@ def lab_attempt_to_site(draft_id: str, attempt_id: str):
     return {**_lab_public(draft_id, updated), "run_id": run_id}
 
 
+@app.get("/fucina/regole")
+def learned_rules():
+    items = [i for i in prompt_lab.library_items() if i.get("rating", 0) > 0]
+    return {"rules": prompt_lab.rules_all(), "rated": len(items), "min_rated": prompt_lab.MIN_RATED_TO_LEARN}
+
+
+@app.post("/fucina/regole/proponi")
+async def propose_rules(body: dict | None = None):
+    """«Impara»: the AI reads the owner's ratings and proposes rules; nothing counts until he approves."""
+    import main as studio_main
+
+    request = prompt_lab.learn_prompt()
+    if not request:
+        return JSONResponse({"error": f"Servono almeno {prompt_lab.MIN_RATED_TO_LEARN} foto votate per imparare qualcosa."}, status_code=400)
+    engine = _lab_engine(body or {})
+    if isinstance(engine, JSONResponse):
+        return engine
+    api_key, text_model = engine
+
+    def work() -> list[dict]:
+        raw = studio_main.generate_text_with_openrouter(api_key, text_model, request, max_tokens=1500)
+        parsed = studio_main.extract_json_object(raw) or {}
+        items = parsed.get("regole") if isinstance(parsed.get("regole"), list) else []
+        return [i for i in items if isinstance(i, dict)]
+
+    try:
+        proposals = await asyncio.to_thread(work)
+    except Exception as error:
+        return JSONResponse({"error": f"Non sono riuscito a leggere i voti: {error}"}, status_code=502)
+    added = prompt_lab.add_proposals(proposals)
+    return {"new": added, "rules": prompt_lab.rules_all()}
+
+
+@app.put("/fucina/regole/{rule_id}")
+def update_learned_rule(rule_id: str, body: dict):
+    rule = prompt_lab.update_rule(rule_id, str(body.get("status") or ""), str(body.get("text") or ""))
+    if not rule:
+        return JSONResponse({"error": "Regola non trovata"}, status_code=404)
+    return {"rule": rule, "rules": prompt_lab.rules_all()}
+
+
+@app.delete("/fucina/regole/{rule_id}")
+def delete_learned_rule(rule_id: str):
+    if not prompt_lab.delete_rule(rule_id):
+        return JSONResponse({"error": "Regola non trovata"}, status_code=404)
+    return {"rules": prompt_lab.rules_all()}
+
+
 @app.get("/canali")
 def channel_formats():
     import channels

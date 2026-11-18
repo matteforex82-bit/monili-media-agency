@@ -120,26 +120,151 @@ def model_knowledge(model: str = "", category: str = "") -> str:
 def hints(category: str = "", model: str = "") -> str:
     """Examples to put in front of the art director: what worked and what went wrong, from the owner's own ratings.
     Only the ones made for the same image model (the automatic flow sees the models it really uses)."""
+    rules = approved_rules(category, model)
     items = library_items()
     wanted = (model,) if model else AUTO_MODELS
     items = [i for i in items if i.get("model") in wanted]
     if not items:
-        return ""
+        return rules
     same = [i for i in items if i.get("category") == category] or items
 
     def recent(selected: list[dict]) -> list[dict]:
         return sorted(selected, key=lambda i: i.get("rated_at", ""), reverse=True)[:HINTS_PER_KIND]
 
-    good = recent([i for i in same if i.get("rating", 0) >= GOOD_FROM])
+    # an example without its prompt (photo made elsewhere, prompt not pasted) teaches nothing: skipped
+    good = recent([i for i in same if i.get("rating", 0) >= GOOD_FROM and _clean(i.get("prompt", ""))])
     bad = recent([i for i in same if i.get("rating", 0) <= BAD_UNTIL and i.get("note")])
     lines: list[str] = []
     if good:
         lines.append("PROMPT CHE HANNO DATO UN BUON RISULTATO (voti di Matteo), ispirati al loro modo di scrivere:")
-        lines += [f'- ({i["rating"]}/5, {i.get("shot", "")}) {_clean(i["prompt"], 500)}' for i in good]
+        for i in good:
+            why = f' Perché è piaciuto a Matteo: {_clean(i["note"], 240)}' if i.get("note") else ""
+            lines.append(f'- ({i["rating"]}/5, {i.get("shot", "")}) {_clean(i["prompt"], 500)}{why}')
     if bad:
         lines.append("ERRORI GIA VISTI (voti bassi di Matteo): non ripeterli.")
         lines += [f'- ({i["rating"]}/5) {_clean(i["note"], 240)}' for i in bad]
-    return "\n".join(lines)
+    return "\n".join(filter(None, [rules, *lines]))
+
+
+
+# -- regole imparate dai voti (approvate da Matteo) -------------------------------------------------------------
+RULES_FILE = MEMORY_ROOT / "regole_fucina.json"
+RULE_STATUSES = ("proposta", "approvata", "scartata")
+MIN_RATED_TO_LEARN = 3
+
+
+def _load_rules() -> list[dict]:
+    try:
+        data = json.loads(RULES_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return [r for r in data if isinstance(r, dict) and r.get("id")]
+    except Exception:
+        pass
+    return []
+
+
+def _save_rules(rules: list[dict]) -> None:
+    RULES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = RULES_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(rules, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(RULES_FILE)
+
+
+def rules_all() -> list[dict]:
+    with _lock:
+        return _load_rules()
+
+
+def add_proposals(items: list[dict]) -> list[dict]:
+    """New rules proposed by the AI from the owner's ratings: they wait for his OK. Same text twice is ignored."""
+    added: list[dict] = []
+    with _lock:
+        rules = _load_rules()
+        known = {r["text"].strip().lower() for r in rules}
+        for item in items:
+            text = _clean(item.get("testo", ""), 300)
+            if not text or text.lower() in known:
+                continue
+            model = str(item.get("modello", "")).strip()
+            category = str(item.get("categoria", "")).strip().lower()
+            rule = {
+                "id": uuid.uuid4().hex[:8],
+                "text": text,
+                "model": model if model in MODELS else "",
+                "category": category if category in CATEGORIES else "",
+                "why": _clean(item.get("perche", ""), 240),
+                "status": "proposta",
+                "created_at": _now(),
+            }
+            rules.append(rule)
+            known.add(text.lower())
+            added.append(rule)
+        _save_rules(rules)
+    return added
+
+
+def update_rule(rule_id: str, status: str = "", text: str = "") -> dict | None:
+    with _lock:
+        rules = _load_rules()
+        rule = next((r for r in rules if r["id"] == rule_id), None)
+        if not rule:
+            return None
+        if status in RULE_STATUSES:
+            rule["status"] = status
+            rule["decided_at"] = _now()
+        if text.strip():
+            rule["text"] = _clean(text, 300)
+        _save_rules(rules)
+        return rule
+
+
+def delete_rule(rule_id: str) -> bool:
+    with _lock:
+        rules = _load_rules()
+        kept = [r for r in rules if r["id"] != rule_id]
+        _save_rules(kept)
+        return len(kept) != len(rules)
+
+
+def approved_rules(category: str = "", model: str = "") -> str:
+    """The rules Matteo approved, for this kind of piece and this image model (a rule without model/category holds for all)."""
+    models = ("", model) if model else ("", *AUTO_MODELS)
+    chosen = [
+        r
+        for r in rules_all()
+        if r.get("status") == "approvata" and r.get("model", "") in models and r.get("category", "") in ("", category)
+    ]
+    if not chosen:
+        return ""
+    return "REGOLE DI MATTEO (imparate dai suoi voti e approvate da lui: valgono sempre):\n" + "\n".join(f"- {r['text']}" for r in chosen)
+
+
+def learn_prompt() -> str:
+    """The request that makes the AI read the owner's ratings and propose rules. Empty if there is too little to learn from."""
+    items = [i for i in library_items() if i.get("rating", 0) > 0]
+    if len(items) < MIN_RATED_TO_LEARN:
+        return ""
+    lines = []
+    for i in sorted(items, key=lambda i: i.get("rated_at", ""), reverse=True)[:40]:
+        lines.append(
+            f'- voto {i["rating"]}/5 | modello {i.get("model", "")} | categoria {i.get("category", "")} | foto {i.get("shot", "")}\n'
+            f'  prompt: {_clean(i.get("prompt", ""), 400) or "(non indicato)"}\n'
+            f'  nota di Matteo: {_clean(i.get("note", ""), 240) or "(nessuna)"}'
+        )
+    existing = "\n".join(f"- {r['text']}" for r in rules_all() if r.get("status") != "scartata") or "nessuna"
+    return f"""Sei l'art director di I Monili Ravenna. Matteo ha dato dei voti alle foto fatte con i prompt qui sotto.
+Cerca cosa si ripete: cosa piace (voti 4-5) e cosa no (voti 1-2), nelle note e nei prompt. Proponi da 1 a 5 REGOLE brevi,
+concrete e generali, che aiutino a scrivere i prossimi prompt. Ogni regola vale per più pezzi, non per uno solo.
+
+VOTI DI MATTEO:
+{chr(10).join(lines)}
+
+REGOLE GIA ESISTENTI (non ripeterle):
+{existing}
+
+Rispondi SOLO con un JSON valido:
+{{"regole": [{{"testo": "regola in italiano, un'istruzione breve", "modello": "uno tra {', '.join(MODELS)} oppure vuoto se vale per tutti", "categoria": "uno tra {', '.join(CATEGORIES)} oppure vuoto", "perche": "una frase: quali voti la sostengono"}}]}}
+Se i voti non bastano a dire niente di nuovo, restituisci {{"regole": []}}. Non inventare: ogni regola deve poggiare su voti o note che vedi."""
 
 
 def library_summary() -> dict:

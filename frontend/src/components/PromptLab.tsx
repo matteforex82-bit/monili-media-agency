@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { API_URL } from '@/lib/apiUrl';
 import { loadSettings } from '@/lib/settings';
 import type { Progress } from '@/lib/drafts';
+import LearnPanel from '@/components/LearnPanel';
 
 interface CritiqueItem {
   label: string;
@@ -118,7 +119,6 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   const [codex, setCodex] = useState<CodexInfo | null>(null);
   const [codexModel, setCodexModel] = useState('');
   const [sourceId, setSourceId] = useState('');
-  const [channels, setChannels] = useState<{ id: string; label: string }[]>([]);
   const [zoom, setZoom] = useState<{ attempt: Attempt } | null>(null);
   const [ext, setExt] = useState({ shot: 'worn', model: 'Seedream', prompt: '', category: '' });
   const progressRef = useRef(onProgress);
@@ -159,10 +159,6 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
         setCodexModel(info.models.some((m) => m.slug === saved) ? saved : '');
       })
       .catch(() => setCodex(null));
-    fetch(`${API_URL}/canali`, { cache: 'no-store' })
-      .then((res) => res.json())
-      .then((info: { channels: { id: string; label: string }[] }) => setChannels(info.channels))
-      .catch(() => setChannels([]));
   }, [request, apply]);
 
   // Mentre Codex lavora, dice cosa sta facendo (non solo "Analizzo...").
@@ -439,9 +435,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
           <button type="button" className="link-btn" onClick={analyze} disabled={busy}>
             {busy ? WORKING_TEXT[workingIndex] : 'Rifai l’analisi'}
           </button>
-          <p className="step-hint">
-            Libreria: {data?.library.good ?? 0} prompt buoni, {data?.library.bad ?? 0} da evitare. Voto 4-5 e 1-2 insegnano allo Studio.
-          </p>
+          <LearnPanel engine={prefs.engine} codexModel={codexModel} />
         </div>
         {bar(
           <button type="button" className="btn-mission" onClick={() => copy(current, prompt.text)}>
@@ -721,18 +715,6 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
                     </button>
                   )}
                 </div>
-              )}
-              {!isVideo(attempt.result) && channels.length > 0 && (
-                <details className="lab-channels">
-                  <summary>Scarica per canale (Google, Tripadvisor, Instagram, sito)</summary>
-                  <div className="draft-actions">
-                    {channels.map((c) => (
-                      <a key={c.id} className="chip-btn" href={`${base}/prove/${attempt.id}/canale/${c.id}`} download>
-                        {c.label}
-                      </a>
-                    ))}
-                  </div>
-                </details>
               )}
               <button
                 type="button"

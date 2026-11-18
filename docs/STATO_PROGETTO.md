@@ -232,3 +232,8 @@ Fatto finora:
 - Test: 167 passati, `tsc` pulito. Non provato a schermo né con generazioni vere.
 - **Vai al sito (19/11):** pulsante nel passo Valutare, indipendente dal voto: la foto (catalogo o indossata) diventa foto del sito 4:5 del pezzo (`POST /bozze/{id}/prove/{id}/sito`), nella stessa scheda del pezzo (creata se non c'è); la foto catalogo AI porta ora l'etichetta «AI». Il pezzo creato così non ha ancora i testi (Fase 2).
 Fase 1 completata. Da fare: Fase 2 (percorso unico bozze+pezzi) e Fase 3 (automazione MCP).
+
+## Fucina: «Impara dai miei voti» (19/11/2026)
+- Nel passo Prompt, pannello **«Cosa ha imparato lo Studio»** (`LearnPanel.tsx`). «Impara dai miei voti» (servono 3 foto votate) manda a Codex (o OpenRouter) i voti, le note e i prompt della libreria e raccoglie da 1 a 5 **regole proposte**. Matteo le corregge, **approva o scarta**; solo le approvate entrano nei prompt (`prompt_lab.approved_rules`, dentro `hints`), per il modello e il tipo di pezzo indicati (vuoto = tutti). Archivio: `MoniliStorage/memory/regole_fucina.json`. Rotte: `/fucina/regole` (GET, `/proponi`, PUT e DELETE per id).
+- Il voto di Codex resta un suggerimento: contano i voti e le note di Matteo. I prompt votati 4-5 portano ora anche la nota («perché è piaciuto»); quelli senza prompt sono ignorati. Tolto «Scarica per canale» dal passo Valutare (l'export `/bozze/.../canale/...` resta nel backend).
+- Test 170 passati. Non provato a schermo (serve riavviare lo Studio).

@@ -21,6 +21,7 @@ def _jpeg(color=(200, 120, 60), size=(600, 800)) -> bytes:
 @pytest.fixture(autouse=True)
 def isolated_library(tmp_path, monkeypatch):
     monkeypatch.setattr(prompt_lab, "LIBRARY_FILE", tmp_path / "prompt_lab.json")
+    monkeypatch.setattr(prompt_lab, "RULES_FILE", tmp_path / "regole_fucina.json")
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
 
@@ -437,3 +438,54 @@ def test_go_to_site_makes_the_photo_a_site_photo_of_the_piece_whatever_the_ratin
     # a video cannot go to the site
     scene = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "scena_1", "model": "Seedance 2.5", "prompt": ""}).json()["lab"]["attempts"][-1]
     assert client.post(f"/bozze/{did}/prove/{scene['id']}/sito").status_code in (400, 404)
+
+
+def test_good_examples_carry_why_they_pleased_and_skip_empty_prompts(tmp_path, monkeypatch):
+    monkeypatch.setattr(prompt_lab, "library_items", lambda: [
+        {"attempt_id": "a", "category": "abbigliamento", "model": "Seedream", "shot": "worn", "rating": 4, "prompt": "bomber jacket worn by @MODELLA", "note": "vestibilità da bomber, sfondo neutro", "rated_at": "2026-11-19T10:00:00"},
+        {"attempt_id": "b", "category": "abbigliamento", "model": "Seedream", "shot": "worn", "rating": 5, "prompt": "", "note": "bellissima", "rated_at": "2026-11-19T11:00:00"},
+    ])
+    text = prompt_lab.hints("abbigliamento", "Seedream")
+    assert "bomber jacket worn by @MODELLA" in text and "vestibilità da bomber" in text
+    assert "bellissima" not in text  # no prompt, nothing to learn from
+
+
+def _rate_three(model="Seedream", category="abbigliamento"):
+    for n, (rating, note) in enumerate([(4, "volto fedele alla modella, sfondo neutro"), (5, "vestibilità da bomber"), (1, "sfondo troppo carico")]):
+        prompt_lab.record({"id": f"x{n}", "shot": "worn", "model": model, "prompt": f"prompt {n}", "rating": rating, "note": note}, category, "d")
+
+
+def test_learning_proposes_rules_only_the_approved_ones_enter_the_prompts(monkeypatch):
+    # too few ratings: nothing to learn from
+    assert client.post("/fucina/regole/proponi", json={"engine": "openrouter"}).status_code == 400
+    _rate_three()
+    seen = {}
+
+    def fake_text(api_key, model, prompt, **kwargs):
+        seen["prompt"] = prompt
+        return '{"regole": [{"testo": "Sfondo neutro e volto fedele alla modella.", "modello": "Seedream", "categoria": "abbigliamento", "perche": "voti 4 e 5"}]}'
+
+    monkeypatch.setattr(studio_main, "generate_text_with_openrouter", fake_text)
+    res = client.post("/fucina/regole/proponi", json={"engine": "openrouter"})
+    assert res.status_code == 200
+    assert "sfondo troppo carico" in seen["prompt"] and "vestibilità da bomber" in seen["prompt"]
+    rule = res.json()["new"][0]
+    assert rule["status"] == "proposta" and rule["model"] == "Seedream" and rule["category"] == "abbigliamento"
+    # a proposal is not a rule yet
+    assert "Sfondo neutro" not in prompt_lab.hints("abbigliamento", "Seedream")
+
+    ok = client.put(f"/fucina/regole/{rule['id']}", json={"status": "approvata"})
+    assert ok.status_code == 200
+    text = prompt_lab.hints("abbigliamento", "Seedream")
+    assert "REGOLE DI MATTEO" in text and "Sfondo neutro e volto fedele alla modella." in text
+    # only for its model and category
+    assert "Sfondo neutro" not in prompt_lab.hints("abbigliamento", "Nano Banana")
+    assert "Sfondo neutro" not in prompt_lab.hints("bijoux", "Seedream")
+
+    # the same proposal twice is ignored; a discarded rule leaves the prompts
+    again = client.post("/fucina/regole/proponi", json={"engine": "openrouter"}).json()
+    assert again["new"] == []
+    client.put(f"/fucina/regole/{rule['id']}", json={"status": "scartata"})
+    assert "Sfondo neutro" not in prompt_lab.hints("abbigliamento", "Seedream")
+    assert client.delete(f"/fucina/regole/{rule['id']}").status_code == 200
+    assert client.get("/fucina/regole").json()["rules"] == []

@@ -564,3 +564,11 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .lab-zoom-pane img { display: block; max-width: none; width: auto; height: auto; }
 .lab-zoom-pane span { position: sticky; left: 8px; bottom: 8px; display: inline-block; margin: 0 0 8px 8px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.65); font-size: 12px; }
 @media (max-width: 640px) { .lab-zoom-panes { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
+
+/* Impara: regole proposte dai voti, approvate da Matteo */
+.lab-learn { display: grid; gap: 8px; padding: 10px; border-radius: 10px; background: var(--bot-card-soft); }
+.lab-learn summary { cursor: pointer; font-weight: 600; }
+.lab-rule { display: grid; gap: 6px; padding: 8px 10px; border-radius: 10px; background: var(--bot-card); }
+.lab-rule p { margin: 0; }
+.lab-rule.is-proposal { border: 1px dashed currentColor; }
+.lab-rule small { color: var(--bot-muted); }
