@@ -498,12 +498,13 @@ def scheda_plan_defaults() -> dict:
 
 
 def agent_scheda_plan(
-    text_model: str, api_key: str, foto: Path, analisi: str, brief: str, category: str = "bijoux"
+    text_model: str, api_key: str, foto: Path, analisi: str, brief: str, category: str = "bijoux", target_model: str = ""
 ) -> dict:
     """One call for styling notes and the site photo prompts, framed for the kind of piece."""
     log("PIANO SCHEDA", "Styling e prompt delle foto sito (catalogo + indossato)...")
     import casting
     import categorie
+    import prompt_lab
 
     second_worn = "worn_2" in categorie.AI_SHOTS.get(category, [])
     worn_2_field = (
@@ -522,6 +523,8 @@ Analisi prodotto: {analisi[:1400]}
 Brief utente: {brief if brief else "Nessun brief"}
 
 COME FOTOGRAFARLO INDOSSATO: {categorie.SHOT_GUIDE.get(category, categorie.SHOT_GUIDE["bijoux"])}
+{prompt_lab.model_knowledge(target_model, category)}
+{prompt_lab.hints(category, target_model)}
 
 LA DONNA DI QUESTO PEZZO: la inventi tu. {casting.woman_guide()}
 Sara lei anche nei Reel di questo pezzo, come una modella ingaggiata per lui.
@@ -619,6 +622,21 @@ def create_variants_ai_image(output_dir: Path, api_key: str, selected_model: str
     return f"{output_dir.name}/07_SHOWCASE/{VARIANTS_AI_PHOTO_NAME}"
 
 
+def controlled_site_prompt(prompt: str, key: str, woman: str = "", never: str = "") -> str:
+    """The full text the image model receives for a site photo: the art director's prompt, the woman of the
+    piece (worn shots), and the fixed fidelity rules. The Studio shows this same text so it can be pasted by hand."""
+    prompt = str(prompt).strip()
+    if key.startswith("worn") and woman:
+        prompt = f"{prompt}\nWOMAN (this replaces any other description of her): {woman}"
+    return f"""{prompt}
+
+Use the uploaded reference photo as source-of-truth for the product.
+Preserve exact product shape, color, material, proportions, stones and distinctive details.
+Create a single website-ready product photograph, composed safely for 4:5 product cards.
+No text, no logos, no watermark, no phone screens, no fake UI.
+{never}""".strip()
+
+
 def generate_showcase_images(
     output_dir: Path,
     api_key: str,
@@ -649,17 +667,9 @@ def generate_showcase_images(
         if not prompt:
             log("SITO VISUAL", f"Prompt mancante: {key}", "warn")
             continue
-        if key.startswith("worn") and woman:
-            prompt = f"{prompt}\nWOMAN (this replaces any other description of her): {woman}"
         try:
             log("SITO VISUAL", f"Generazione foto sito {index}/{len(shots)}", "data")
-            controlled = f"""{prompt}
-
-Use the uploaded reference photo as source-of-truth for the product.
-Preserve exact product shape, color, material, proportions, stones and distinctive details.
-Create a single website-ready product photograph, composed safely for 4:5 product cards.
-No text, no logos, no watermark, no phone screens, no fake UI.
-{never}"""
+            controlled = controlled_site_prompt(prompt, key, woman, never)
             data_urls = generate_image_with_fallback(api_key, model, controlled, foto, f"Foto {key}")
             if not data_urls:
                 continue

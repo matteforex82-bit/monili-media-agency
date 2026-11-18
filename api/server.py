@@ -1404,6 +1404,287 @@ async def draft_make_piece(draft_id: str, body: dict | None = None):
     return {"job_id": job_id}
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# Laboratorio dei prompt: analisi con prompt visibili, foto fatte a mano su Higgsfield, voto, libreria che impara.
+# ---------------------------------------------------------------------------------------------------------------
+import fucina_codex  # noqa: E402
+import prompt_lab  # noqa: E402
+import tempfile  # noqa: E402
+
+
+def _lab_public(draft_id: str, lab: dict | None) -> dict:
+    return {"draft_id": draft_id, "lab": lab, "library": prompt_lab.library_summary()}
+
+
+def _video_frames(video: Path, out_dir: Path, count: int = 3) -> list[Path]:
+    """A few frames of the clip (start, middle, end) so Codex can judge a video as images."""
+    import reel_studio
+
+    length = reel_studio.probe_duration(video) or 1.0
+    frames: list[Path] = []
+    for index in range(count):
+        target = out_dir / f"fotogramma-{index + 1}.jpg"
+        reel_studio._frame_at(video, max(0.0, length * (index + 0.5) / count - 0.05), target)
+        if target.is_file():
+            frames.append(target)
+    if not frames:
+        raise fucina_codex.CodexError("Non riesco a leggere il video.")
+    return frames
+
+
+def _lab_folder(draft_id: str):
+    return bozze_store.folder(draft_id)
+
+
+@app.get("/bozze/{draft_id}/prompt")
+def lab_get(draft_id: str):
+    folder = _lab_folder(draft_id)
+    if not folder:
+        return JSONResponse({"error": "Bozza non trovata"}, status_code=404)
+    return _lab_public(draft_id, prompt_lab.store.read(folder))
+
+
+@app.post("/bozze/{draft_id}/prompt")
+async def lab_analyze(draft_id: str, body: dict | None = None):
+    """Analyses the piece and writes the prompts for the photos. No image is generated: the prompts are shown."""
+    meta = bozze_store.get(draft_id)
+    folder = _lab_folder(draft_id)
+    if not meta or not folder:
+        return JSONResponse({"error": "Bozza non trovata"}, status_code=404)
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend locale."}, status_code=400)
+    main_name = meta.get("main") or (meta["photos"][0] if meta["photos"] else "")
+    main_path = bozze_store.photo_path(draft_id, main_name)
+    if not main_path:
+        return JSONResponse({"error": "La foto principale non c'è più."}, status_code=400)
+
+    body = body or {}
+    text_model = str(body.get("text_model") or "").strip() or DEFAULT_OPENROUTER_TEXT_MODEL
+    requested = str(body.get("category") or "").strip().lower()
+    note = meta.get("note", "")
+    target = str(body.get("model") or "").strip()
+    if target not in prompt_lab.MODELS:
+        target = "Seedream"
+
+    def work() -> dict:
+        import casting
+        import main as studio_main
+
+        analisi = studio_main.agent_analisi(text_model, api_key, main_path, note)
+        category = requested if requested in prompt_lab.CATEGORIES else categorie.category_from(analisi, brief=note)
+        if category not in prompt_lab.CATEGORIES:
+            category = "bijoux"
+        plan = studio_main.agent_scheda_plan(text_model, api_key, main_path, analisi, note, category, target)
+        woman = plan.get("woman") or casting.FALLBACK_WOMAN
+        never = casting.never_line()
+        shots = ["clean"] + categorie.AI_SHOTS.get(category, ["worn"])
+        finals = {
+            key: studio_main.controlled_site_prompt(plan["site_prompts"][key], key, woman, never)
+            for key in shots
+            if key in plan.get("site_prompts", {})
+        }
+        return prompt_lab.store.save_analysis(folder, category, analisi, plan, finals, target)
+
+    try:
+        lab = await asyncio.to_thread(work)
+    except Exception as error:
+        return JSONResponse({"error": f"Analisi non riuscita: {error}"}, status_code=502)
+    return _lab_public(draft_id, lab)
+
+
+@app.put("/bozze/{draft_id}/prompt/{shot}")
+def lab_edit_prompt(draft_id: str, shot: str, body: dict):
+    folder = _lab_folder(draft_id)
+    lab = prompt_lab.store.edit_prompt(folder, shot, str(body.get("text", ""))) if folder else None
+    if not lab:
+        return JSONResponse({"error": "Prompt non trovato"}, status_code=404)
+    return _lab_public(draft_id, lab)
+
+
+@app.post("/bozze/{draft_id}/prove")
+def lab_add_attempt(draft_id: str, body: dict):
+    """«Fatta su Higgsfield»: the prompt as it is now is frozen in a new attempt."""
+    folder = _lab_folder(draft_id)
+    lab = prompt_lab.store.add_attempt(folder, str(body.get("shot", "")), str(body.get("model", ""))) if folder else None
+    if not lab:
+        return JSONResponse({"error": "Prompt non trovato"}, status_code=404)
+    return _lab_public(draft_id, lab)
+
+
+MAX_LAB_VIDEO_BYTES = 300 * 1024 * 1024
+
+
+async def _save_lab_video(upload: UploadFile, stem: str, directory: Path) -> Path | JSONResponse:
+    path = directory / f"{stem}{Path(upload.filename or '').suffix.lower()}"
+    total = 0
+    try:
+        with path.open("wb") as out_file:
+            while True:
+                chunk = await upload.read(READ_CHUNK_SIZE)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_LAB_VIDEO_BYTES:
+                    out_file.close()
+                    path.unlink(missing_ok=True)
+                    return JSONResponse({"error": "Video troppo grande (massimo 300 MB)."}, status_code=413)
+                out_file.write(chunk)
+    finally:
+        await upload.close()
+    return path
+
+
+@app.post("/bozze/{draft_id}/scene")
+async def lab_scenes(draft_id: str, body: dict):
+    """Clothing, step two: from the photo of the garment worn by the woman, the prompts of the Seedance 2.5 scenes."""
+    folder = _lab_folder(draft_id)
+    meta = bozze_store.get(draft_id)
+    lab = prompt_lab.store.read(folder) if folder else None
+    if not folder or not meta or not lab:
+        return JSONResponse({"error": "Prima prepara i prompt delle foto."}, status_code=404)
+    attempt = prompt_lab.store.get_attempt(folder, str(body.get("attempt_id", "")))
+    result = folder / prompt_lab.RESULTS_DIR / attempt["result"] if attempt and attempt.get("result") else None
+    if not attempt or not result or not result.is_file() or result.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS:
+        return JSONResponse({"error": "Scegli una foto indossata già caricata."}, status_code=400)
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend locale."}, status_code=400)
+    text_model = str(body.get("text_model") or "").strip() or DEFAULT_OPENROUTER_TEXT_MODEL
+
+    def work() -> dict:
+        import main as studio_main
+
+        prompt = prompt_lab.scenes_prompt(lab, meta.get("note", ""), prompt_lab.hints(lab.get("category", ""), prompt_lab.VIDEO_MODEL))
+        raw = studio_main.generate_text_with_openrouter(api_key, text_model, prompt, image_path=result, max_tokens=1500)
+        parsed = studio_main.extract_json_object(raw)
+        scenes = parsed.get("scene") if isinstance(parsed.get("scene"), dict) else {}
+        finals = {
+            key: f"{str(scenes[key]).strip()}\n{prompt_lab.SCENE_TAIL}" for key in prompt_lab.SCENES if str(scenes.get(key, "")).strip()
+        }
+        if not finals:
+            raise ValueError("L'AI non ha scritto le scene.")
+        return prompt_lab.store.save_scenes(folder, attempt["id"], finals, str(parsed.get("idea", "")).strip())
+
+    try:
+        lab = await asyncio.to_thread(work)
+    except Exception as error:
+        return JSONResponse({"error": f"Scene non riuscite: {error}"}, status_code=502)
+    return _lab_public(draft_id, lab)
+
+
+@app.post("/bozze/{draft_id}/prove/{attempt_id}/risultato")
+async def lab_attempt_result(draft_id: str, attempt_id: str, foto: UploadFile = File(...)):
+    folder = _lab_folder(draft_id)
+    if not folder or not prompt_lab.store.get_attempt(folder, attempt_id):
+        return JSONResponse({"error": "Prova non trovata"}, status_code=404)
+    results = folder / prompt_lab.RESULTS_DIR
+    results.mkdir(exist_ok=True)
+    stem = f"{attempt_id}-{uuid.uuid4().hex[:4]}"
+    if Path(foto.filename or "").suffix.lower() in prompt_lab.VIDEO_EXTENSIONS and attempt_id:
+        saved = await _save_lab_video(foto, stem, results)
+    else:
+        saved = await _save_mission_photo(foto, stem, directory=results)
+    if isinstance(saved, JSONResponse):
+        return saved
+    return _lab_public(draft_id, prompt_lab.store.set_result(folder, attempt_id, saved.name))
+
+
+@app.get("/bozze/{draft_id}/prove/{attempt_id}/risultato")
+def lab_attempt_result_get(draft_id: str, attempt_id: str, w: int = 0):
+    folder = _lab_folder(draft_id)
+    attempt = prompt_lab.store.get_attempt(folder, attempt_id) if folder else None
+    if not attempt or not attempt.get("result"):
+        return JSONResponse({"error": "Risultato non trovato"}, status_code=404)
+    path = folder / prompt_lab.RESULTS_DIR / attempt["result"]
+    if not path.is_file():
+        return JSONResponse({"error": "Risultato non trovato"}, status_code=404)
+    if path.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS:
+        return FileResponse(path)
+    width = max(0, min(int(w or 0), 2000))
+    if width:
+        try:
+            with Image.open(path) as image:
+                image = ImageOps.exif_transpose(image)
+                image.thumbnail((width, width * 2))
+                buffer = io.BytesIO()
+                image.convert("RGB").save(buffer, "JPEG", quality=84)
+            return StreamingResponse(io.BytesIO(buffer.getvalue()), media_type="image/jpeg")
+        except Exception:
+            pass
+    return FileResponse(path)
+
+
+@app.put("/bozze/{draft_id}/prove/{attempt_id}")
+def lab_rate(draft_id: str, attempt_id: str, body: dict):
+    folder = _lab_folder(draft_id)
+    try:
+        rating = int(body.get("rating", 0))
+    except (TypeError, ValueError):
+        rating = 0
+    lab = prompt_lab.store.rate(folder, attempt_id, rating, str(body.get("note", "")), draft_id) if folder else None
+    if not lab:
+        return JSONResponse({"error": "Prova non trovata"}, status_code=404)
+    return _lab_public(draft_id, lab)
+
+
+@app.get("/fucina/codex")
+def lab_codex_models():
+    return fucina_codex.available_models()
+
+
+@app.post("/bozze/{draft_id}/prove/{attempt_id}/valuta")
+async def lab_critique(draft_id: str, attempt_id: str, body: dict | None = None):
+    """Codex looks at the real photo and the result side by side and fills the checklist. The score stays Matteo's."""
+    folder = _lab_folder(draft_id)
+    meta = bozze_store.get(draft_id)
+    lab = prompt_lab.store.read(folder) if folder else None
+    attempt = prompt_lab.store.get_attempt(folder, attempt_id) if folder else None
+    if not folder or not meta or not lab or not attempt:
+        return JSONResponse({"error": "Prova non trovata"}, status_code=404)
+    result = folder / prompt_lab.RESULTS_DIR / attempt["result"] if attempt.get("result") else None
+    if not result or not result.is_file():
+        return JSONResponse({"error": "Carica prima il risultato."}, status_code=400)
+    main_name = meta.get("main") or (meta["photos"][0] if meta["photos"] else "")
+    main_path = bozze_store.photo_path(draft_id, main_name)
+    if not main_path:
+        return JSONResponse({"error": "La foto principale non c'è più."}, status_code=400)
+    model = str((body or {}).get("model") or "").strip()
+
+    def work() -> dict:
+        import main as studio_main
+
+        with tempfile.TemporaryDirectory(prefix="fucina-frames-") as frames_dir:
+            images = [main_path]
+            if result.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS:
+                images += _video_frames(result, Path(frames_dir))
+            else:
+                images.append(result)
+            is_video = len(images) > 2 or result.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS
+            text = fucina_codex.run(prompt_lab.critique_prompt(lab, attempt, is_video), images, model)
+        parsed = studio_main.extract_json_object(text)
+        if not parsed:
+            raise fucina_codex.CodexError("La risposta di Codex non era leggibile.")
+        return prompt_lab.normalize_critique(parsed, model or fucina_codex.available_models()["default"])
+
+    try:
+        critique = await asyncio.to_thread(work)
+    except fucina_codex.CodexError as error:
+        return JSONResponse({"error": str(error)}, status_code=502)
+    except Exception as error:
+        return JSONResponse({"error": f"Valutazione non riuscita: {error}"}, status_code=502)
+    return _lab_public(draft_id, prompt_lab.store.set_critique(folder, attempt_id, critique))
+
+
+@app.delete("/bozze/{draft_id}/prove/{attempt_id}")
+def lab_delete_attempt(draft_id: str, attempt_id: str):
+    folder = _lab_folder(draft_id)
+    lab = prompt_lab.store.delete_attempt(folder, attempt_id) if folder else None
+    if not lab:
+        return JSONResponse({"error": "Prova non trovata"}, status_code=404)
+    return _lab_public(draft_id, lab)
+
+
 @app.get("/mission/{job_id}/stream")
 async def stream_mission(job_id: str):
     """SSE stream: invia aggiornamenti di stato al frontend."""

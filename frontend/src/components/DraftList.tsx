@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useImperativeHandle, useState, forwardRef } from 'react';
 import { API_URL } from '@/lib/apiUrl';
+import PromptLab from '@/components/PromptLab';
 import { formatDraftTime, type Draft } from '@/lib/drafts';
 import { loadSettings } from '@/lib/settings';
 
@@ -231,6 +232,8 @@ const DraftList = forwardRef<DraftListHandle, Props>(function DraftList({ onStar
                   <p className="draft-hint">
                     Alla creazione uso la foto «Principale» e, se c&apos;è, quella «Dettaglio»; la nota guida la scheda.
                   </p>
+
+                  <PromptLab draftId={draft.id} mainPhoto={cover ?? ""} />
 
                   <div className="draft-actions">
                     {done && draft.run_id ? (

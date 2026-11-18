@@ -187,3 +187,11 @@ Motore video: **Higgsfield via API REST** (non MCP), mantenendo il flusso intell
 - **Sito vetrina online dal 30/10/2026**: https://monili-vetrina.vercel.app (repo `monili-vetrina`, progetto Vercel
   `monili-vetrina`, piano Hobby per ora, database e foto nuovi e vuoti). Il `.env` dello Studio sul PC punta già lì.
   Dettagli e prossimi passi in `PLAN_VETRINA.md`, Fase 5.
+
+## Fucina dei prompt (18/11/2026)
+- **Cos'è:** nel pezzo salvato ("Salva per dopo") la sezione **Fucina dei prompt**. Si sceglie il modello con cui si creerà la foto (Seedream, Nano Banana, GPT Image), lo Studio analizza la foto e scrive il prompt giusto per quel modello e **si ferma**. La foto si crea a mano su Higgsfield, si ricarica accanto alla foto vera, **Codex** (programma installato sul PC, abbonamento ChatGPT, nessun costo OpenRouter) la confronta con una lista di controllo e propone voto e prompt corretto; il voto finale è di Matteo.
+- **Abbigliamento, due passi:** 1) capo addosso alla donna (foto indossata); 2) scelta della foto da animare e **scene video Seedance 2.5** (3 scene, 4-5 s, primo fotogramma = la foto scelta). Il risultato di una scena è un video: Codex lo giudica da 3 fotogrammi.
+- **Impara:** voto 4-5 = esempio per i pezzi dello stesso modello; voto 1-2 con nota = errore da non ripetere. Libreria: `MoniliStorage/memory/prompt_lab.json`. Gli esempi sono separati per modello; il flusso automatico vede solo Nano Banana / GPT Image.
+- **Conoscenza:** `knowledge/fucina/` (modelli + ricette per categoria + `AGENTS.md` per Codex), con etichette `[verificato]`, `[fonte]`, `[ipotesi]`. Primo seme: da completare con le guide ufficiali di Seedream/Seedance e con le prove vere.
+- **Codex:** provato il 18/11 con Codex 0.144.1: `gpt-5.6-sol` funziona e vede le immagini (predefinito della fucina, `FUCINA_CODEX_MODEL`); i `gpt-6.x` chiedono un Codex più recente (`npm i -g @openai/codex`).
+- Non provato: tutta la schermata nel browser, la qualità dei prompt Seedream/Seedance (nessuna prova vera ancora), il giudizio di Codex su foto di gioielli veri. Test: 154.
