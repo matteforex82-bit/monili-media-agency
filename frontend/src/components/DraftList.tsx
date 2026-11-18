@@ -192,6 +192,14 @@ const DraftList = forwardRef<DraftListHandle, Props>(function DraftList({ onStar
                           >
                             Dettaglio
                           </button>
+                          <a
+                            className="chip-btn"
+                            href={`${API_URL}/bozze/${draft.id}/foto/${encodeURIComponent(name)}?scarica=1`}
+                            download
+                            style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
+                          >
+                            Scarica
+                          </a>
                           {draft.photos.length > 1 && (
                             <button type="button" className="chip-btn" onClick={() => removePhoto(draft, name)} aria-label="Togli questa foto">
                               ×
@@ -234,6 +242,14 @@ const DraftList = forwardRef<DraftListHandle, Props>(function DraftList({ onStar
                         {running ? 'In preparazione...' : busy === draft.id ? 'Avvio...' : 'Crea la scheda'}
                       </button>
                     )}
+                    <a
+                      className="btn-secondary"
+                      href={`${API_URL}/bozze/${draft.id}/scarica`}
+                      download
+                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+                    >
+                      Scarica tutte (originali)
+                    </a>
                     <button type="button" className="btn-secondary" onClick={() => setConfirming(confirming === draft.id ? null : draft.id)}>
                       Elimina
                     </button>

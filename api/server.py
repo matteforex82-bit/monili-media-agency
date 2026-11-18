@@ -5,6 +5,7 @@ restituisce SSE con gli aggiornamenti in tempo reale.
 """
 import asyncio
 import base64
+import io
 import json
 import os
 import re
@@ -12,6 +13,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+import zipfile
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any
@@ -1277,11 +1279,34 @@ def draft_list():
     return {"items": bozze_store.list()}
 
 
+@app.get("/bozze/{draft_id}/scarica")
+def draft_download_all(draft_id: str):
+    """All the original photos of the piece in one zip (no re-encoding), for working with them by hand."""
+    meta = bozze_store.get(draft_id)
+    if not meta:
+        return JSONResponse({"error": "Bozza non trovata"}, status_code=404)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:
+        for index, name in enumerate(meta["photos"], start=1):
+            path = bozze_store.photo_path(draft_id, name)
+            if path:
+                archive.write(path, f"{index:02d}-{path.name}")
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="pezzo-{draft_id}.zip"'},
+    )
+
+
 @app.get("/bozze/{draft_id}/foto/{name}")
-def draft_photo(draft_id: str, name: str, w: int = 0):
+def draft_photo(draft_id: str, name: str, w: int = 0, scarica: int = 0):
     path = bozze_store.photo_path(draft_id, name)
     if not path:
         return JSONResponse({"error": "Foto non trovata"}, status_code=404)
+    if scarica:
+        # the original file, byte for byte, saved as a download
+        return FileResponse(path, filename=path.name)
     width = max(0, min(int(w or 0), 2000))
     if width:
         thumb_dir = path.parent / bozze.THUMB_DIR

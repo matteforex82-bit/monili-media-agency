@@ -86,6 +86,23 @@ def test_api_save_list_photo_and_delete():
     assert client.get(f"/bozze/{draft['id']}/foto/{draft['photos'][0]}").status_code == 404
 
 
+def test_download_gives_the_original_bytes_and_a_zip():
+    import zipfile
+
+    original = _jpeg((50, 60, 70), size=(3000, 4000))
+    draft = client.post("/bozze", files=[("foto", ("a.jpg", original, "image/jpeg"))], data={"nota": ""}).json()
+    single = client.get(f"/bozze/{draft['id']}/foto/{draft['photos'][0]}?scarica=1")
+    assert single.status_code == 200 and single.content == original
+    assert "attachment" in single.headers["content-disposition"]
+
+    archive = client.get(f"/bozze/{draft['id']}/scarica")
+    assert archive.status_code == 200 and archive.headers["content-type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(archive.content)) as z:
+        assert len(z.namelist()) == 1 and z.read(z.namelist()[0]) == original
+    assert client.get("/bozze/inesistente/scarica").status_code == 404
+    client.delete(f"/bozze/{draft['id']}")
+
+
 def test_api_rejects_empty_and_wrong_files():
     assert client.post("/bozze", files=[("foto", ("a.txt", b"ciao", "text/plain"))]).status_code in (400, 415)
 

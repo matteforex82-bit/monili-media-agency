@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { API_URL } from '@/lib/apiUrl';
-import { shrinkPhoto, type Draft } from '@/lib/drafts';
+import type { Draft } from '@/lib/drafts';
 
 interface Props {
   // Called after each save so the list below can show the new piece.
@@ -55,8 +55,8 @@ export default function QuickCapture({ onSaved }: Props) {
     try {
       const form = new FormData();
       for (const shot of shots) {
-        const small = await shrinkPhoto(shot.file);
-        form.append('foto', small, small.name);
+        // L'originale, senza ridurlo: serve in alta qualità per lavorarlo a mano (il server accetta fino a 25 MB).
+        form.append('foto', shot.file, shot.file.name);
       }
       form.append('nota', note);
       const res = await fetch(`${API_URL}/bozze`, { method: 'POST', body: form });
