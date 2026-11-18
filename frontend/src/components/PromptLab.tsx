@@ -117,6 +117,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   const [codex, setCodex] = useState<CodexInfo | null>(null);
   const [codexModel, setCodexModel] = useState('');
   const [sourceId, setSourceId] = useState('');
+  const [zoom, setZoom] = useState<{ attempt: Attempt } | null>(null);
   const [ext, setExt] = useState({ shot: 'worn', model: 'Seedream', prompt: '' });
   const progressRef = useRef(onProgress);
   progressRef.current = onProgress;
@@ -567,12 +568,21 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   }
 
   // ---------- passo: valutare ----------
+  const zoomOverlay = zoom ? (
+    <ZoomCompare
+      real={`${base}/foto/${encodeURIComponent(mainPhoto)}`}
+      result={`${base}/prove/${zoom.attempt.id}/risultato?v=${zoom.attempt.result}`}
+      resultLabel={`Creata con ${zoom.attempt.model}`}
+      onClose={() => setZoom(null)}
+    />
+  ) : null;
   const rated = (lab?.attempts ?? []).filter((a) => a.result);
   const abbigliamento = lab?.category === 'abbigliamento';
   const hasPhotoRated = lab ? pickablePhotos(lab).some((a) => a.rating > 0) : false;
   return (
     <>
       <div className="step-body">
+        {zoomOverlay}
         {errorBox}
         {rated.length === 0 && <p className="step-hint">Nessun risultato da valutare. Carica una foto fatta su Higgsfield, oppure una fatta altrove con il modulo qui sotto.</p>}
         {rated.map((attempt) => {
@@ -582,6 +592,14 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
               <p className="lab-attempt-title">
                 {SHOT_LABELS[attempt.shot] ?? attempt.shot} <small>· {attempt.model} · {attempt.created_at.slice(11, 16)}</small>
               </p>
+              <h5 className="lab-block-title">
+                <i>1</i> Confronta
+              </h5>
+              {!isVideo(attempt.result) && realPhoto && (
+                <button type="button" className="chip-btn lab-zoom-btn" onClick={() => setZoom({ attempt })}>
+                  Zoom al 100%, una accanto all’altra
+                </button>
+              )}
               <div className="lab-compare">
                 <figure>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -599,6 +617,9 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
                 </figure>
               </div>
 
+              <h5 className="lab-block-title">
+                <i>2</i> Codex
+              </h5>
               <div className="lab-judge">
                 <button type="button" className="btn-secondary" onClick={() => judge(attempt)} disabled={judging === attempt.id || codex?.installed === false}>
                   {judging === attempt.id ? 'Codex sta guardando…' : critique ? 'Fai rivalutare a Codex' : 'Fai valutare a Codex'}
@@ -648,7 +669,9 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
                 </div>
               )}
 
-              <p className="lab-vote-label">Il tuo voto</p>
+              <h5 className="lab-block-title">
+                <i>3</i> Il tuo voto
+              </h5>
               <div className="lab-stars" role="group" aria-label="Il tuo voto">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
@@ -743,4 +766,54 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
 
 function pickablePhotos(lab: Lab): Attempt[] {
   return lab.attempts.filter((a) => a.result && !a.shot.startsWith('scena') && !isVideo(a.result));
+}
+
+// Le due foto a grandezza reale, una accanto all'altra: scorrendo una, l'altra la segue, così si controlla lo stesso punto (la pietra, la cucitura).
+function ZoomCompare({ real, result, resultLabel, onClose }: { real: string; result: string; resultLabel: string; onClose: () => void }) {
+  const left = useRef<HTMLDivElement>(null);
+  const right = useRef<HTMLDivElement>(null);
+  const syncing = useRef(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const follow = (from: HTMLDivElement | null, to: HTMLDivElement | null) => {
+    if (!from || !to || syncing.current) return;
+    syncing.current = true;
+    const fx = from.scrollWidth - from.clientWidth;
+    const fy = from.scrollHeight - from.clientHeight;
+    to.scrollLeft = fx > 0 ? (from.scrollLeft / fx) * (to.scrollWidth - to.clientWidth) : 0;
+    to.scrollTop = fy > 0 ? (from.scrollTop / fy) * (to.scrollHeight - to.clientHeight) : 0;
+    requestAnimationFrame(() => {
+      syncing.current = false;
+    });
+  };
+
+  return (
+    <div className="lab-zoom" role="dialog" aria-modal="true" aria-label="Confronto al 100%">
+      <header>
+        <span>Scorri una foto: l’altra la segue.</span>
+        <button type="button" className="btn-secondary" onClick={onClose}>
+          Chiudi
+        </button>
+      </header>
+      <div className="lab-zoom-panes">
+        <div className="lab-zoom-pane" ref={left} onScroll={() => follow(left.current, right.current)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={real} alt="Foto vera al 100%" />
+          <span>Foto vera</span>
+        </div>
+        <div className="lab-zoom-pane" ref={right} onScroll={() => follow(right.current, left.current)}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={result} alt="Risultato al 100%" />
+          <span>{resultLabel}</span>
+        </div>
+      </div>
+    </div>
+  );
 }

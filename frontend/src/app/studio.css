@@ -550,3 +550,17 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .lab-external { border: 1px dashed var(--bot-border-hi); border-radius: 12px; padding: 10px 12px; display: grid; gap: 10px; }
 .lab-external summary { cursor: pointer; font-weight: 600; min-height: 36px; display: flex; align-items: center; }
 .lab-external label { display: grid; gap: 4px; font-size: 13px; color: var(--bot-muted); }
+
+/* Valutare: tre blocchi numerati (Confronta, Codex, Il tuo voto) */
+.lab-block-title { margin: 6px 0 0; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; }
+.lab-block-title i { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--bot-card); border: 1px solid currentColor; font-style: normal; font-size: 12px; }
+.lab-zoom-btn { justify-self: start; }
+
+/* Confronto al 100%: due riquadri che scorrono insieme */
+.lab-zoom { position: fixed; inset: 0; z-index: 100; display: grid; grid-template-rows: auto 1fr; background: #111; color: #fff; }
+.lab-zoom header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px; font-size: 14px; }
+.lab-zoom-panes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; min-height: 0; }
+.lab-zoom-pane { position: relative; overflow: auto; min-height: 0; background: #222; }
+.lab-zoom-pane img { display: block; max-width: none; width: auto; height: auto; }
+.lab-zoom-pane span { position: sticky; left: 8px; bottom: 8px; display: inline-block; margin: 0 0 8px 8px; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,.65); font-size: 12px; }
+@media (max-width: 640px) { .lab-zoom-panes { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }
