@@ -394,6 +394,12 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
               ))}
             </div>
           )}
+          <div className="prompt-head">
+            <span>Prompt · {SHOT_LABELS[current] ?? current}</span>
+            <button type="button" className="chip-btn prompt-copy" onClick={() => copy(current, prompt.text)}>
+              {copied === current ? 'Copiato ✓' : 'Copia il prompt'}
+            </button>
+          </div>
           <textarea
             className="brief-area lab-prompt"
             rows={10}

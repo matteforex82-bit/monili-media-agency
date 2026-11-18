@@ -138,6 +138,8 @@ html, body {
   padding: 0;
   min-height: 100vh;
   overflow-x: hidden;
+  /* clip non crea un contenitore di scorrimento: serve perche la barra delle azioni (sticky) resti ferma in basso nello schermo */
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 

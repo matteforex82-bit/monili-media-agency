@@ -543,3 +543,6 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .ws-photos figcaption { font-size: 11.5px; color: var(--bot-muted); }
 .ws-photos-note { font-size: 14px; color: var(--bot-ink-2); line-height: 1.4; }
 .ws-photos-note b { color: var(--bot-accent-dk); }
+
+.prompt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 600; }
+.prompt-copy { min-height: 40px; padding: 0 14px; border-color: var(--bot-accent); color: var(--bot-accent-dk); font-weight: 600; }
