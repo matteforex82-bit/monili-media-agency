@@ -1551,7 +1551,11 @@ def lab_edit_prompt(draft_id: str, shot: str, body: dict):
 def lab_add_attempt(draft_id: str, body: dict):
     """«Fatta su Higgsfield»: the prompt as it is now is frozen in a new attempt."""
     folder = _lab_folder(draft_id)
-    lab = prompt_lab.store.add_attempt(folder, str(body.get("shot", "")), str(body.get("model", ""))) if folder else None
+    if folder and body.get("external"):
+        # a photo made outside the Studio's prompt: rated like the others, the prompt used is optional
+        lab = prompt_lab.store.add_external(folder, str(body.get("shot", "")), str(body.get("model", "")), str(body.get("prompt", "")))
+    else:
+        lab = prompt_lab.store.add_attempt(folder, str(body.get("shot", "")), str(body.get("model", ""))) if folder else None
     if not lab:
         return JSONResponse({"error": "Prompt non trovato"}, status_code=404)
     return _lab_public(draft_id, lab)

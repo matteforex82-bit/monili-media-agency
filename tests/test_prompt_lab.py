@@ -200,7 +200,7 @@ def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkey
 
 def test_progress_says_what_to_do_next(monkeypatch):
     assert prompt_lab.progress(None)["stage"] == "prompt"
-    lab = {"attempts": []}
+    lab = {"prompts": {"worn": {"text": "x"}}, "attempts": []}
     assert prompt_lab.progress(lab)["stage"] == "crea" and prompt_lab.progress(lab)["done"]["prompt"] is True
     lab["attempts"].append({"id": "a", "result": "", "rating": 0})
     assert prompt_lab.progress(lab)["stage"] == "carica"
@@ -251,3 +251,33 @@ def test_all_photos_of_the_piece_reach_the_analysis(monkeypatch):
     client.post(f"/bozze/{one['id']}/prompt", json={"category": "bijoux", "model": "Seedream"})
     assert not isinstance(seen["look"], list) and "FOTO ALLEGATE" not in seen["brief"]
     client.delete(f"/bozze/{one['id']}")
+
+
+def test_a_photo_made_elsewhere_can_be_rated_without_the_studio_prompt(monkeypatch):
+    draft = _draft()
+    did = draft["id"]
+    assert client.get(f"/bozze/{did}/prompt").json()["progress"]["stage"] == "prompt"
+
+    made = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "worn", "model": "Seedream", "prompt": "my own prompt"})
+    assert made.status_code == 200
+    payload = made.json()
+    attempt = payload["lab"]["attempts"][0]
+    assert attempt["external"] is True and attempt["prompt"] == "my own prompt" and payload["lab"]["prompts"] == {}
+    assert payload["progress"]["stage"] == "carica" and payload["progress"]["done"]["prompt"] is False
+
+    up = client.post(f"/bozze/{did}/prove/{attempt['id']}/risultato", files={"foto": ("r.jpg", _jpeg(), "image/jpeg")}).json()
+    assert up["progress"]["stage"] == "valuta"
+
+    # Codex can judge it: the prompt used is in its request
+    seen = {}
+    monkeypatch.setattr(server.fucina_codex, "run", lambda prompt, images, model="": seen.update(prompt=prompt) or '{"checklist": {}, "giudizio": "ok", "voto_proposto": 3, "correzione": "", "prompt_corretto": ""}')
+    assert client.post(f"/bozze/{did}/prove/{attempt['id']}/valuta", json={}).status_code == 200
+    assert "my own prompt" in seen["prompt"]
+    rated = client.put(f"/bozze/{did}/prove/{attempt['id']}", json={"rating": 4, "note": ""}).json()
+    assert rated["progress"]["stage"] == "fatto"
+
+    # the Studio can still write its own prompts afterwards, and the attempt stays
+    _fake_agents(monkeypatch)
+    after = client.post(f"/bozze/{did}/prompt", json={"category": "bijoux", "model": "Seedream"}).json()
+    assert len(after["lab"]["attempts"]) == 1 and set(after["lab"]["prompts"]) == {"clean", "worn"}
+    client.delete(f"/bozze/{did}")

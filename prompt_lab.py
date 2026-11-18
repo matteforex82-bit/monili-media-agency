@@ -239,6 +239,36 @@ class LabStore:
             self._write(folder, lab)
             return lab
 
+    def add_external(self, folder: Path, shot: str, model: str, prompt: str) -> dict:
+        """A photo made elsewhere (another prompt, another tool): it can be rated without going through the Studio's prompt."""
+        with _lock:
+            lab = self.read(folder) or {
+                "category": "",
+                "target_model": "",
+                "woman_token": "",
+                "analisi": "",
+                "styling": "",
+                "woman": "",
+                "prompts": {},
+                "attempts": [],
+                "created_at": _now(),
+            }
+            lab["attempts"].append(
+                {
+                    "id": uuid.uuid4().hex[:8],
+                    "shot": shot if shot in (*SHOTS, *SCENES) else "worn",
+                    "model": _clean(model, 60) or "Altro",
+                    "prompt": _clean(prompt),
+                    "external": True,
+                    "created_at": _now(),
+                    "result": "",
+                    "rating": 0,
+                    "note": "",
+                }
+            )
+            self._write(folder, lab)
+            return lab
+
     def _attempt(self, lab: dict, attempt_id: str) -> dict | None:
         return next((a for a in lab.get("attempts", []) if a.get("id") == attempt_id), None)
 
@@ -411,7 +441,8 @@ def progress(lab: dict | None) -> dict:
     attempts = (lab or {}).get("attempts", [])
     with_result = [a for a in attempts if a.get("result")]
     rated = [a for a in with_result if a.get("rating")]
-    if not lab:
+    has_prompts = bool(lab and lab.get("prompts"))
+    if not has_prompts and not attempts:
         stage = "prompt"
     elif not attempts:
         stage = "crea"
@@ -424,5 +455,5 @@ def progress(lab: dict | None) -> dict:
     return {
         "stage": stage,
         "label": STAGE_LABELS[stage],
-        "done": {"prompt": bool(lab), "generare": bool(with_result), "valutare": bool(rated)},
+        "done": {"prompt": has_prompts, "generare": bool(with_result), "valutare": bool(rated)},
     }

@@ -117,6 +117,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   const [codex, setCodex] = useState<CodexInfo | null>(null);
   const [codexModel, setCodexModel] = useState('');
   const [sourceId, setSourceId] = useState('');
+  const [ext, setExt] = useState({ shot: 'worn', model: 'Seedream', prompt: '' });
   const progressRef = useRef(onProgress);
   progressRef.current = onProgress;
 
@@ -227,6 +228,16 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
     form.append('foto', file);
     const payload = await run(() => request(`/prove/${attempt.id}/risultato`, { method: 'POST', body: form }), 'Non sono riuscito a caricarla');
     if (payload?.lab && !payload.lab.attempts.some((a) => !a.result)) onStep('valutare');
+  }
+
+  // Una foto fatta altrove (un altro prompt, un altro strumento): si carica e si valuta senza passare dal prompt dello Studio.
+  async function addExternal(file: File) {
+    const payload = await run(() => request('/prove', json('POST', { external: true, shot: ext.shot, model: ext.model, prompt: ext.prompt })), 'Non sono riuscito ad aggiungerla');
+    const created = payload?.lab?.attempts[payload.lab.attempts.length - 1];
+    if (created) {
+      await upload(created, file);
+      setExt((e) => ({ ...e, prompt: '' }));
+    }
   }
 
   async function judge(attempt: Attempt) {
@@ -354,7 +365,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
 
   // ---------- passo: prompt ----------
   if (step === 'prompt') {
-    if (!lab) {
+    if (!lab || Object.keys(lab.prompts).length === 0) {
       return (
         <>
           <div className="step-body">
@@ -563,7 +574,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
     <>
       <div className="step-body">
         {errorBox}
-        {rated.length === 0 && <p className="step-hint">Nessun risultato da valutare. Carica prima la foto fatta su Higgsfield.</p>}
+        {rated.length === 0 && <p className="step-hint">Nessun risultato da valutare. Carica una foto fatta su Higgsfield, oppure una fatta altrove con il modulo qui sotto.</p>}
         {rated.map((attempt) => {
           const critique = attempt.critique;
           return (
@@ -675,6 +686,42 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
             </div>
           );
         })}
+        <details className="lab-external" open={rated.length === 0}>
+          <summary>Valuta una foto fatta altrove</summary>
+          <p className="step-hint">Hai usato un altro prompt o un altro strumento? Carica la foto: Codex la confronta con la foto vera come le altre.</p>
+          <label>
+            Modello usato
+            <select className="lab-select" value={ext.model} onChange={(e) => setExt({ ...ext, model: e.target.value })}>
+              {[...MODELS, 'Seedance 2.5'].map((m) => (
+                <option key={m}>{m}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Che foto è
+            <select className="lab-select" value={ext.shot} onChange={(e) => setExt({ ...ext, shot: e.target.value })}>
+              <option value="worn">Indossata</option>
+              <option value="clean">Catalogo</option>
+              <option value="worn_2">Seconda indossata</option>
+            </select>
+          </label>
+          <label>
+            Prompt usato (facoltativo, aiuta Codex a capire cosa correggere)
+            <textarea className="brief-area" rows={3} value={ext.prompt} onChange={(e) => setExt({ ...ext, prompt: e.target.value })} placeholder="Incolla qui il prompt" />
+          </label>
+          <label className="btn-secondary lab-upload-main">
+            Carica la foto e valutala
+            <input
+              type="file"
+              accept="image/*,.heic,.heif"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (file) void addExternal(file);
+              }}
+            />
+          </label>
+        </details>
       </div>
       {abbigliamento && hasPhotoRated
         ? bar(

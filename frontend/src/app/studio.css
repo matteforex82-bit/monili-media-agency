@@ -546,3 +546,7 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 
 .prompt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; font-weight: 600; }
 .prompt-copy { min-height: 40px; padding: 0 14px; border-color: var(--bot-accent); color: var(--bot-accent-dk); font-weight: 600; }
+
+.lab-external { border: 1px dashed var(--bot-border-hi); border-radius: 12px; padding: 10px 12px; display: grid; gap: 10px; }
+.lab-external summary { cursor: pointer; font-weight: 600; min-height: 36px; display: flex; align-items: center; }
+.lab-external label { display: grid; gap: 4px; font-size: 13px; color: var(--bot-muted); }
