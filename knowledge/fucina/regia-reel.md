@@ -8,6 +8,16 @@ Non ancora collegato al codice: è una nota di regia per chi monta i Reel.
 - Tagli netti, mai dissolvenze generate: "clean hard cuts only, no morph transitions". [fonte: ricerca 19/11]
 - Scritte, prezzi e logo si aggiungono in montaggio: i modelli ammorbidiscono il testo. Audio: esportare muto ("No music, no dialogue") e mettere la musica dopo. [fonte: ricerca 19/11; video muto verificato 10/11]
 
+**Durata e movimento sicuri per pezzo** [fonte: ricerca B 19/11, in gran parte blog di strumenti concorrenti; da confermare coi nostri test]
+- Anello 4-5 s: macro su base opaca, solo push-in lento o orbita sotto 45°; indossato, dita aperte e rilassate. Orecchini 4-5 s: camera ferma e solo la luce che scorre; indossati, capelli dietro l'orecchio e lento giro in profilo. Collana 5-8 s: foto stretta sulla scollatura, solo respiro e push-in, mai mani sul collo. Bracciale 5-6 s: una sola azione (avambraccio sollevato di 5 cm o polso ruotato di 30°) e pausa ferma di 2-3 s. Gilet e giacche ricamati 5-6 s (8 con più angoli): camera ferma, busto bloccato, quarto di giro di 25°, si muovono solo orli e frange; mai il retro senza la sua foto. Borsa 5-8 s: slider laterale lento o arco sotto 30° e push-in sulla fibbia; con 3-4 foto vere in Omni Reference o keyframe.
+- Una sola azione e un solo movimento di camera per clip; il centro del pezzo nel terzo centrale del 9:16.
+
+**Aurora + pezzo in più clip, senza deriva** [fonte: ricerca B 19/11; non provato da noi]
+- Prima uno still 9:16 di Aurora vestita col pezzo (Nano Banana Pro, GPT Image 2.6 o Seedream con foto vera), approvato a zoom 100%, poi si anima come primo fotogramma in 5-8 s.
+- Per un Reel di 15-24 s: 3-4 clip indipendenti da 5-6 s, ognuna richiama i riferimenti master (@Aurora, foto vera del pezzo, luogo), cambiando una sola variabile per volta. Non concatenare l'ultimo fotogramma della clip precedente: la deriva si accumula su volto e pietre. Piano sequenza lungo: Video Extend a passi di 4-8 s, salvando .mov.
+- Ordine dei riferimenti: 1 @Aurora, 2 pezzo frontale, 3 seconda vista, 4 luogo vuoto; se confliggono, tenere nell'ordine personaggio, pezzo, luogo, stile. Da 2 a 4 in tutto. Ripetere 2-3 ancore ("brown wavy hair, amethyst stone colour") in CONTINUITY.
+- Un secondo guasto isolato si ripara con Seedance 2.5 Edit (Draw to Edit) o si taglia.
+
 **Ritmo dell'intero Reel (somma di più clip)** [ipotesi]
 - 0-2 s: aggancio sul materiale, mai un fotogramma immobile ("a slow line of warm light glides across the stone", "fingertips brush the pendant").
 - 2-5 s: il pezzo sul corpo, si capisce misura e colore.

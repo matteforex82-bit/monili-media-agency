@@ -10,7 +10,11 @@ Etichette: [verificato] = visto nei test o scelta di Matteo; [fonte] = ricerca, 
 - Pezzi con pietre grandi e colori netti sono il caso facile; i pezzi piccoli sono il peggiore. [fonte: guida Higgsfield 31/10]
 - Con il volto nel quadro: 85mm a f/4, non f/1.4 (pezzo sfocato). Collane: dietro il pendente niente stoffa del colore del metallo. [fonte: ricerca 19/11]
 - Bracciale: "Close-up of a relaxed wrist and forearm on a soft oatmeal knit sleeve, the exact bracelet from the reference at true fit, warm natural window light, 85mm, f/4, every stone and link sharp, one bracelet only." [ipotesi]
-- Anelli: template non coperto dalla ricerca 19/11, da provare.
+- Anello su avorio: luce e finitura del metallo scritte separate ("soft softbox from camera-left, a focused pinpoint spot on the stone; true cool sterling silver; neutral white bounce fill from below") perché il fondo avorio non dia una dominante gialla all'argento. Ombra di contatto sotto il gambo, macro 2:1. [fonte: ricerca A 19/11, non provato]
+- Anello indossato: ritaglio subito sotto le nocche, mano rilassata dorso in camera, dita leggermente separate, unghie corte con smalto trasparente, "subtle skin indentation and contact shadow under the band". Mai inquadrature larghe (la pietra diventa illeggibile). Misure del gambo e della pietra in mm nella scheda, perché l'AI non garantisce la taglia. [fonte: ricerca A 19/11, non provato]
+- Orecchini smaltati: nominare ogni colore dello smalto ("distinct glossy enamel cells in crimson, turquoise, mustard with raised silver outlines"), altrimenti si impastano in una tinta fangosa. Capelli del tutto dietro l'orecchio, "post inserted through the earlobe piercing". 1:1 per i lobi, 4:5 per i pendenti. [fonte: ricerca A 19/11, non provato]
+- Collana: verticale 4:5 dal mento a metà petto, top opaco e liscio sotto il pendente, "natural gravity drape on the collarbones, continuous contact shadow", i cm di caduta sotto le clavicole scritti. Un pendente da 12 mm può uscire da 25: controllare la scala. [fonte: ricerca A 19/11, non provato]
+- Bracciale in studio: 3:2 con una leggera curva naturale, non teso "a righello". Indossato: manica ben sopra l'avambraccio, polso inclinato per mostrare fronte e chiusura. [fonte: ricerca A 19/11, non provato]
 
 **Foto di partenza** [fonte: ricerca 19/11]
 - 4-5 foto: fronte, tre quarti, macro della pietra, retro e chiusura, scala sul corpo. Telefono a 2x o 3x da 30-45 cm, mai 1x (deforma il metallo); luce di finestra, niente sole né flash. Correggere il bianco prima di caricarle; annotare le misure in mm.

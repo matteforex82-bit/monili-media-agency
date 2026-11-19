@@ -21,6 +21,9 @@ Quando un test contraddice la ricerca, vince il test.
 | `seedance.md` | video Seedance 2.5 | sì (scene video dell'abbigliamento) |
 | `kling.md`, `genjutsu.md`, `flux.md` | conoscenza pronta | non ancora scelti nella Fucina |
 | `ricetta-bijoux.md`, `-abbigliamento.md`, `-accessori.md` | cosa fare per tipo di pezzo | sì |
+| `struttura-prompt.md` | scheletro a 6 blocchi per le foto e a 7 per i video, ordine per modello, negative prompt, quale modello per quale pezzo | no: guida per chi scrive a mano |
+| `prompt-video-esempi.md` | un prompt video di partenza per anello, orecchini, collana, bracciale, capo, borsa, Aurora + pezzo, giro, Genjutsu | no: uso manuale, non provati |
+| `../valutazione/valutazione-video.md` | difetti da scartare o ritoccare nei video, per pezzo | no: lista di controllo a mano |
 | `regia-reel.md` | regia dei Reel 9:16: ritmo, ordine di riparazione, divieti generici, zone sicure da verificare | non ancora collegato |
 | `modella-aurora.md` | lo slot `@MODELLA` e la modella Monili-Aurora | no: è una nota per Matteo, non entra nei prompt |
 
@@ -30,3 +33,5 @@ GENJUTSU_PROVE_E_RICETTA, costi_test.csv, report Prompting Avanzato). Ancora da 
 Ricerche del 19/11 (cartella `nuove ricerche approfondite 19-11-26 specifiche`): `Higgsfield AI Moda e Gioielli gemini.md`,
 `Knowledge Base Operativa Higgsfield AI perplexity.md`, `deep-research-report codex.md`. Molte fonti sono blog del venditore;
 i template di Codex sono dichiarati inventati dall'autore, quindi entrano come `[ipotesi]`.
+Ricerca A del 19/11 (immagini, fatta con Claude Research): `Guida Tecnica Higgsfield Moda Gioielli claude-research-A-immagini.md`, nella stessa cartella. Ogni affermazione porta URL, data ed etichetta (TESTATO, UFFICIALE, MARKETING, OPINIONE); qui entra come `[fonte: ricerca A 19/11]`. I benchmark sui gioielli (Photoroom, Hylo) sono di aziende concorrenti. 
+Ricerca B del 19/11 (video, fatta con Claude Research): `Modelli Video AI su Higgsfield claude-research-B-video.md`, stessa cartella, stesse etichette. Ha aggiornato seedance.md (Flash, Edit, primo fotogramma contro Omni Reference, filtro del volto), kling.md (Kling 4.0), genjutsu.md (quando sì e quando no per pezzo), regia-reel.md (durate per pezzo, Aurora in più clip) e creato gli esempi e la valutazione dei video. Conflitto risolto: la ricerca propone Object Swap per cambiare il volto con Aurora, ma i nostri test (15-16/11) dicono che il volto resta quello originale; vale il test. Nessun esempio video è ancora provato da noi.

@@ -14,7 +14,8 @@ Due passi: 1) il capo addosso alla donna; 2) le scene video con Seedance 2.5 par
 - Figura intera: "generous headroom and clear ground below her shoes, full silhouette inside the frame"; 35mm (mai 18-24mm), f/5.6 all'aperto; 50mm per il mezzo busto. [fonte: ricerca 19/11]
 - Pelle credibile: "shot on medium format film", "fine 35mm grain", luce calda coerente, non contraddittoria. [fonte: report 13/11] Anche "visible pores, no porcelain smoothing"; mai "flawless". [fonte: ricerca 19/11]
 - Controllare a 100%: motivo, colori, proporzioni, colletto, zip, orlo, dita, scarpe, una sola persona. [verificato: 16/11]
-- Giacche ricamate e gilet: non coperti dalla ricerca 19/11, da provare; vale l'esempio sherpa.
+- Giacche ricamate e gilet: due riferimenti, Image 1 il capo intero e Image 2 il primo piano di ricamo e bottoni. Il capo su gruccia (o manichino invisibile) dà spalle e vita giuste; il piatto, ben stirato e a 1500 px, serve per il ricamo ma non da solo per i capi strutturati. Via ogni cartellino prima dello scatto. Luce laterale radente perché il rilievo del filo si legga. Chiudere con "clean unmarked neckline interior, no hang tags, no woven labels, no logos, no invented text". Non chiedere il retro se esiste solo il fronte: il ricamo dietro è inventato. [fonte: ricerca A 19/11, non provato; vale anche l'esempio sherpa]
+- Scelta del modello per il ricamo: GPT Image 2.6 Sunburst (stemmi, bordi, conteggio bottoni) o Seedream 5.5 (peso del tessuto, applicazioni 3D, colori). Nano Banana 2 no (plastifica le fibre). Un bottone mancante su fondo uniforme si ritocca; un ricamo semplificato si scarta. [fonte: ricerca A 19/11, test On-Model e Masonry]
 
 **Passo 2, scene video con Seedance 2.5**
 - Primo fotogramma = la foto indossata scelta. Tre scene da 4-5 s: capo intero, dettaglio del tessuto, movimento (si gira o cammina). [fonte: impostazione del Reel, T3a/T3b nei test 15/11]
