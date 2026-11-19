@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import MosaicTiles, { stepTiles } from '@/components/MosaicTiles';
 import PieceView from '@/components/PieceView';
 import { API_URL } from '@/lib/apiUrl';
 import type { PieceSummary } from '@/lib/pieces';
@@ -76,7 +75,6 @@ export default function PiecePage() {
               <img src={`${API_URL}/files/${cover}`} alt={title || 'Foto del pezzo'} className="piece-cover" />
             )}
             <h1>{title || 'Pezzo senza nome'}</h1>
-            {summary && <MosaicTiles items={stepTiles(summary.steps)} palette={summary.palette} large />}
           </header>
           <PieceView results={results} apiUrl={API_URL} runId={runId} summary={summary} onChanged={loadSummary} />
         </>

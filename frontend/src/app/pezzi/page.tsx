@@ -5,7 +5,7 @@ import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import MosaicTiles, { stepTiles } from '@/components/MosaicTiles';
 import { API_URL } from '@/lib/apiUrl';
-import { formatPieceDate, type PieceSummary } from '@/lib/pieces';
+import { formatPieceDate, nextStep, type PieceSummary } from '@/lib/pieces';
 
 export default function PiecesPage() {
   const [pieces, setPieces] = useState<PieceSummary[] | null>(null);
@@ -47,7 +47,7 @@ export default function PiecesPage() {
   return (
     <div className="page">
       <h1 className="page-title">Pezzi</h1>
-      <p className="page-lead">Ogni pezzo con i passaggi fatti: scheda, sito, Reel, Instagram.</p>
+      <p className="page-lead">Il tuo archivio. Ogni pezzo ricorda a che punto è e ti porta al passo che manca: sito, video, pubblicazione.</p>
 
       {error && <div className="notice error" role="alert">{error}</div>}
       {!error && pieces === null && <p className="page-lead">Carico i pezzi...</p>}
@@ -62,9 +62,10 @@ export default function PiecesPage() {
         <ul className="piece-list">
           {pieces.map((piece) => {
             const name = piece.title || 'Pezzo senza nome';
+            const next = nextStep(piece.steps);
             return (
               <li key={piece.run_id} className="piece-row">
-                <Link href={`/pezzi/${encodeURIComponent(piece.run_id)}`} className="piece-card">
+                <Link href={`/pezzi/${encodeURIComponent(piece.run_id)}?tab=${next.tab}`} className="piece-card">
                   {piece.cover ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={`${API_URL}/files/${piece.cover}`} alt="" loading="lazy" />
@@ -74,6 +75,7 @@ export default function PiecesPage() {
                   <div>
                     <h2>{name}</h2>
                     <time dateTime={piece.created_at}>{formatPieceDate(piece.created_at)}</time>
+                    <p className="piece-next" data-done={next.done}>{next.label}</p>
                     <MosaicTiles items={stepTiles(piece.steps)} palette={piece.palette} />
                   </div>
                 </Link>

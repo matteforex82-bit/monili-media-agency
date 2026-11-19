@@ -2788,6 +2788,7 @@ async def reel_import(
     note: str = Form(default=""),
     add_closing: bool = Form(default=True),
     text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
+    scheda_run_id: str = Form(default=""),
 ):
     """Video già pronto (Gemini/Veo, telefono): diventa un Reel finito, con chiusura, copertina e testi."""
     content_type = (video.content_type or "").lower().strip()
@@ -2808,6 +2809,7 @@ async def reel_import(
             add_closing,
             os.environ.get("OPENROUTER_API_KEY", "").strip(),
             text_model,
+            scheda_run_id.strip() if scheda_run_id.strip() and _find_manifest_by_run_id(scheda_run_id.strip()) else "",
         )
     except (ValueError, RuntimeError) as exc:
         if not reel_studio.load_state(reel_id):

@@ -533,6 +533,7 @@ def import_external_video(
     add_closing: bool = True,
     api_key: str = "",
     text_model: str = "",
+    scheda_run_id: str = "",
 ) -> dict:
     """Importa un video verticale fatto fuori dallo Studio (Gemini/Veo, telefono) come Reel finito."""
     width, height = probe_size(source)
@@ -547,6 +548,7 @@ def import_external_video(
         "id": reel_id,
         "status": "rendering",
         "source": "esterno",
+        "scheda_run_id": (scheda_run_id or "").strip(),
         "created_at": datetime.now().isoformat(),
         "brief": note,
         "format": "reel",
