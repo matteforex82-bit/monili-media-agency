@@ -35,8 +35,9 @@ AI_SHOTS = {
 # Rings and bracelets: Matteo does not want the whole hand (07/11/2026), only a part of it with the
 # piece worn and a lovely blurred background.
 RING_FRAMING = (
-    "Se e un anello (o un bracciale): inquadratura STRETTA, solo il dito con l'anello e le nocche vicine "
-    "(la mano e tagliata a meta, mai mano intera ne polso ne braccio); il pezzo occupa almeno un terzo della "
+    "Se e un anello: inquadratura STRETTA, solo il dito con l'anello e le nocche vicine "
+    "(la mano e tagliata a meta, mai mano intera ne polso ne braccio). Se e un bracciale: primo piano su polso e "
+    "avambraccio, mano rilassata e tagliata. In entrambi i casi il pezzo occupa almeno un terzo della "
     "larghezza; sfondo bello ma sfocato (muro caldo, mosaico, tessuto), mai neutro e vuoto."
 )
 
