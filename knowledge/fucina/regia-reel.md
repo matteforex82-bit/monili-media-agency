@@ -1,6 +1,6 @@
 ## Regia dei Reel e delle Storie (9:16, tutti i modelli video)
 Etichette: [verificato] = visto nei test; [fonte] = ricerca, non ancora provato; [ipotesi]; [dubbio] = senza fonte affidabile. I prompt sono sempre in inglese.
-Non ancora collegato al codice: è una nota di regia per chi monta i Reel.
+Dal 19/11 entra nelle scene video e nella revisione dei video dello Studio (tutto fino a "Da verificare"); è anche una nota di regia per chi monta i Reel.
 
 **Formato e montaggio**
 - 9:16 a 1080x1920; il formato si imposta nei parametri del modello. [fonte: ricerca 19/11, Meta]

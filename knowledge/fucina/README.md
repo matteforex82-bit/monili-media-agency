@@ -21,10 +21,10 @@ Quando un test contraddice la ricerca, vince il test.
 | `seedance.md` | video Seedance 2.5 | sì (scene video dell'abbigliamento) |
 | `kling.md`, `genjutsu.md`, `flux.md` | conoscenza pronta | non ancora scelti nella Fucina |
 | `ricetta-bijoux.md`, `-abbigliamento.md`, `-accessori.md` | cosa fare per tipo di pezzo | sì |
-| `struttura-prompt.md` | scheletro a 6 blocchi per le foto e a 7 per i video, ordine per modello, negative prompt, quale modello per quale pezzo | no: guida per chi scrive a mano |
+| `struttura-prompt.md` | scheletro a 6 blocchi per le foto e a 7 per i video, ordine per modello, negative prompt, quale modello per quale pezzo | sì (piano foto, revisione, scene video) |
 | `prompt-video-esempi.md` | un prompt video di partenza per anello, orecchini, collana, bracciale, capo, borsa, Aurora + pezzo, giro, Genjutsu | no: uso manuale, non provati |
-| `../valutazione/valutazione-video.md` | difetti da scartare o ritoccare nei video, per pezzo | no: lista di controllo a mano |
-| `regia-reel.md` | regia dei Reel 9:16: ritmo, ordine di riparazione, divieti generici, zone sicure da verificare | non ancora collegato |
+| `../valutazione/valutazione-video.md` | difetti da scartare o ritoccare nei video, per pezzo | sì (revisione dei video) |
+| `regia-reel.md` | regia dei Reel 9:16: ritmo, ordine di riparazione, divieti generici, zone sicure da verificare | sì (scene video e revisione video) |
 | `modella-aurora.md` | lo slot `@MODELLA` e la modella Monili-Aurora | no: è una nota per Matteo, non entra nei prompt |
 
 Stato: 19/11/2026. Sorgenti: `C:\Users\matte\Desktop\PROGETTI AI\Learn Higgsfield` (PROMPT_PLAYBOOK, PROVE_REEL_SEEDANCE,

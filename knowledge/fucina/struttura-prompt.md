@@ -1,5 +1,5 @@
 ## Struttura del prompt per le foto (Seedream, Nano Banana, GPT Image)
-Etichette: [fonte: ricerca A 19/11] = dai test e dalle guide, non ancora provato da noi; [ipotesi]; [verificato]. I prompt sono sempre in inglese. Per i video (Seedance, Kling, Genjutsu) lo scheletro è in fondo, dalla ricerca B del 19/11. Questo file non entra ancora nei prompt dello Studio: è una guida per chi scrive a mano.
+Etichette: [fonte: ricerca A 19/11] = dai test e dalle guide, non ancora provato da noi; [ipotesi]; [verificato]. I prompt sono sempre in inglese. Per i video (Seedance, Kling, Genjutsu) lo scheletro è in fondo, dalla ricerca B del 19/11. Dal 19/11 entra nei prompt dello Studio (piano delle foto, revisione, scene video; la scelta del modello per pezzo resta fuori) ed è anche la guida per chi scrive a mano.
 
 **Sei blocchi, sempre in questo ordine** [fonte: ricerca A 19/11]
 1. Intento e soggetto, con il ruolo di ogni riferimento: "Real commercial macro photograph of the exact ring from Image 1" / "@Aurora wearing the piece from Image 2".

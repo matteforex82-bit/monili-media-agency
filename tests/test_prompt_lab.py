@@ -142,6 +142,21 @@ def test_model_knowledge_loads_the_model_and_the_recipe():
         assert 80 < len(text.split()) < 1100, name
 
 
+def test_the_prompt_skeletons_and_video_rules_reach_the_studio_prompts():
+    photo, video = prompt_lab.prompt_structure("foto"), prompt_lab.prompt_structure("video")
+    assert "Sei blocchi" in photo and "Sette blocchi" in video
+    assert "Quale modello per quale pezzo" not in photo + video  # the model is already chosen when these are used
+    assert "Durata e movimento sicuri" in prompt_lab.video_direction() and "Da verificare" not in prompt_lab.video_direction()
+    assert "Da scartare" in prompt_lab.video_review_sheet()
+    lab = {"category": "abbigliamento", "analisi": "gilet ricamato"}
+    scenes = prompt_lab.scenes_prompt(lab, "", "")
+    assert "Sette blocchi" in scenes and "Durata e movimento sicuri" in scenes and "Aurora + pezzo in più clip" in scenes
+    video_review = prompt_lab.critique_prompt(lab, {"shot": "worn", "model": "Seedance 2.5", "prompt": "p"}, is_video=True)
+    assert "DIFETTI DA CERCARE NEL VIDEO" in video_review and "Sette blocchi" in video_review
+    photo_review = prompt_lab.critique_prompt(lab, {"shot": "worn", "model": "Seedream", "prompt": "p"})
+    assert "Sei blocchi" in photo_review and "DIFETTI DA CERCARE NEL VIDEO" not in photo_review
+
+
 def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkeypatch):
     _fake_agents(monkeypatch)
     monkeypatch.setattr(

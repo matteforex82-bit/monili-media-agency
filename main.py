@@ -533,6 +533,8 @@ Analisi prodotto: {analisi[:1400]}
 Brief utente: {brief if brief else "Nessun brief"}
 
 COME FOTOGRAFARLO INDOSSATO: {categorie.SHOT_GUIDE.get(category, categorie.SHOT_GUIDE["bijoux"])}
+{prompt_lab.prompt_structure("foto")}
+
 {prompt_lab.model_knowledge(target_model, category)}
 {prompt_lab.hints(category, target_model)}
 

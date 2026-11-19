@@ -117,6 +117,35 @@ def model_knowledge(model: str = "", category: str = "") -> str:
     return "\n\n".join(parts)
 
 
+def _read_knowledge(directory: Path, name: str) -> str:
+    try:
+        return (directory / name).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def prompt_structure(kind: str) -> str:
+    """The skeleton of a prompt (knowledge/fucina/struttura-prompt.md): kind is "foto" (6 blocks) or "video" (7 blocks).
+    The paragraph that chooses the model for the piece is left out: the model is already chosen when this is used."""
+    marker = "per le foto" if kind == "foto" else "per i video"
+    for section in re.split(r"^## ", _read_knowledge(KNOWLEDGE_DIR, "struttura-prompt.md"), flags=re.MULTILINE):
+        head, _, body = section.partition("\n")
+        if marker in head.lower():
+            paragraphs = [p for p in body.strip().split("\n\n") if not p.lstrip().startswith("**Quale modello")]
+            return f"{head.strip()}\n" + "\n\n".join(paragraphs)
+    return ""
+
+
+def video_direction() -> str:
+    """Duration and safe movement for each kind of piece, and Aurora across several clips (knowledge/fucina/regia-reel.md)."""
+    return _read_knowledge(KNOWLEDGE_DIR, "regia-reel.md").split("**Da verificare")[0].strip()
+
+
+def video_review_sheet() -> str:
+    """The defects to look for, frame by frame, in an AI video (knowledge/valutazione/valutazione-video.md)."""
+    return _read_knowledge(REVIEW_DIR, "valutazione-video.md")
+
+
 def hints(category: str = "", model: str = "") -> str:
     """Examples to put in front of the art director: what worked and what went wrong, from the owner's own ratings.
     Only the ones made for the same image model (the automatic flow sees the models it really uses)."""
@@ -601,6 +630,11 @@ def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:
         else ""
     )
     knowledge = model_knowledge(attempt.get("model", ""), category)
+    if is_video:
+        knowledge = f"{knowledge}\n\n{prompt_structure('video')}\n\n{video_direction()}".strip()
+        goal_block = f"\nDIFETTI DA CERCARE NEL VIDEO (fotogramma per fotogramma, contro la foto vera):\n{video_review_sheet()}\n"
+    else:
+        knowledge = f"{knowledge}\n\n{prompt_structure('foto')}".strip()
     return f"""Sei il revisore di immagini di I Monili Ravenna, una gioielleria di Ravenna.
 {"Hai quattro immagini: la PRIMA è la foto vera del pezzo (la verità), le altre tre sono fotogrammi (inizio, metà, fine) di un video creato con l'AI (" + attempt.get("model", "") + "). Oltre al pezzo controlla che tra un fotogramma e l'altro il capo, la donna e i colori restino uguali, e che non ci siano deformazioni o sfarfallii." if is_video else "Hai due immagini: la PRIMA è la foto vera del pezzo (la verità), la SECONDA è la foto creata con l'AI (" + attempt.get("model", "") + ").\nConfrontale con occhio critico: il pezzo nella seconda deve essere identico a quello della prima."}
 
@@ -659,7 +693,7 @@ SCENE_TAIL = (
 
 
 def scenes_prompt(lab: dict, category_note: str, hints_text: str) -> str:
-    knowledge = model_knowledge(VIDEO_MODEL, lab.get("category", ""))
+    knowledge = f"{model_knowledge(VIDEO_MODEL, lab.get('category', ''))}\n\n{prompt_structure('video')}\n\n{video_direction()}"
     return f"""Sei il regista dei video Instagram di I Monili Ravenna, boutique di Ravenna. Devi restituire SOLO un JSON valido.
 Hai in mano la foto del capo già indossato dalla donna di questo pezzo: sarà il PRIMO FOTOGRAMMA di ogni scena (Seedance 2.5, da immagine a video).
 
@@ -671,7 +705,7 @@ Appunti del titolare: {category_note or "nessuno"}
 {hints_text}
 
 Scrivi 3 scene diverse, da 4-5 secondi l'una, che si montano in un Reel 9:16. Ogni scena:
-- prompt in inglese, in questo ordine: cosa NON cambia (capo, donna), una sola azione semplice, un solo movimento di camera lento, luce;
+- prompt in inglese che segue la struttura video qui sopra (regola "One continuous shot, no cuts", riferimento della foto di partenza, cosa NON cambia, azione a finestre di secondi, un solo movimento di camera lento con parole fisiche, luce, pochi vincoli concreti in coda); mai "fast", mai verbi come edit, replace, change to; rispetta durata e movimento sicuri per questo tipo di capo;
 - azioni facili e naturali (camminare piano, girarsi, sistemarsi il capo, il vento sul tessuto): niente mani che maneggiano oggetti piccoli;
 - la scena 1 mostra il capo intero, la 2 un dettaglio (tessuto, ricamo, bottoni), la 3 il movimento (si gira o cammina).
 
