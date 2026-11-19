@@ -24,6 +24,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 import casting
 import higgsfield_client as hf
 import reel_kit as kit
+import remotion_graphics
 import results_log
 import skills_loader as skills
 from piece_code import add_reference, piece_code
@@ -534,6 +535,9 @@ def import_external_video(
     api_key: str = "",
     text_model: str = "",
     scheda_run_id: str = "",
+    graphics: bool = False,
+    price: str = "",
+    location: str = "",
 ) -> dict:
     """Importa un video verticale fatto fuori dallo Studio (Gemini/Veo, telefono) come Reel finito."""
     width, height = probe_size(source)
@@ -548,6 +552,7 @@ def import_external_video(
         "id": reel_id,
         "status": "rendering",
         "source": "esterno",
+        "graphics": {"on": bool(graphics), "price": (price or "").strip()[:20], "place": remotion_graphics.place_label(location)},
         "scheda_run_id": (scheda_run_id or "").strip(),
         "created_at": datetime.now().isoformat(),
         "brief": note,
@@ -582,20 +587,42 @@ def _finish_external(state: dict, source: Path, seconds: float, add_closing: boo
     out_dir = reel_dir(reel_id)
     body = normalize_clip(source, out_dir / "shots" / "esterno.mp4", seconds)
     final_video = out_dir / f"monili_reel_{reel_id}.mp4"
-    if add_closing:
-        card = make_closing_card(out_dir / "chiusura.png")
-        closing = _still_clip(card, out_dir / "shots" / "chiusura.mp4", CLOSING_SECONDS)
-        assemble([(body, seconds), (closing, CLOSING_SECONDS)], [CLOSING_FADE], final_video)
-        log(reel_id, "MONTAGGIO", "Chiusura \"Scrivici, ti diciamo se è disponibile\" aggiunta", "success")
-    else:
-        shutil.copyfile(body, final_video)
-    # Copertina: un fotogramma verso la fine del video, quando di solito si vede la persona.
-    frame = _frame_at(body, seconds * 0.85, out_dir / "cover_frame.jpg")
-    cover = make_cover(frame, out_dir / "cover_foto.jpg")
 
+    # I testi si scrivono prima del montaggio: la frase d'apertura della grafica viene da qui.
     log(reel_id, "COPY", "Caption, hashtag e testi...")
     copy = _external_copy(state, api_key)
     (out_dir / "testi.md").write_text(_copy_markdown(state, copy), encoding="utf-8")
+
+    graphics = state.get("graphics") or {}
+    done_with_graphics = False
+    if graphics.get("on"):
+        try:
+            log(reel_id, "GRAFICA", "Grafica Monili con Remotion (frase, targhetta, chiusura)...")
+            remotion_graphics.render_graphics(
+                body,
+                final_video,
+                seconds,
+                hook=str(copy.get("cover_text") or ""),
+                title=str((state.get("storyboard") or {}).get("title") or ""),
+                price=str(graphics.get("price") or ""),
+                place=str(graphics.get("place") or remotion_graphics.DEFAULT_PLACE),
+                closing=add_closing,
+            )
+            done_with_graphics = True
+            log(reel_id, "GRAFICA", "Grafica aggiunta", "success")
+        except Exception as exc:
+            log(reel_id, "GRAFICA", f"Grafica non riuscita ({exc}): uso il montaggio semplice", "warn")
+    if not done_with_graphics:
+        if add_closing:
+            card = make_closing_card(out_dir / "chiusura.png")
+            closing = _still_clip(card, out_dir / "shots" / "chiusura.mp4", CLOSING_SECONDS)
+            assemble([(body, seconds), (closing, CLOSING_SECONDS)], [CLOSING_FADE], final_video)
+            log(reel_id, "MONTAGGIO", "Chiusura \"Scrivici, ti diciamo se è disponibile\" aggiunta", "success")
+        else:
+            shutil.copyfile(body, final_video)
+    # Copertina: un fotogramma verso la fine del video, quando di solito si vede la persona.
+    frame = _frame_at(body, seconds * 0.85, out_dir / "cover_frame.jpg")
+    cover = make_cover(frame, out_dir / "cover_foto.jpg")
 
     def _done(s: dict):
         s["status"] = "done"
@@ -608,6 +635,7 @@ def _finish_external(state: dict, source: Path, seconds: float, add_closing: boo
             "shots": [],
             "preview_only": False,
             "external": True,
+            "graphics_applied": done_with_graphics,
             "completed_at": datetime.now().isoformat(),
         }
 

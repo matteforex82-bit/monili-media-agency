@@ -2330,6 +2330,7 @@ import higgsfield_client  # noqa: E402
 import reel_kit  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
+import remotion_graphics  # noqa: E402
 import results_log  # noqa: E402
 import piano  # noqa: E402
 from main import (  # noqa: E402
@@ -2383,6 +2384,7 @@ def _public_reel(state: dict | None) -> dict | None:
 def reel_config():
     return {
         "higgsfield_configured": higgsfield_client.is_configured(),
+        "remotion_available": remotion_graphics.is_available(),
         "video_models": [
             {"id": key, "label": spec["label"], "min_duration": spec["min_duration"], "max_duration": spec["max_duration"]}
             for key, spec in higgsfield_client.VIDEO_MODELS.items()
@@ -2789,6 +2791,9 @@ async def reel_import(
     add_closing: bool = Form(default=True),
     text_model: str = Form(default=DEFAULT_OPENROUTER_TEXT_MODEL),
     scheda_run_id: str = Form(default=""),
+    graphics: bool = Form(default=False),
+    price: str = Form(default=""),
+    location: str = Form(default=""),
 ):
     """Video già pronto (Gemini/Veo, telefono): diventa un Reel finito, con chiusura, copertina e testi."""
     content_type = (video.content_type or "").lower().strip()
@@ -2810,6 +2815,9 @@ async def reel_import(
             os.environ.get("OPENROUTER_API_KEY", "").strip(),
             text_model,
             scheda_run_id.strip() if scheda_run_id.strip() and _find_manifest_by_run_id(scheda_run_id.strip()) else "",
+            graphics and remotion_graphics.is_available(),
+            price,
+            location,
         )
     except (ValueError, RuntimeError) as exc:
         if not reel_studio.load_state(reel_id):

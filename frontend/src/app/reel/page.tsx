@@ -127,6 +127,7 @@ interface ReelState {
 }
 
 interface ReelConfig {
+  remotion_available?: boolean;
   higgsfield_configured: boolean;
   video_models: { id: string; label: string; min_duration: number; max_duration: number }[];
   default_video_model: string;
@@ -318,6 +319,10 @@ export default function ReelStudioPage() {
   const [importTitle, setImportTitle] = useState('');
   const [importNote, setImportNote] = useState('');
   const [importClosing, setImportClosing] = useState(true);
+  // Grafica Monili con Remotion: frase d'apertura, targhetta col prezzo, chiusura animata.
+  const [importGraphics, setImportGraphics] = useState(true);
+  const [importPrice, setImportPrice] = useState('');
+  const [importPlace, setImportPlace] = useState('');
   // Il pezzo della Scheda da cui parte il Reel (/reel?pezzo=<run_id>): stessa donna della foto indossata.
   const [piece, setPiece] = useState<Piece | null>(null);
   // Il contenuto del Piano da cui si parte (/reel?piano=<settimana>:<ruolo>): a creazione avvenuta lo segna come creato.
@@ -497,6 +502,9 @@ export default function ReelStudioPage() {
       form.append('note', importNote);
       form.append('add_closing', importClosing ? 'true' : 'false');
       if (piece) form.append('scheda_run_id', piece.runId);
+      form.append('graphics', importGraphics && config?.remotion_available ? 'true' : 'false');
+      form.append('price', importPrice);
+      form.append('location', importPlace);
       const res = await fetch(`${API_URL}/reel/import`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(await readError(res));
       const data: ReelState = await res.json();
@@ -807,6 +815,31 @@ export default function ReelStudioPage() {
                 />
               </Field>
             </div>
+            {config?.remotion_available && (
+              <div className="rs-graphics">
+                <label className="rs-check">
+                  <input type="checkbox" checked={importGraphics} onChange={(e) => setImportGraphics(e.target.checked)} />
+                  <span>
+                    <strong>Grafica Monili</strong>: frase d&apos;apertura, targhetta col nome e il prezzo, chiusura animata.
+                    Il render richiede circa un minuto.
+                  </span>
+                </label>
+                {importGraphics && (
+                  <div className="rs-grid-2">
+                    <Field label="Prezzo sulla targhetta (facoltativo)">
+                      <input className="rs-input" value={importPrice} onChange={(e) => setImportPrice(e.target.value)} placeholder="Es. 39 €" />
+                    </Field>
+                    <Field label="Negozio sulla targhetta">
+                      <select className="rs-input" value={importPlace} onChange={(e) => setImportPlace(e.target.value)}>
+                        <option value="">Via Cavour, Ravenna</option>
+                        <option value="via-cavour-17">Via Cavour 17 (argento e pietre)</option>
+                        <option value="via-cavour-21">Via Cavour 21 (il resto)</option>
+                      </select>
+                    </Field>
+                  </div>
+                )}
+              </div>
+            )}
             <label className="rs-check">
               <input type="checkbox" checked={importClosing} onChange={(e) => setImportClosing(e.target.checked)} />
               <span>Aggiungi la chiusura &quot;Ti piace? Scrivici, ti diciamo se è disponibile.&quot; (2,5 s su fondo crema)</span>
