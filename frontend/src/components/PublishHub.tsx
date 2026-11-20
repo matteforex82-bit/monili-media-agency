@@ -166,7 +166,13 @@ export default function PublishHub({ apiUrl, reelIds, photos, texts, siteState, 
 
   const reelTags = reel?.results?.copy?.hashtags?.length ? reel.results.copy.hashtags : texts.hashtags;
   const storyCopy = storyReel?.results?.copy;
-  const postText = useMemo(() => [texts.caption, texts.cta].filter(Boolean).join('\n\n'), [texts.caption, texts.cta]);
+  // La CTA spesso contiene già il riferimento (es. "Rif. M-XXXX") presente nella didascalia: non ripeterla.
+  const postText = useMemo(() => {
+    const cap = (texts.caption || '').trim();
+    const cta = (texts.cta || '').trim();
+    if (!cta || cap.includes(cta)) return cap;
+    return [cap, cta].filter(Boolean).join('\n\n');
+  }, [texts.caption, texts.cta]);
 
   const platforms: Array<{ id: PlatformId; label: string; ready: boolean }> = [
     { id: 'reel', label: 'Instagram Reel', ready: Boolean(reel) },
