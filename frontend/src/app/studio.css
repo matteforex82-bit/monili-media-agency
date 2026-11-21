@@ -690,3 +690,7 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .lab-row-vote.is-empty { background: transparent; color: var(--bot-muted); font-weight: 400; }
 .lab-row[open] > summary { border-bottom: 1px solid var(--bot-border); }
 .lab-row > .lab-attempt { background: transparent; }
+
+/* Valutare: foto standard in attesa di essere caricate */
+.lab-slot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; min-height: 56px; }
+.lab-slot .lab-upload { min-height: 44px; padding: 0 16px; }

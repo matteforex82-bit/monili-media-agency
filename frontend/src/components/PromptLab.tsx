@@ -138,6 +138,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   // il lavoro continua sul PC anche se la pagina perde la richiesta: qui si riprende chiedendo come sta andando
   const [waiting, setWaiting] = useState(false);
   const [openIds, setOpenIds] = useState<string[]>([]);
+  const [uploadingKey, setUploadingKey] = useState('');
   const [workingIndex, setWorkingIndex] = useState(0);
   const [judging, setJudging] = useState('');
   const [error, setError] = useState('');
@@ -313,6 +314,24 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
     }
   }
 
+  // Le foto standard (catalogo, indossata) sono già pronte da caricare: la prova nasce al momento del caricamento,
+  // con il prompt dello Studio com'è adesso. Se esiste già una prova senza foto per quel tipo, si usa quella.
+  async function uploadStandard(key: string, file: File) {
+    setUploadingKey(key);
+    try {
+      const pending = (data?.lab?.attempts ?? []).find((a) => a.shot === key && !a.result);
+      if (pending) {
+        await upload(pending, file);
+        return;
+      }
+      const payload = await run(() => request('/prove', json('POST', { shot: key })), 'Non sono riuscito a preparare la prova');
+      const created = payload?.lab?.attempts[payload.lab.attempts.length - 1];
+      if (created) await upload(created, file);
+    } finally {
+      setUploadingKey('');
+    }
+  }
+
   async function judge(attempt: Attempt) {
     setJudging(attempt.id);
     await run(() => request(`/prove/${attempt.id}/valuta`, json('POST', { model: codexModel })), 'Codex non ha potuto valutare');
@@ -347,6 +366,35 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   const lab = data?.lab ?? null;
   const realPhoto = mainPhoto ? `${API_URL}/bozze/${draftId}/foto/${encodeURIComponent(mainPhoto)}?w=900` : '';
   const codexName = codexModel || codex?.default || 'Codex';
+
+  // Una riga per ogni foto standard che non ha ancora il risultato: si carica qui, senza aggiungerla a mano.
+  const slotKeys = lab ? Object.keys(lab.prompts).filter((k) => !lab.attempts.some((a) => a.shot === k && a.result)) : [];
+  const slotRows =
+    slotKeys.length > 0 ? (
+      <div className="lab-rows">
+        {slotKeys.map((k) => (
+          <div className="lab-row lab-slot" key={k}>
+            <span className="lab-row-title">
+              {SHOT_LABELS[k] ?? k}
+              <small>{uploadingKey === k ? 'Carico la foto…' : 'foto standard · prompt dello Studio'}</small>
+            </span>
+            <label className="btn-secondary lab-upload">
+              {uploadingKey === k ? 'Attendi…' : 'Carica la foto'}
+              <input
+                type="file"
+                accept="image/*,.heic,.heif"
+                disabled={uploadingKey !== ''}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (file) void uploadStandard(k, file);
+                }}
+              />
+            </label>
+          </div>
+        ))}
+      </div>
+    ) : null;
 
   const errorBox = error ? (
     <div className="notice error" role="alert">
@@ -529,8 +577,8 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
           <button type="button" className="btn-mission" onClick={() => copy(current, prompt.text)}>
             {copied === current ? 'Copiato ✓' : 'Copia il prompt'}
           </button>,
-          <button type="button" className="btn-secondary" onClick={() => markDone(current)}>
-            Fatta su Higgsfield
+          <button type="button" className="btn-secondary" onClick={() => onStep('valutare')}>
+            Carica e valuta
           </button>,
         )}
       </>
@@ -545,11 +593,19 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
       <>
         <div className="step-body">
           {errorBox}
+          {slotRows && (
+            <>
+              <p className="step-hint">Le due foto standard sono già pronte: crea la foto su Higgsfield con il prompt e caricala qui, poi la valuti nel passo Valutare.</p>
+              {slotRows}
+            </>
+          )}
           {pending.length === 0 ? (
             <p className="step-hint">
               {lab && lab.attempts.length > 0
                 ? 'Hai già caricato tutti i risultati. Vai a valutarli.'
-                : 'Crea la foto su Higgsfield con il prompt, poi torna qui a caricarla. Nel passo Prompt, premi «Fatta su Higgsfield».'}
+                : slotRows
+                  ? ''
+                  : 'Prima prepara il prompt nel passo Prompt.'}
             </p>
           ) : (
             pending.map((a) => (
@@ -582,8 +638,8 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
           </div>
         ) : (
           bar(
-            <button type="button" className="btn-mission" onClick={() => onStep(lab && lab.attempts.length > 0 ? 'valutare' : 'prompt')}>
-              {lab && lab.attempts.length > 0 ? 'Vai a valutare' : 'Torna al prompt'}
+            <button type="button" className="btn-mission" onClick={() => onStep(lab && (lab.attempts.length > 0 || slotKeys.length > 0) ? 'valutare' : 'prompt')}>
+              {lab && (lab.attempts.length > 0 || slotKeys.length > 0) ? 'Vai a valutare' : 'Torna al prompt'}
             </button>,
           )
         )}
@@ -684,7 +740,13 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
       <div className="step-body">
         {zoomOverlay}
         {errorBox}
-        {rated.length === 0 && <p className="step-hint">Nessun risultato da valutare. Carica una foto fatta su Higgsfield, oppure una fatta altrove con il modulo qui sotto.</p>}
+        {slotRows && (
+          <>
+            <p className="step-hint">Foto standard da caricare: scegli il file, poi la valuti subito qui sotto.</p>
+            {slotRows}
+          </>
+        )}
+        {rated.length === 0 && !slotRows && <p className="step-hint">Nessun risultato da valutare. Prepara prima il prompt, oppure carica una foto fatta altrove con il modulo qui sotto.</p>}
         <div className="lab-rows">
         {rated.map((attempt) => {
           const critique = attempt.critique;
