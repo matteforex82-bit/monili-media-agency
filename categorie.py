@@ -99,6 +99,27 @@ SUBTYPES = {
     "capo": {"category": "abbigliamento", "label": "Capo di abbigliamento", "body": "figura (vedi taglio)", "fill": 0.80},
 }
 
+# Pieces worn on a hand, wrist or ankle: the worn photo shows only that part, never a face. No woman is described
+# and Aurora's reference photos are not sent (they would only pull a face into the frame).
+FACELESS_TYPES = ("anello", "bracciale", "cavigliera")
+
+
+def is_faceless(subtype: str) -> bool:
+    return subtype in FACELESS_TYPES
+
+
+FACELESS_RULE = (
+    "NO FACE: the frame shows ONLY the {body}, cropped well away from the face. No face, no head, no hair, no eyes, no neck, "
+    "no full body, no woman described. Natural skin with a light tan, relaxed fingers and well-groomed natural nails, "
+    "no other jewellery on the hand. Beautiful blurred warm background (warm stone, mosaic, linen)."
+)
+
+
+def faceless_rule(subtype: str) -> str:
+    body = {"anello": "finger with the ring and the nearby knuckles", "bracciale": "wrist and forearm", "cavigliera": "bare ankle and foot"}
+    return FACELESS_RULE.format(body=body.get(subtype, "part of the body that wears the piece"))
+
+
 # Clothing: the cut changes the worn framing (top: half figure; bottom: from the waist down; whole: full figure).
 GARMENT_CUTS = {
     "sopra": r"giacc|gilet|kimono|camici|magli|cardigan|blus|\btop\b|felp|blazer|poncho|tunic|giubb|bolero",

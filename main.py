@@ -519,8 +519,15 @@ def agent_scheda_plan(
         else ""
     )
 
+    faceless = categorie.is_faceless(subtype)
     fixed_woman = casting.testimonial()
-    if fixed_woman:
+    if faceless:
+        woman_rule = (
+            "NESSUNA DONNA E NESSUN VOLTO: questo pezzo si fotografa solo sulla mano, sul polso o sulla caviglia. "
+            "Lascia vuoto il campo \"woman\" e nel prompt \"worn\" descrivi solo la parte del corpo inquadrata (mano ben fatta, "
+            "dita rilassate, unghie curate naturali), mai un volto, mai capelli, mai una descrizione di donna."
+        )
+    elif fixed_woman:
         woman_rule = (
             "LA DONNA: e sempre la testimonial fissa del negozio (Aurora), la stessa in tutti i pezzi, nei Reel e nelle Storie. "
             f"Nel campo \"woman\" copia questa descrizione senza cambiarla: {fixed_woman}"
@@ -532,6 +539,12 @@ def agent_scheda_plan(
             + casting.avoid_block("DONNE GIA USATE DI RECENTE", casting.recent_women())
         )
 
+    worn_hint = (
+        "prompt in inglese: close-up of ONLY the hand, wrist or ankle wearing the piece, no face and no woman, correct scale and fit, "
+        "natural relaxed pose, beautiful blurred warm background; luogo e luce li scegli tu, caldi ed eleganti"
+        if faceless
+        else "prompt in inglese: product worn naturally by the woman, inquadrato come sopra, correct scale and fit; luogo, posa, luce e abiti li inventi tu, adatti al pezzo e allo stile del negozio"
+    )
     prompt = f"""Sei l'art director del sito vetrina di I Monili Ravenna. Devi restituire SOLO un JSON valido.
 {BRAND}
 Knowledge prompt immagine:
@@ -556,7 +569,7 @@ JSON esatto:
   "woman": "in inglese, 1-2 frasi: eta, corporatura, viso, capelli e stile della donna che inventi per questo pezzo",
   "site_prompts": {{
     "clean": "prompt in inglese: clean product catalog photo, warm ivory background, no model, product centered, generous negative space",
-    "worn": "prompt in inglese: product worn naturally by the woman, inquadrato come sopra, correct scale and fit; luogo, posa, luce e abiti li inventi tu, adatti al pezzo e allo stile del negozio"{worn_2_field}
+    "worn": "{worn_hint}"{worn_2_field}
   }}
 }}
 
@@ -573,7 +586,7 @@ Regole per i prompt:
         log("PIANO SCHEDA", "JSON non valido, uso prompt standard", "warn")
         return plan
     plan["styling"] = str(parsed.get("styling", "")).strip()
-    plan["woman"] = casting.testimonial() or " ".join(str(parsed.get("woman", "")).split())[:600]
+    plan["woman"] = "" if faceless else (casting.testimonial() or " ".join(str(parsed.get("woman", "")).split())[:600])
     prompts = parsed.get("site_prompts") if isinstance(parsed.get("site_prompts"), dict) else {}
     for key in ("clean", "worn", "worn_2"):
         value = str(prompts.get(key, "")).strip()
@@ -642,14 +655,25 @@ def create_variants_ai_image(output_dir: Path, api_key: str, selected_model: str
 
 
 def controlled_site_prompt(
-    prompt: str, key: str, woman: str = "", never: str = "", woman_token: str = "", woman_photos: int = 0
+    prompt: str, key: str, woman: str = "", never: str = "", woman_token: str = "", woman_photos: int = 0, subtype: str = ""
 ) -> str:
     """The full text the image model receives for a site photo: the art director's prompt, the woman of the
     piece (worn shots), and the fixed fidelity rules. The Studio shows this same text so it can be pasted by hand.
     woman_photos > 0: the first images sent are the testimonial's reference photos, the piece comes after them."""
     import casting
+    import categorie
 
     prompt = str(prompt).strip()
+    if key.startswith("worn") and categorie.is_faceless(subtype):
+        # ring, bracelet, anklet: only the part of the body, no woman and no face reference at all
+        return f"""{prompt}
+{categorie.faceless_rule(subtype)}
+
+Use the uploaded reference photo as source-of-truth for the product.
+Preserve exact product shape, color, material, proportions, stones and distinctive details.
+Create a single website-ready product photograph, composed safely for 4:5 product cards.
+No text, no logos, no watermark, no phone screens, no fake UI.
+{never}""".strip()
     if key.startswith("worn") and woman_photos:
         piece = woman_photos + 1
         faces = "Image 1" if woman_photos == 1 else f"Images 1-{woman_photos}"
@@ -691,6 +715,7 @@ def generate_showcase_images(
     woman: str = "",
     shots: list[str] | None = None,
     woman_refs: list[Path] | None = None,
+    subtype: str = "",
 ) -> list[str]:
     """woman_refs: reference photos of the fixed testimonial (Aurora), sent before the product in the worn shots."""
     if not api_key:
@@ -698,6 +723,7 @@ def generate_showcase_images(
         return []
 
     import casting
+    import categorie
 
     model = select_openrouter_image_model(selected_model)
     never = casting.never_line()
@@ -716,8 +742,8 @@ def generate_showcase_images(
             continue
         try:
             log("SITO VISUAL", f"Generazione foto sito {index}/{len(shots)}", "data")
-            refs = list(woman_refs or []) if key.startswith("worn") else []
-            controlled = controlled_site_prompt(prompt, key, woman, never, woman_photos=len(refs))
+            refs = list(woman_refs or []) if key.startswith("worn") and not categorie.is_faceless(subtype) else []
+            controlled = controlled_site_prompt(prompt, key, woman, never, woman_photos=len(refs), subtype=subtype)
             data_urls = generate_image_with_fallback(api_key, model, controlled, refs + [foto] if refs else foto, f"Foto {key}")
             if not data_urls:
                 continue
@@ -1046,6 +1072,7 @@ def run_agency(
         ai_site_images = generate_showcase_images(
             output_dir, api_key, selected_image_model, foto, plan["site_prompts"], woman, shots,
             casting.testimonial_photos() if casting.testimonial() else [],
+            subtype=subtype,
         )
     except Exception as e:
         log("SITO VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")

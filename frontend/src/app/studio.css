@@ -671,3 +671,22 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .post-options { display: flex; flex-wrap: wrap; gap: 12px; }
 .post-options label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
 .post-made { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--bot-border); }
+
+/* Fucina: riga del formato (RATIO) ben visibile sopra il prompt */
+.lab-format { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 10px 14px; border-radius: 10px; background: var(--bot-accent-bg); border: 1px solid var(--bot-accent); color: var(--bot-accent-dk); }
+.lab-format strong { font-size: 20px; letter-spacing: 0.04em; font-weight: 700; }
+.lab-format span { font-size: 14px; font-weight: 600; }
+.lab-format small { flex-basis: 100%; font-size: 13px; color: var(--bot-ink-2); }
+
+/* Valutare: elenco compatto, la prova si apre al clic */
+.lab-rows { display: grid; gap: 8px; }
+.lab-row { border: 1px solid var(--bot-border); border-radius: 12px; background: var(--bot-card-soft); }
+.lab-row > summary { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 10px; cursor: pointer; list-style: none; }
+.lab-row > summary::-webkit-details-marker { display: none; }
+.lab-row > summary img, .lab-row > summary video { width: 40px; height: 50px; object-fit: cover; border-radius: 6px; flex: none; }
+.lab-row-title { flex: 1; min-width: 0; display: grid; font-weight: 600; font-size: 14px; }
+.lab-row-title small { font-weight: 400; color: var(--bot-muted); }
+.lab-row-vote { flex: none; font-size: 13px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--bot-gold-bg); }
+.lab-row-vote.is-empty { background: transparent; color: var(--bot-muted); font-weight: 400; }
+.lab-row[open] > summary { border-bottom: 1px solid var(--bot-border); }
+.lab-row > .lab-attempt { background: transparent; }

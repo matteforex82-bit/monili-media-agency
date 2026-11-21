@@ -27,12 +27,12 @@ def isolated_library(tmp_path, monkeypatch):
 
 def _draft() -> dict:
     return client.post(
-        "/bozze", files=[("foto", ("a.jpg", _jpeg(), "image/jpeg"))], data={"nota": "anello argento ametista 159 euro"}
+        "/bozze", files=[("foto", ("a.jpg", _jpeg(), "image/jpeg"))], data={"nota": "collana argento ametista 159 euro"}
     ).json()
 
 
 def _fake_agents(monkeypatch):
-    monkeypatch.setattr(studio_main, "agent_analisi", lambda *a, **k: "## IDENTIFICAZIONE\n- Categoria: anello")
+    monkeypatch.setattr(studio_main, "agent_analisi", lambda *a, **k: "## IDENTIFICAZIONE\n- Categoria: collana")
     monkeypatch.setattr(
         studio_main,
         "agent_scheda_plan",

@@ -52,6 +52,25 @@ interface Payload {
   lab: Lab | null;
   progress?: Progress;
   library: { total: number; good: number; bad: number };
+  running?: string;
+  failed?: string;
+}
+
+// Formato da chiedere nello strumento che crea l'immagine o il video: ben visibile sopra il prompt.
+function formatFor(key: string): { ratio: string; size: string; note: string } {
+  if (key.startsWith('scena')) return { ratio: '9:16', size: '1080 × 1920 px (1080p)', note: 'Verticale, per Reel e Storie. Su Higgsfield chiedi 1080p: l’uscita normale è più piccola.' };
+  return { ratio: '3:4', size: 'almeno 1200 × 1600 px (2K o più, se lo strumento lo permette)', note: 'Verticale. Il 4:5 non c’è nell’elenco: il 3:4 è il più vicino, lo Studio lo ritaglia da solo a 4:5 per la scheda del sito.' };
+}
+
+function FormatLine({ shot }: { shot: string }) {
+  const f = formatFor(shot);
+  return (
+    <div className="lab-format" role="note" aria-label="Formato da chiedere">
+      <strong>RATIO {f.ratio}</strong>
+      <span>Risoluzione consigliata: {f.size}</span>
+      <small>{f.note}</small>
+    </div>
+  );
 }
 
 interface CodexInfo {
@@ -116,6 +135,9 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
   const [editingPrefs, setEditingPrefs] = useState(false);
   const [busy, setBusy] = useState(false);
+  // il lavoro continua sul PC anche se la pagina perde la richiesta: qui si riprende chiedendo come sta andando
+  const [waiting, setWaiting] = useState(false);
+  const [openIds, setOpenIds] = useState<string[]>([]);
   const [workingIndex, setWorkingIndex] = useState(0);
   const [judging, setJudging] = useState('');
   const [error, setError] = useState('');
@@ -149,7 +171,13 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
   useEffect(() => {
     setPrefs(loadPrefs());
     request('/prompt', { cache: 'no-store' })
-      .then(apply)
+      .then((payload) => {
+        apply(payload);
+        if (payload.running) {
+          setBusy(true);
+          setWaiting(true);
+        }
+      })
       .catch(() => setError('Non riesco a leggere i prompt. Controlla che lo Studio sul PC sia acceso.'));
     fetch(`${API_URL}/fucina/codex`, { cache: 'no-store' })
       .then((res) => res.json())
@@ -173,6 +201,39 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
     const timer = setInterval(() => setWorkingIndex((i) => Math.min(i + 1, WORKING_TEXT.length - 1)), 12000);
     return () => clearInterval(timer);
   }, [busy]);
+
+  // Riprende un lavoro già partito (analisi o scene): ogni 3 secondi chiede come sta andando, finché finisce.
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setInterval(() => {
+      request('/prompt', { cache: 'no-store' })
+        .then((payload) => {
+          if (payload.running) return;
+          apply(payload);
+          setBusy(false);
+          setWaiting(false);
+          if (payload.failed) setError(`Non sono riuscito a finire: ${payload.failed}`);
+        })
+        .catch(() => undefined);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [waiting, request, apply]);
+
+  // Se la richiesta si perde (pagina ricaricata, rete) ma il lavoro è ancora in corso sul PC, lo riprende invece di fermarsi.
+  async function resumeIfRunning(): Promise<boolean> {
+    try {
+      const state = await request('/prompt', { cache: 'no-store' });
+      if (state.running) {
+        setError('');
+        setBusy(true);
+        setWaiting(true);
+        return true;
+      }
+    } catch {
+      /* il PC non risponde: resta l'errore */
+    }
+    return false;
+  }
 
   const json = (method: string, body: unknown): RequestInit => ({
     method,
@@ -221,6 +282,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
         ),
       'Non sono riuscito a preparare i prompt',
     );
+    if (!payload && (await resumeIfRunning())) return;
     setBusy(false);
     if (payload?.lab) {
       setShot('');
@@ -237,6 +299,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
     const form = new FormData();
     form.append('foto', file);
     const payload = await run(() => request(`/prove/${attempt.id}/risultato`, { method: 'POST', body: form }), 'Non sono riuscito a caricarla');
+    if (payload) setOpenIds((ids) => (ids.includes(attempt.id) ? ids : [...ids, attempt.id])); // la nuova prova si apre da sola
     if (payload?.lab && !payload.lab.attempts.some((a) => !a.result)) onStep('valutare');
   }
 
@@ -263,10 +326,11 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
     const source = sourceId || pickable[pickable.length - 1]?.id;
     if (!source) return;
     setBusy(true);
-    await run(
+    const payload = await run(
       () => request('/scene', json('POST', { attempt_id: source, video_model: prefs.videoModel, engine: prefs.engine, codex_model: codexModel, text_model: loadSettings().textModel })),
       'Non sono riuscito a scrivere le scene',
     );
+    if (!payload && (await resumeIfRunning())) return;
     setBusy(false);
   }
 
@@ -431,6 +495,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
               ))}
             </div>
           )}
+          <FormatLine shot={current} />
           <div className="prompt-head">
             <span>Prompt · {SHOT_LABELS[current] ?? current}</span>
             <button type="button" className="chip-btn prompt-copy" onClick={() => copy(current, prompt.text)}>
@@ -566,6 +631,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
           {Object.entries(scenes).map(([key, sc]) => (
             <section className="lab-shot" key={key}>
               <h4>{SHOT_LABELS[key] ?? key}</h4>
+              <FormatLine shot={key} />
               <textarea
                 className="brief-area lab-prompt"
                 rows={7}
@@ -619,10 +685,35 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
         {zoomOverlay}
         {errorBox}
         {rated.length === 0 && <p className="step-hint">Nessun risultato da valutare. Carica una foto fatta su Higgsfield, oppure una fatta altrove con il modulo qui sotto.</p>}
+        <div className="lab-rows">
         {rated.map((attempt) => {
           const critique = attempt.critique;
           return (
-            <div className="lab-attempt" key={attempt.id}>
+            <details
+              className="lab-row"
+              key={attempt.id}
+              open={openIds.includes(attempt.id)}
+              onToggle={(e) => {
+                const isOpen = (e.currentTarget as HTMLDetailsElement).open;
+                setOpenIds((ids) => (isOpen ? (ids.includes(attempt.id) ? ids : [...ids, attempt.id]) : ids.filter((x) => x !== attempt.id)));
+              }}
+            >
+              <summary>
+                {isVideo(attempt.result) ? (
+                  <video src={`${base}/prove/${attempt.id}/risultato`} muted playsInline preload="metadata" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`${base}/prove/${attempt.id}/risultato?w=120&v=${attempt.result}`} alt="" />
+                )}
+                <span className="lab-row-title">
+                  {SHOT_LABELS[attempt.shot] ?? attempt.shot}
+                  <small>
+                    {attempt.model} · {attempt.created_at.slice(8, 10)}/{attempt.created_at.slice(5, 7)} {attempt.created_at.slice(11, 16)}
+                  </small>
+                </span>
+                <span className={`lab-row-vote${attempt.rating > 0 ? '' : ' is-empty'}`}>{attempt.rating > 0 ? `voto ${attempt.rating}` : 'senza voto'}</span>
+              </summary>
+            <div className="lab-attempt">
               <p className="lab-attempt-title">
                 {SHOT_LABELS[attempt.shot] ?? attempt.shot} <small>· {attempt.model} · {attempt.created_at.slice(11, 16)}</small>
               </p>
@@ -758,8 +849,10 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
                 Elimina questa prova
               </button>
             </div>
+            </details>
           );
         })}
+        </div>
         <details className="lab-external" open={rated.length === 0}>
           <summary>Valuta una foto fatta altrove</summary>
           <p className="step-hint">Hai usato un altro prompt o un altro strumento? Carica la foto: Codex la confronta con la foto vera come le altre.</p>

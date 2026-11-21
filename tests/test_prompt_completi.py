@@ -124,11 +124,11 @@ def test_the_mission_uses_the_chosen_type_its_scale_and_the_testimonial_photos(m
     photo = tmp_path / "pezzo.jpg"
     Image.new("RGB", (900, 1200), (40, 110, 60)).save(photo, "JPEG")
 
-    main.run_agency(str(photo), "", subtype="cavigliera")
+    main.run_agency(str(photo), "", subtype="collana")
 
     plan = next(p for p in prompts if "art director del sito" in p)
-    assert "Ricetta: bijoux" in plan and "(cavigliera)" in plan
-    assert cleans[0].get("fill") == categorie.subtype_fill("cavigliera")  # None finché la scala per tipo non è tarata
+    assert "Ricetta: bijoux" in plan and "(collana)" in plan
+    assert cleans[0].get("fill") == categorie.subtype_fill("collana")  # None finché la scala per tipo non è tarata
     worn_prompt, worn_refs = next((p, r) for p, r in images if "anklet" in p)
     # Aurora's photo goes first, the piece second, and the prompt says which is which
     assert isinstance(worn_refs, list) and worn_refs[0] == face and worn_refs[1] == photo
@@ -304,3 +304,34 @@ def test_the_woman_gets_a_fresh_outfit_for_the_place_not_the_one_in_the_referenc
         assert casting.OUTFIT_RULE in text and "warm, elegant" in text
     assert casting.OUTFIT_RULE not in main.controlled_site_prompt("clean", "clean")
     assert casting.OUTFIT_RULE not in post_grafica._refs_line(0)
+
+
+def test_ring_bracelet_and_anklet_show_only_the_body_part_with_no_face_and_no_woman():
+    import categorie
+    import main
+
+    for subtype in ("anello", "bracciale", "cavigliera"):
+        text = main.controlled_site_prompt(
+            "worn on the hand", "worn", woman="Aurora, green eyes", woman_token="@MODELLA", woman_photos=2, subtype=subtype
+        )
+        assert "NO FACE" in text and "Aurora" not in text and "@MODELLA" not in text and "Images 1-2" not in text, subtype
+    earrings = main.controlled_site_prompt("worn", "worn", woman="Aurora, green eyes", woman_photos=2, subtype="orecchini")
+    assert "Aurora" in earrings and "NO FACE" not in earrings
+    assert not categorie.is_faceless("collana") and not categorie.is_faceless("")
+
+
+def test_the_studio_remembers_a_prompt_job_that_is_running_and_how_it_ended():
+    from api import server
+
+    draft = "bozza-prova"
+    assert server._lab_begin(draft, "analisi") is True
+    assert server._lab_begin(draft, "scene") is False  # no second job at the same time for the same piece
+    assert server._lab_public(draft, None)["running"] == "analisi"
+    try:
+        server._lab_guarded(draft, lambda: (_ for _ in ()).throw(ValueError("chiave non valida")))
+    except ValueError:
+        pass
+    state = server._lab_public(draft, None)
+    assert state["running"] == "" and "chiave non valida" in state["failed"]
+    assert server._lab_begin(draft, "analisi") is True and server._lab_public(draft, None)["failed"] == ""
+    server._lab_guarded(draft, lambda: None)

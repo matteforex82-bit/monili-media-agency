@@ -70,7 +70,7 @@ def _run(tmp_path, monkeypatch, capsys) -> tuple[dict, list[str], list[str]]:
     text_calls: list[str] = []
     image_calls: list[str] = []
     _fake_ai(monkeypatch, text_calls, image_calls)
-    main.run_agency(str(photo))
+    main.run_agency(str(photo), "", subtype="collana")
     line = next(row for row in capsys.readouterr().out.splitlines() if row.startswith("__RESULTS_JSON__:"))
     return json.loads(line.split(":", 1)[1]), text_calls, image_calls
 

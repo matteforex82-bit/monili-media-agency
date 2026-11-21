@@ -4,6 +4,7 @@ Riceve la foto + brief dal frontend, lancia main.py via subprocess,
 restituisce SSE con gli aggiornamenti in tempo reale.
 """
 import asyncio
+import threading
 import base64
 import io
 import json
@@ -1426,8 +1427,43 @@ import prompt_lab  # noqa: E402
 import tempfile  # noqa: E402
 
 
+# A prompt analysis or a scene writing takes a minute. It runs in a thread that survives a closed page or a lost request,
+# so the Studio remembers what is running (and how it ended) and the page can pick it up again by asking.
+_lab_busy: dict[str, str] = {}
+_lab_failed: dict[str, str] = {}
+_lab_busy_lock = threading.Lock()
+
+
+def _lab_begin(draft_id: str, kind: str) -> bool:
+    with _lab_busy_lock:
+        if draft_id in _lab_busy:
+            return False
+        _lab_busy[draft_id] = kind
+        _lab_failed.pop(draft_id, None)
+        return True
+
+
+def _lab_guarded(draft_id: str, work):
+    """Runs the work, always clears the "running" mark, and keeps the reason if it failed."""
+    try:
+        return work()
+    except Exception as error:
+        _lab_failed[draft_id] = str(error)
+        raise
+    finally:
+        with _lab_busy_lock:
+            _lab_busy.pop(draft_id, None)
+
+
 def _lab_public(draft_id: str, lab: dict | None) -> dict:
-    return {"draft_id": draft_id, "lab": lab, "progress": prompt_lab.progress(lab), "library": prompt_lab.library_summary()}
+    return {
+        "draft_id": draft_id,
+        "lab": lab,
+        "progress": prompt_lab.progress(lab),
+        "library": prompt_lab.library_summary(),
+        "running": _lab_busy.get(draft_id, ""),
+        "failed": _lab_failed.get(draft_id, ""),
+    }
 
 
 def _video_frames(video: Path, out_dir: Path, count: int = 3) -> list[Path]:
@@ -1541,14 +1577,18 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
         never = casting.never_line()
         shots = ["clean"] + categorie.AI_SHOTS.get(category, ["worn"])
         finals = {
-            key: studio_main.controlled_site_prompt(plan["site_prompts"][key], key, woman, never, woman_token)
+            key: studio_main.controlled_site_prompt(plan["site_prompts"][key], key, woman, never, woman_token, subtype=subtype)
             for key in shots
             if key in plan.get("site_prompts", {})
         }
-        return prompt_lab.store.save_analysis(folder, category, analisi, plan, finals, target, woman_token, subtype, cut)
+        # ring, bracelet, anklet: no woman, so no @MODELLA slot to fill
+        saved_token = "" if categorie.is_faceless(subtype) else woman_token
+        return prompt_lab.store.save_analysis(folder, category, analisi, plan, finals, target, saved_token, subtype, cut)
 
+    if not _lab_begin(draft_id, "analisi"):
+        return JSONResponse({"error": "Sto già preparando i prompt di questo pezzo: aspetta che finisca.", "running": True}, status_code=409)
     try:
-        lab = await asyncio.to_thread(work)
+        lab = await asyncio.to_thread(_lab_guarded, draft_id, work)
     except Exception as error:
         return JSONResponse({"error": f"Analisi non riuscita: {error}"}, status_code=502)
     return _lab_public(draft_id, lab)
@@ -1642,8 +1682,10 @@ async def lab_scenes(draft_id: str, body: dict):
             raise ValueError("L'AI non ha scritto le scene.")
         return prompt_lab.store.save_scenes(folder, attempt["id"], finals, str(parsed.get("idea", "")).strip(), video_model)
 
+    if not _lab_begin(draft_id, "scene"):
+        return JSONResponse({"error": "Sto già scrivendo le scene di questo pezzo: aspetta che finisca.", "running": True}, status_code=409)
     try:
-        lab = await asyncio.to_thread(work)
+        lab = await asyncio.to_thread(_lab_guarded, draft_id, work)
     except Exception as error:
         return JSONResponse({"error": f"Scene non riuscite: {error}"}, status_code=502)
     return _lab_public(draft_id, lab)
