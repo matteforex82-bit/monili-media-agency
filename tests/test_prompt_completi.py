@@ -292,3 +292,15 @@ def test_the_carousel_has_three_slides_and_one_caption(mission, monkeypatch):
     assert len(entry["files"]) == 3 and entry["aiGenerated"] is True
     assert "Rif." in entry["caption"] or "M-" in entry["caption"]
     assert all("warm stone courtyard" in p for p in slide_prompts)
+
+def test_the_woman_gets_a_fresh_outfit_for_the_place_not_the_one_in_the_reference_photos():
+    import casting
+    import main
+    import post_grafica
+
+    site = main.controlled_site_prompt("worn on the hand", "worn", woman="Aurora", woman_photos=2)
+    post = post_grafica._refs_line(2)
+    for text in (site, post):
+        assert casting.OUTFIT_RULE in text and "warm, elegant" in text
+    assert casting.OUTFIT_RULE not in main.controlled_site_prompt("clean", "clean")
+    assert casting.OUTFIT_RULE not in post_grafica._refs_line(0)
