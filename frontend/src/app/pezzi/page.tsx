@@ -34,11 +34,16 @@ export default function PiecesPage() {
     setError('');
     try {
       const res = await fetch(`${API_URL}/pieces/${encodeURIComponent(runId)}`, { method: 'DELETE' });
-      if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok && res.status !== 404) {
+        // se il sito non risponde il pezzo NON è stato eliminato: il motivo arriva dallo Studio
+        const body = await res.json().catch(() => null);
+        throw new Error(typeof body?.error === 'string' ? body.error : `HTTP ${res.status}`);
+      }
       setPieces((list) => (list ? list.filter((piece) => piece.run_id !== runId) : list));
       setConfirming(null);
-    } catch {
-      setError('Non sono riuscito a eliminare il pezzo. Controlla che lo Studio sul PC sia acceso e riprova.');
+    } catch (err) {
+      const detail = err instanceof Error && !err.message.startsWith('HTTP') && err.message !== 'Failed to fetch' ? ` ${err.message}` : '';
+      setError(`Non sono riuscito a eliminare il pezzo.${detail || ' Controlla che lo Studio sul PC sia acceso e riprova.'}`);
     } finally {
       setDeleting(null);
     }
@@ -92,7 +97,9 @@ export default function PiecesPage() {
                 {confirming === piece.run_id && (
                   <div className="piece-confirm" role="group" aria-label={`Conferma eliminazione di ${name}`}>
                     <p>
-                      Elimino &laquo;{name}&raquo; dallo Studio? Finisce nel cestino sul PC; se è già sul sito, lì resta.
+                      {piece.steps.sito !== 'none'
+                        ? <>Elimino &laquo;{name}&raquo;? Il pezzo è sul sito e <strong>viene tolto anche da lì</strong>: è unico, se lo elimini non c&apos;è più. Nello Studio finisce nel cestino sul PC.</>
+                        : <>Elimino &laquo;{name}&raquo; dallo Studio? Finisce nel cestino sul PC.</>}
                     </p>
                     <div>
                       <button

@@ -287,6 +287,57 @@ def test_deleted_piece_goes_to_the_trash(tmp_path, monkeypatch, capsys):
     assert client.delete(f"/pieces/{results['run_id']}").status_code == 404
 
 
+def test_deleting_a_piece_that_is_on_the_site_archives_it_there_first(tmp_path, monkeypatch, capsys):
+    """Every piece is one of a kind: gone from the Studio means gone from the shop, so it leaves the site too."""
+    from fastapi.testclient import TestClient
+
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    monkeypatch.setenv("SHOWCASE_INGEST_URL", "https://sito.example/api/ingest/internal-webapp")
+    monkeypatch.setenv("SHOWCASE_ADMIN_TOKEN", "segreto")
+    client = TestClient(server.app)
+    monkeypatch.setattr(server, "_send_payload_to_showcase", lambda payload: {"ok": True})
+    body = {"selected_images": [results["image_site_1"]], "price": "45", "location": "via-cavour-17", "publish_now": True}
+    client.post(f"/missions/{results['run_id']}/showcase/publish", json=body)
+    folder = server._find_manifest_by_run_id(results["run_id"])[0].parent
+    calls = []
+
+    class Reply:
+        def __init__(self, code):
+            self.status_code = code
+
+    # the site does not answer: nothing is deleted and the owner is told
+    def down(url, **kwargs):
+        raise OSError("sito spento")
+
+    monkeypatch.setattr(server.requests, "patch", down)
+    reply = client.delete(f"/pieces/{results['run_id']}")
+    assert reply.status_code == 502 and "Non l'ho eliminato" in reply.json()["error"] and folder.exists()
+    assert server._showcase_state(results["run_id"]) == "published"
+
+    # the site answers: the fiche is archived, then the piece goes to the trash
+    def ok(url, json=None, headers=None, timeout=None):
+        calls.append((url, json, headers))
+        return Reply(200)
+
+    monkeypatch.setattr(server.requests, "patch", ok)
+    reply = client.delete(f"/pieces/{results['run_id']}")
+    assert reply.status_code == 200 and reply.json()["removed_from_site"] is True and not folder.exists()
+    assert calls[0][1] == {"publicationStatus": "archived"} and calls[0][0].startswith("https://sito.example/api/products/")
+    assert calls[0][2]["x-admin-token"] == "segreto"
+    # the Piano and the Reel list no longer offer it
+    assert all(row["run_id"] != results["run_id"] for row in server._piano_catalog())
+    assert all(item["run_id"] != results["run_id"] for item in client.get("/showcase/products").json()["items"])
+
+
+def test_deleting_a_piece_never_sent_to_the_site_does_not_call_the_site(tmp_path, monkeypatch, capsys):
+    from fastapi.testclient import TestClient
+
+    results, _, _ = _run(tmp_path, monkeypatch, capsys)
+    monkeypatch.setattr(server.requests, "patch", lambda *a, **k: (_ for _ in ()).throw(AssertionError("il sito non va chiamato")))
+    reply = TestClient(server.app).delete(f"/pieces/{results['run_id']}")
+    assert reply.status_code == 200 and reply.json()["removed_from_site"] is False
+
+
 def test_failed_site_ingest_does_not_count_as_sent(tmp_path, monkeypatch, capsys):
     from fastapi.testclient import TestClient
 

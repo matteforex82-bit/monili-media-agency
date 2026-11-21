@@ -2189,12 +2189,57 @@ def piece_get(run_id: str):
 TRASH_DIR = STORAGE_ROOT / "cestino"
 
 
+def _remove_piece_from_site(run_id: str) -> dict:
+    """Every piece is one of a kind: if it is taken out of the Studio it is no longer in the shop, so it must not
+    stay on the site (a customer could ask for a piece that cannot be found again). The fiche is archived, not
+    erased: it disappears for customers and can be published again. {"ok": False, "error": ...} if the site cannot be reached."""
+    from urllib.parse import quote
+
+    path = SHOWCASE_DRAFTS_DIR / f"showcase-{run_id}.json"
+    try:
+        audit = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"ok": True, "on_site": False}
+    if not isinstance(audit, dict) or not audit.get("sent_at") or not audit.get("product_id") or audit.get("removed_at"):
+        return {"ok": True, "on_site": False}
+
+    ingest_url = os.environ.get("SHOWCASE_INGEST_URL", "").strip()
+    parts = urlsplit(ingest_url)
+    if not ingest_url or not parts.scheme or not parts.netloc:
+        return {"ok": False, "error": "Il pezzo è sul sito ma lo Studio non sa come raggiungerlo (manca SHOWCASE_INGEST_URL). Non l'ho eliminato."}
+    headers = {"Content-Type": "application/json"}
+    admin_token = os.environ.get("SHOWCASE_ADMIN_TOKEN", "").strip()
+    if admin_token:
+        headers["x-admin-token"] = admin_token
+    try:
+        response = requests.patch(
+            f"{parts.scheme}://{parts.netloc}/api/products/{quote(str(audit['product_id']), safe='')}",
+            json={"publicationStatus": "archived"},
+            headers=headers,
+            timeout=SHOWCASE_INGEST_TIMEOUT_SECONDS,
+        )
+    except Exception as exc:
+        return {"ok": False, "error": f"Non riesco a togliere il pezzo dal sito ({exc}). Non l'ho eliminato."}
+    if response.status_code >= 400 and response.status_code != 404:  # 404: la scheda sul sito non c'è già più
+        return {"ok": False, "error": f"Il sito non ha tolto il pezzo (errore {response.status_code}). Non l'ho eliminato."}
+    audit["removed_at"] = datetime.now().isoformat()
+    try:
+        path.write_text(json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+    _PIANO_SITE_CACHE.pop(str(audit["product_id"]), None)
+    return {"ok": True, "on_site": True}
+
+
 @app.delete("/pieces/{run_id}")
 def piece_delete(run_id: str):
-    """Moves the piece's output folder to the Studio trash (not a hard delete:
-    a wrong tap can be undone by moving the folder back into output/). The
-    site and any Reel already made are not touched."""
+    """Takes the piece off the site first (archived: it is one of a kind, if it is gone it is gone), then moves the
+    output folder to the Studio trash (not a hard delete: a wrong tap can be undone by moving the folder back into
+    output/). A Reel already made is not touched. If the site cannot be reached nothing is deleted."""
     run_id = run_id.strip()
+    site = _remove_piece_from_site(run_id) if run_id else {"ok": True, "on_site": False}
+    if not site.get("ok"):
+        return JSONResponse({"error": site["error"], "on_site": True}, status_code=502)
     found = _find_manifest_by_run_id(run_id) if run_id else None
     moved_to = ""
     if found:
@@ -2220,7 +2265,7 @@ def piece_delete(run_id: str):
 
     if not found and not stale_jobs:
         return JSONResponse({"error": "Pezzo non trovato"}, status_code=404)
-    return {"deleted": run_id, "moved_to": moved_to}
+    return {"deleted": run_id, "moved_to": moved_to, "removed_from_site": bool(site.get("on_site"))}
 
 
 @app.get("/missions/{run_id}")
@@ -2522,7 +2567,7 @@ def _piano_catalog() -> list[dict]:
             audit = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             continue
-        if str(audit.get("run_id") or "").strip() and audit.get("sent_at") and audit.get("product_id"):
+        if str(audit.get("run_id") or "").strip() and audit.get("sent_at") and audit.get("product_id") and not audit.get("removed_at"):
             audits.append(audit)
     with ThreadPoolExecutor(max_workers=8) as pool:  # le risposte del sito arrivano insieme, non una dopo l'altra
         sites = list(pool.map(lambda a: _piano_site_product(str(a["product_id"])), audits))
@@ -2997,7 +3042,7 @@ def showcase_products(limit: int = 30):
             data = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             continue
-        if data.get("product_id"):
+        if data.get("product_id") and not data.get("removed_at"):
             items.append(
                 {
                     "product_id": data["product_id"],
