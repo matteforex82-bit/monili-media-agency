@@ -222,9 +222,12 @@ def label_post(photo: Image.Image, items: list[dict], fmt: str = "post") -> Imag
 def _refs_line(woman_photos: int) -> str:
     if not woman_photos:
         return "Image 1: the real product, source-of-truth for shape, colours, stones, metal and stitching.\n"
+    import casting
+
     faces = "Image 1" if woman_photos == 1 else f"Images 1-{woman_photos}"
     return (
         f"{faces}: the shop's testimonial Aurora. Take ONLY her face, skin and hair; ignore her clothes and jewellery. "
+        f"{casting.OUTFIT_RULE} "
         f"Image {woman_photos + 1}: the real product, source-of-truth. Zero colour or texture blending between the images.\n"
     )
 

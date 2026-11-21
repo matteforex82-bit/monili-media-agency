@@ -32,6 +32,10 @@ def testimonial() -> str:
 
 
 TESTIMONIAL_PHOTOS_DIR = STORAGE_ROOT / "aurora-riferimenti"
+OUTFIT_RULE = (
+    "OUTFIT: the clothes in the reference photos are NOT to be reused. Dress her in a beautiful outfit chosen by you, "
+    "fitting the occasion and the place where you set the photo (warm, elegant settings), in colours that make the product stand out."
+)
 MAX_TESTIMONIAL_PHOTOS = 2  # la ricerca: da 2 a 4 riferimenti in tutto, compreso il pezzo
 
 

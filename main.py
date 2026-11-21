@@ -647,13 +647,16 @@ def controlled_site_prompt(
     """The full text the image model receives for a site photo: the art director's prompt, the woman of the
     piece (worn shots), and the fixed fidelity rules. The Studio shows this same text so it can be pasted by hand.
     woman_photos > 0: the first images sent are the testimonial's reference photos, the piece comes after them."""
+    import casting
+
     prompt = str(prompt).strip()
     if key.startswith("worn") and woman_photos:
         piece = woman_photos + 1
         faces = "Image 1" if woman_photos == 1 else f"Images 1-{woman_photos}"
         prompt = (
             f"{prompt}\nWOMAN: {woman}\n{faces}: the woman. Take ONLY her face, skin and hair from {faces.lower()}; "
-            f"ignore the clothes, jewellery and background she has there.\nImage {piece}: the product, the source-of-truth. "
+            f"ignore the clothes, jewellery and background she has there.\n{casting.OUTFIT_RULE}\n"
+            f"Image {piece}: the product, the source-of-truth. "
             "Take ONLY the product from it; zero colour or texture blending between the images."
         ).replace("WOMAN: \n", "")
         return f"""{prompt}
