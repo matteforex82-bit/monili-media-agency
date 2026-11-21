@@ -507,6 +507,7 @@ export default function PieceView({ results, apiUrl, runId, summary, onChanged }
           <p className="step-hint">Scegli dove. Per ogni posto trovi il materiale finale, la caption, gli hashtag e il testo da copiare.</p>
           <PublishHub
             apiUrl={apiUrl}
+            runId={runId}
             reelIds={doneReelIds}
             photos={hubPhotos}
             texts={{

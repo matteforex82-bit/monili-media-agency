@@ -2,3 +2,6 @@
 Anello da solo su fondo avorio pulito, centrato e nitido su tutta la superficie. Luce morbida e uniforme, ombre dolci, nessun riflesso bruciato su metallo o pietre. Fedeltà: numero, colore e taglio delle pietre, metallo e finitura, forma del gambo e dei castoni identici alla foto vera. Da scartare: griffe o pietre in numero o taglio diversi, argento virato a grigio piombo o ottone, gambo ovalizzato o ingrossato. Pavé fuso in una fascia continua.
 ## Foto indossata
 Anello sul dito giusto su una mano realistica: cinque dita normali, pelle e unghie credibili, anello in scala e ben appoggiato. Inquadratura stretta: solo il dito e le nocche, mano tagliata a metà, sfondo bello ma sfocato. Fedeltà: stesse pietre, stesso metallo, stesso gambo della foto vera. Da scartare: sesto dito, falangi fuse, unghie deformi, anello "incollato" senza compressione della pelle né ombra sotto il gambo, anello troppo grande o troppo piccolo per il dito.
+
+## Esito prove
+Stato: da verificare. Voto: -. Data: -. Note: -.

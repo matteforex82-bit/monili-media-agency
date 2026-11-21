@@ -63,27 +63,107 @@ SHOT_GUIDE = {
 }
 
 
-# What kind of jewel / garment / accessory it is: each has its own review sheet (knowledge/valutazione/).
+# What kind of jewel / garment / accessory it is (PRD prompt completi, 20/11/2026). Each type has its review sheet
+# (knowledge/valutazione/valutazione-<sheet>.md), its framing (knowledge/fucina/inquadratura-tipi.md, section "## <tipo>")
+# and the share of the 4:5 frame the cut-out piece fills on the site's base photo, so two pieces of the same type
+# come out at the same scale.
 SUBTYPE_WORDS = {
     "anello": r"anell",
     "orecchini": r"orecchin",
-    "collana": r"collan|ciondol",
-    "bracciale": r"braccial|cavigliera",
-    "borsa": r"\bbors|pochette|zain|portafogl",
-    "foulard": r"foulard|sciarp|stola|scial|cappell|cintur|occhial",
+    "collana": r"collan|ciondol|girocoll",
+    "bracciale": r"braccial",
+    "cavigliera": r"cavigli",
+    "pochette": r"pochette|clutch",
+    "borsa": r"\bbors|zain|portafogl|tracoll",
+    "sciarpa": r"sciarp|stola|scial",
+    "foulard": r"foulard|bandana",
+    "cintura": r"cintur",
+    "cappello": r"cappell|basco|berretto",
+    "occhiali": r"occhial",
 }
+
+SUBTYPES = {
+    #  tipo          categoria        etichetta       parte del corpo per la foto indossata      riempimento base
+    "anello": {"category": "bijoux", "label": "Anello", "body": "dito e nocche", "fill": 0.55},
+    "orecchini": {"category": "bijoux", "label": "Orecchini", "body": "orecchio e linea della mascella", "fill": 0.62},
+    "collana": {"category": "bijoux", "label": "Collana", "body": "collo e scollatura", "fill": 0.72},
+    "bracciale": {"category": "bijoux", "label": "Bracciale", "body": "polso e avambraccio", "fill": 0.62},
+    "cavigliera": {"category": "bijoux", "label": "Cavigliera", "body": "caviglia nuda e piede", "fill": 0.66},
+    "borsa": {"category": "accessori", "label": "Borsa", "body": "fianco e busto (piano americano)", "fill": 0.78},
+    "pochette": {"category": "accessori", "label": "Pochette", "body": "mano e busto", "fill": 0.72},
+    "sciarpa": {"category": "accessori", "label": "Sciarpa", "body": "collo, spalle e busto", "fill": 0.80},
+    "foulard": {"category": "accessori", "label": "Foulard", "body": "collo e spalle", "fill": 0.74},
+    "cintura": {"category": "accessori", "label": "Cintura", "body": "vita e fianchi", "fill": 0.80},
+    "cappello": {"category": "accessori", "label": "Cappello", "body": "testa e viso", "fill": 0.70},
+    "occhiali": {"category": "accessori", "label": "Occhiali", "body": "viso", "fill": 0.70},
+    "capo": {"category": "abbigliamento", "label": "Capo di abbigliamento", "body": "figura (vedi taglio)", "fill": 0.80},
+}
+
+# Clothing: the cut changes the worn framing (top: half figure; bottom: from the waist down; whole: full figure).
+GARMENT_CUTS = {
+    "sopra": r"giacc|gilet|kimono|camici|magli|cardigan|blus|\btop\b|felp|blazer|poncho|tunic|giubb|bolero",
+    "sotto": r"gonn|pantalon|\bshort|jeans",
+    "intero": r"abit[oi]\b|vestit|kaftan|caftan|cappott|trench|tuta|chemisier",
+}
+CUT_LABELS = {"sopra": "sopra (busto)", "sotto": "sotto (gambe)", "intero": "figura intera"}
+
+
+def _first_match(patterns: dict[str, str], *sources: str) -> str:
+    for text in sources:
+        lowered = (text or "").lower()
+        found = [(m.start(), name) for name, pattern in patterns.items() if (m := re.search(pattern, lowered))]
+        if found:
+            return min(found)[1]
+    return ""
 
 
 def subtype_from(*sources: str, category: str = "") -> str:
-    """anello, orecchini, collana, bracciale, capo, borsa or foulard: the first product word found, sources in order of reliability."""
+    """The kind of piece (a key of SUBTYPES): the first product word found, sources in order of reliability.
+    Clothing is always "capo" (the cut is a separate field); nothing found: the category's generic type."""
     if category == "abbigliamento":
         return "capo"
-    for text in sources:
-        lowered = (text or "").lower()
-        found = [(m.start(), name) for name, pattern in SUBTYPE_WORDS.items() if (m := re.search(pattern, lowered))]
-        if found:
-            return min(found)[1]
+    found = _first_match(SUBTYPE_WORDS, *sources)
+    if found:
+        return found
     return {"abbigliamento": "capo", "accessori": "foulard"}.get(category, "")
+
+
+def subtype_for(category: str, *sources: str) -> str:
+    """Like subtype_from, but only the types of this category count (the analysis also names what to pair it with:
+    "con una borsa in cuoio" must not turn a ring into a bag). Nothing found: the category's generic type."""
+    if category == "abbigliamento":
+        return "capo"
+    wanted = recipe_category(category)
+    patterns = {name: pattern for name, pattern in SUBTYPE_WORDS.items() if SUBTYPES[name]["category"] == wanted}
+    return _first_match(patterns, *sources) or {"accessori": "foulard"}.get(wanted, "")
+
+
+def garment_cut(*sources: str) -> str:
+    """sopra, sotto or intero for a garment; intero when nothing says otherwise."""
+    return _first_match(GARMENT_CUTS, *sources) or "intero"
+
+
+def valid_subtype(value: object) -> str:
+    text = str(value or "").strip().lower()
+    return text if text in SUBTYPES else ""
+
+
+def valid_cut(value: object) -> str:
+    text = str(value or "").strip().lower()
+    return text if text in GARMENT_CUTS else ""
+
+
+def recipe_category(category: str) -> str:
+    """The name of the recipe file (knowledge/fucina/ricetta-<x>.md): the mission says "gioielli", the recipe is "bijoux"."""
+    return "bijoux" if category in ("gioielli", "bijoux", "") else category
+
+
+FILL_BY_TYPE = False  # da tarare con Matteo: con i valori della tabella i gioielli venivano più piccoli (prova 20/11)
+
+
+def subtype_fill(subtype: str) -> float | None:
+    """Share of the frame per type. Off for now: the old fixed fill already gives every piece the same scale."""
+    return (SUBTYPES.get(subtype) or {}).get("fill") if FILL_BY_TYPE else None
 
 
 def category_in(text: str) -> str | None:

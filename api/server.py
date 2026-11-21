@@ -1059,6 +1059,8 @@ async def start_mission(
     dettaglio: UploadFile | None = File(default=None),
     # Optional photo of the colour options (e.g. a roll of rings): cleaned like the main photo.
     varianti: UploadFile | None = File(default=None),
+    # The kind of piece chosen by the owner (categorie.SUBTYPES); empty = the Studio works it out from the photo.
+    tipo: str = Form(default=""),
 ):
     """Avvia una nuova missione. Salva la foto e lancia il processo."""
     selected_image_model = image_model.strip() if image_model.strip() else DEFAULT_OPENROUTER_IMAGE_MODEL
@@ -1089,7 +1091,10 @@ async def start_mission(
             return saved
         variants_path = saved
 
-    _launch_job(job_id, foto_path, brief, selected_image_model, selected_text_model, detail_path, variants_path)
+    _launch_job(
+        job_id, foto_path, brief, selected_image_model, selected_text_model, detail_path, variants_path,
+        subtype=categorie.valid_subtype(tipo),
+    )
     return {"job_id": job_id, "image_model": selected_image_model, "text_model": selected_text_model}
 
 
@@ -1102,6 +1107,7 @@ def _launch_job(
     detail_path: Path | None = None,
     variants_path: Path | None = None,
     draft_id: str = "",
+    subtype: str = "",
 ) -> None:
     """Registers the job and starts the mission in the background (used by the new piece page and by the drafts)."""
     jobs[job_id] = {
@@ -1121,7 +1127,8 @@ def _launch_job(
         "last_update": datetime.now().isoformat(),
         "completed_at": None,
     }
-    asyncio.create_task(_run_mission(job_id, foto_path, brief, image_model, text_model, detail_path, variants_path))
+    extra = {"subtype": subtype} if subtype else {}
+    asyncio.create_task(_run_mission(job_id, foto_path, brief, image_model, text_model, detail_path, variants_path, **extra))
 
 
 def _sync_draft(job_id: str) -> None:
@@ -1147,6 +1154,7 @@ async def _run_mission(
     text_model: str,
     detail_path: Path | None = None,
     variants_path: Path | None = None,
+    subtype: str = "",
 ):
     """Esegue main.py in subprocess e cattura l'output riga per riga."""
     cmd = [sys.executable, str(PROJECT_ROOT / "main.py"),
@@ -1160,6 +1168,8 @@ async def _run_mission(
         cmd.extend(["--image-model", image_model])
     if text_model:
         cmd.extend(["--text-model", text_model])
+    if subtype:
+        cmd.extend(["--tipo", subtype])
 
     def _consume_line(text: str):
         job = jobs.get(job_id)
@@ -1517,10 +1527,16 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
             ).strip()
         look = photos if len(photos) > 1 else main_path
         analisi = studio_main.agent_analisi(text_model, api_key, look, brief)
-        category = requested if requested in prompt_lab.CATEGORIES else categorie.category_from(analisi, brief=note)
+        chosen = categorie.valid_subtype(body.get("subtype"))
+        wanted = requested if requested in prompt_lab.CATEGORIES or not chosen else categorie.SUBTYPES[chosen]["category"]
+        category = wanted if wanted in prompt_lab.CATEGORIES else categorie.category_from(analisi, brief=note)
         if category not in prompt_lab.CATEGORIES:
-            category = "bijoux"
-        plan = studio_main.agent_scheda_plan(text_model, api_key, look, analisi, brief, category, target)
+            category = categorie.recipe_category(category) if category in ("gioielli", "bijoux") else "bijoux"
+        subtype = chosen or categorie.subtype_for(category, categorie.exact_category_line(analisi), note, analisi)
+        cut = categorie.valid_cut(body.get("cut")) or (
+            categorie.garment_cut(categorie.exact_category_line(analisi), note, analisi) if subtype == "capo" else ""
+        )
+        plan = studio_main.agent_scheda_plan(text_model, api_key, look, analisi, brief, category, target, subtype, cut)
         woman = plan.get("woman") or casting.fallback_woman()
         never = casting.never_line()
         shots = ["clean"] + categorie.AI_SHOTS.get(category, ["worn"])
@@ -1529,7 +1545,7 @@ async def lab_analyze(draft_id: str, body: dict | None = None):
             for key in shots
             if key in plan.get("site_prompts", {})
         }
-        return prompt_lab.store.save_analysis(folder, category, analisi, plan, finals, target, woman_token)
+        return prompt_lab.store.save_analysis(folder, category, analisi, plan, finals, target, woman_token, subtype, cut)
 
     try:
         lab = await asyncio.to_thread(work)
@@ -1612,7 +1628,10 @@ async def lab_scenes(draft_id: str, body: dict):
     def work() -> dict:
         import main as studio_main
 
-        prompt = prompt_lab.scenes_prompt(lab, meta.get("note", ""), prompt_lab.hints(lab.get("category", ""), prompt_lab.VIDEO_MODEL))
+        video_model = str(body.get("video_model") or "").strip()
+        video_model = video_model if video_model in prompt_lab.VIDEO_MODELS else prompt_lab.VIDEO_MODEL
+        typed = {**lab, "scenes_model": video_model}
+        prompt = prompt_lab.scenes_prompt(typed, meta.get("note", ""), prompt_lab.hints(lab.get("category", ""), video_model))
         raw = studio_main.generate_text_with_openrouter(api_key, text_model, prompt, image_path=result, max_tokens=1500)
         parsed = studio_main.extract_json_object(raw)
         scenes = parsed.get("scene") if isinstance(parsed.get("scene"), dict) else {}
@@ -1621,7 +1640,7 @@ async def lab_scenes(draft_id: str, body: dict):
         }
         if not finals:
             raise ValueError("L'AI non ha scritto le scene.")
-        return prompt_lab.store.save_scenes(folder, attempt["id"], finals, str(parsed.get("idea", "")).strip())
+        return prompt_lab.store.save_scenes(folder, attempt["id"], finals, str(parsed.get("idea", "")).strip(), video_model)
 
     try:
         lab = await asyncio.to_thread(work)
@@ -1854,8 +1873,9 @@ async def lab_critique(draft_id: str, attempt_id: str, body: dict | None = None)
             else:
                 images.append(result)
             is_video = len(images) > 2 or result.suffix.lower() in prompt_lab.VIDEO_EXTENSIONS
-            typed = {**lab, "subtype": lab.get("subtype") or categorie.subtype_from(
-                lab.get("analisi", ""), meta.get("note", ""), category=lab.get("category", "")
+            typed = {**lab, "subtype": lab.get("subtype") or categorie.subtype_for(
+                lab.get("category", ""), categorie.exact_category_line(lab.get("analisi", "")), meta.get("note", ""),
+                lab.get("analisi", ""),
             )}
             text = fucina_codex.run(prompt_lab.critique_prompt(typed, attempt, is_video), images, model)
         parsed = studio_main.extract_json_object(text)
@@ -2760,6 +2780,8 @@ async def reel_create(
     except (ValueError, RuntimeError) as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     woman, woman_reference = _scheda_woman(scheda_run_id, input_dir)
+    # the kind of piece chosen (or worked out) in the Scheda pezzo: the Reel must not guess it again
+    scheda_results = ((_find_mission_payload(scheda_run_id) or {}).get("results") or {}) if scheda_run_id.strip() else {}
 
     state = await asyncio.to_thread(
         reel_studio.create_reel,
@@ -2777,6 +2799,8 @@ async def reel_create(
         woman,
         woman_reference,
         scheda_run_id.strip() if woman or woman_reference or _find_manifest_by_run_id(scheda_run_id) else "",
+        categorie.valid_subtype(scheda_results.get("subtype")),
+        categorie.valid_cut(scheda_results.get("garment_cut")),
     )
     _piano_link_reel(piano_ref, reel_id)
     asyncio.create_task(asyncio.to_thread(reel_studio.plan_reel, reel_id, api_key))
@@ -3009,3 +3033,219 @@ async def reel_showcase_publish(reel_id: str, body: dict | None = None):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
+
+# -- Post Instagram con testo (PRD prompt completi, T5) ----------------------------------------------------------
+import post_grafica  # noqa: E402
+from piece_code import add_reference, piece_code  # noqa: E402
+
+POST_PHOTO_MAX_BYTES = 25 * 1024 * 1024
+
+
+def _post_context(run_id: str) -> dict | JSONResponse:
+    """The piece's folder, its real photo, price, reference, type and texts: everything a post needs."""
+    payload = _find_mission_payload(run_id)
+    results = (payload or {}).get("results") or {}
+    output_name = str(results.get("output_dir") or "").strip()
+    output_dir = OUTPUT_DIR / output_name if output_name else None
+    if not payload or not output_dir or not output_dir.is_dir():
+        return JSONResponse({"error": "Pezzo non trovato"}, status_code=404)
+    real = output_dir / "07_SHOWCASE" / REAL_PHOTO_NAME
+    source = Path(str(payload.get("source_photo") or ""))
+    product = real if real.is_file() else source if source.is_file() and source.suffix.lower() not in HEIC_EXTENSIONS else None
+    # Decision D1 (Matteo, 20/11/2026): the real price of the piece, the one written in the Scheda pezzo
+    price, location = "", ""
+    try:
+        snapshot = json.loads((SHOWCASE_DRAFTS_DIR / f"showcase-{run_id}.json").read_text(encoding="utf-8")).get("snapshot") or {}
+        price, location = str(snapshot.get("price") or ""), str(snapshot.get("location") or "")
+    except (OSError, ValueError):
+        pass
+    price = price or _price_from_brief(str(payload.get("brief", "")))
+    try:
+        analisi = (output_dir / "01_ANALISI" / "product_card.md").read_text(encoding="utf-8")
+    except OSError:
+        analisi = ""
+    try:
+        styling = json.loads((output_dir / "02_PIANO" / "scheda_plan.json").read_text(encoding="utf-8")).get("styling", "")
+    except (OSError, ValueError):
+        styling = ""
+    return {
+        "output_dir": output_dir,
+        "product": product,
+        "price": price,
+        "location": location,
+        "reference": piece_code(run_id),
+        "subtype": categorie.valid_subtype(results.get("subtype")),
+        "cut": categorie.valid_cut(results.get("garment_cut")),
+        "analisi": analisi,
+        "styling": styling,
+    }
+
+
+def _post_public(entry: dict) -> dict:
+    return {**entry, "files": [{"src": src, "aiGenerated": entry.get("aiGenerated", False)} for src in entry.get("files", [])]}
+
+
+@app.get("/missions/{run_id}/post")
+def post_list(run_id: str):
+    context = _post_context(run_id)
+    if isinstance(context, JSONResponse):
+        return context
+    return {
+        "items": [_post_public(item) for item in post_grafica.list_posts(context["output_dir"])],
+        "price": post_grafica.format_price(context["price"]),
+        "reference": context["reference"],
+        "location": context["location"],
+        "models": list(post_grafica.POST_MODELS),
+        "themes": post_grafica.CAROUSEL_THEMES,
+    }
+
+
+@app.post("/missions/{run_id}/post/etichette")
+async def post_labels(run_id: str, foto: UploadFile = File(...), items: str = Form(default="[]"), formato: str = Form(default="post")):
+    """Outfit con prezzi: a REAL flat-lay photo, the tags drawn by the code. No AI, so no "Info sull'AI" label."""
+    context = _post_context(run_id)
+    if isinstance(context, JSONResponse):
+        return context
+    try:
+        pieces = post_grafica.normalize_items(json.loads(items or "[]"))
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    if not pieces:
+        return JSONResponse({"error": "Scrivi almeno un pezzo con il nome."}, status_code=400)
+    data = await foto.read()
+    if len(data) > POST_PHOTO_MAX_BYTES:
+        return JSONResponse({"error": "Foto troppo grande."}, status_code=413)
+    try:
+        with Image.open(io.BytesIO(data)) as photo:
+            image = post_grafica.label_post(photo, pieces, formato)
+    except Exception as error:
+        return JSONResponse({"error": f"Non riesco a leggere la foto: {error}"}, status_code=400)
+    destination = post_grafica.new_name(context["output_dir"], "etichette")
+    image.save(destination, "JPEG", quality=90, optimize=True)
+    entry = post_grafica.add_post(context["output_dir"], {
+        "kind": "etichette",
+        "files": [_relative_to_output(destination)],
+        "aiGenerated": False,
+        "model": "",
+        "items": pieces,
+    })
+    return _post_public(entry)
+
+
+@app.post("/missions/{run_id}/post/titolo")
+async def post_title(run_id: str, body: dict):
+    """Titolo editoriale ("titolo") or look with the testimonial ("look"): AI image from the real photo, the title
+    read back and checked, logo and price drawn by the code."""
+    context = _post_context(run_id)
+    if isinstance(context, JSONResponse):
+        return context
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend locale."}, status_code=400)
+    if not context["product"]:
+        return JSONResponse({"error": "Manca la foto vera del pezzo."}, status_code=400)
+    kind = "look" if body.get("kind") == "look" else "titolo"
+    fmt = "storia" if body.get("formato") == "storia" else "post"
+    model = str(body.get("model") or post_grafica.DEFAULT_POST_MODEL)
+    text_model = str(body.get("text_model") or DEFAULT_OPENROUTER_TEXT_MODEL)
+
+    def work() -> dict:
+        import casting
+
+        destination = post_grafica.new_name(context["output_dir"], kind)
+        result = post_grafica.make_ai_post(
+            api_key, text_model, kind, str(body.get("title", "")), str(body.get("subtitle", "")), context["product"],
+            destination, model, context["subtype"], context["cut"],
+            # the price typed in the post form wins; otherwise the scheda's (decision D1)
+            price=(str(body.get("price") or "").strip() or context["price"]) if body.get("show_price", True) else "",
+            reference=f"Rif. {context['reference']}" if context["reference"] else "", fmt=fmt,
+            woman_refs=casting.testimonial_photos() if kind == "look" else [],
+        )
+        return post_grafica.add_post(context["output_dir"], {
+            "kind": kind,
+            "format": fmt,
+            "files": [_relative_to_output(destination)],
+            "aiGenerated": True,
+            "model": result["model"],
+            "text_written_by": result["text_written_by"],
+            "text_problems": [p for check in result["checks"] for p in check["problems"]],
+            "title": str(body.get("title", "")),
+            "subtitle": str(body.get("subtitle", "")),
+        })
+
+    try:
+        entry = await asyncio.to_thread(work)
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    except Exception as error:
+        return JSONResponse({"error": f"Post non riuscito: {error}"}, status_code=502)
+    return _post_public(entry)
+
+
+@app.post("/missions/{run_id}/post/carosello")
+async def post_carousel(run_id: str, body: dict):
+    """3 slides with the same scene and the same type, one caption (decision D3: the attached looks are a carousel)."""
+    context = _post_context(run_id)
+    if isinstance(context, JSONResponse):
+        return context
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse({"error": "OPENROUTER_API_KEY non configurata nel backend locale."}, status_code=400)
+    if not context["product"]:
+        return JSONResponse({"error": "Manca la foto vera del pezzo."}, status_code=400)
+    theme = str(body.get("theme") or "tre-modi")
+    model = str(body.get("model") or post_grafica.DEFAULT_POST_MODEL)
+    model = model if model in post_grafica.POST_MODELS else post_grafica.DEFAULT_POST_MODEL
+    text_model = str(body.get("text_model") or DEFAULT_OPENROUTER_TEXT_MODEL)
+
+    def work() -> dict:
+        import casting
+        import main as studio_main
+
+        raw = studio_main.generate_text_with_openrouter(
+            api_key, text_model,
+            post_grafica.carousel_plan_prompt(theme, context["analisi"], context["styling"], context["subtype"]),
+            image_path=context["product"], max_tokens=1400,
+        )
+        plan = studio_main.extract_json_object(raw)
+        slides = [s for s in (plan.get("slides") or []) if isinstance(s, dict) and s.get("prompt_en")][:3]
+        if len(slides) < 3:
+            raise RuntimeError("L'AI non ha preparato le 3 slide.")
+        refs = casting.testimonial_photos()
+        files = []
+        for index, slide in enumerate(slides, start=1):
+            prompt = post_grafica.carousel_slide_prompt(
+                str(plan.get("scena_en", "")), str(slide["prompt_en"]), index, context["subtype"], context["cut"], model, len(refs)
+            )
+            destination = post_grafica.new_name(context["output_dir"], "carosello", index)
+            raw_path = destination.with_name(destination.stem + "_raw.png")
+            reel_kit.generate_image_multi(api_key, post_grafica.POST_MODELS[model], prompt, refs + [context["product"]], raw_path, aspect_ratio="4:5")
+            with Image.open(raw_path) as generated:
+                image = post_grafica._fit(generated, post_grafica.POST_SIZE)
+            title = post_grafica.clean_text(slide.get("titolo"), 40) or f"Look {index}"
+            post_grafica.slide_caption(image, index, len(slides), title).save(destination, "JPEG", quality=90, optimize=True)
+            raw_path.unlink(missing_ok=True)
+            files.append(_relative_to_output(destination))
+        caption = str(plan.get("caption", "")).strip()
+        if "te lo mettiamo da parte" in caption.lower():
+            caption = caption.replace("te lo mettiamo da parte", "ti diciamo se è disponibile")
+        if context["reference"]:
+            caption = add_reference(caption, context["reference"])
+        return post_grafica.add_post(context["output_dir"], {
+            "kind": "carosello",
+            "theme": theme,
+            "files": files,
+            "aiGenerated": True,
+            "model": model,
+            "caption": caption,
+            "slide_titles": [str(s.get("titolo", "")) for s in slides],
+        })
+
+    try:
+        entry = await asyncio.to_thread(work)
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    except Exception as error:
+        return JSONResponse({"error": f"Carosello non riuscito: {error}"}, status_code=502)
+    return _post_public(entry)

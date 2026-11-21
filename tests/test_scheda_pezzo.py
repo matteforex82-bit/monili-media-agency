@@ -135,7 +135,7 @@ def test_clean_real_photo_is_suggested(tmp_path, monkeypatch, capsys):
     import photo_cleanup
 
     monkeypatch.setattr(
-        photo_cleanup, "clean_photo", lambda photo, model_path, notify=None: (Image.new("RGB", (1200, 1500), (250, 247, 240)), [])
+        photo_cleanup, "clean_photo", lambda photo, model_path, notify=None, **options: (Image.new("RGB", (1200, 1500), (250, 247, 240)), [])
     )
     results, _, _ = _run(tmp_path, monkeypatch, capsys)
     assert json.loads(results["real_photo_check"]) == {"cleaned": True, "ok": True, "issues": []}

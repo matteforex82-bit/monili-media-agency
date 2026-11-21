@@ -23,6 +23,9 @@ LIBRARY_FILE = MEMORY_ROOT / "prompt_lab.json"
 SHOTS = ("clean", "worn", "worn_2")
 MODELS = ("Seedream", "Nano Banana", "GPT Image", "Altro")
 VIDEO_MODEL = "Seedance 2.5"
+# I modelli video per cui la Fucina scrive le scene (a mano su Higgsfield). Genjutsu lavora da un video vero
+# (motion transfer, object swap): nell'API di higgsfield_client non c'è, quindi si sceglie solo qui.
+VIDEO_MODELS = ("Seedance 2.5", "Kling", "Genjutsu")
 WOMAN_TOKEN = "@MODELLA"  # nel prompt: Matteo sceglie a mano chi è (Aurora o un'altra modella)
 SCENES = ("scena_1", "scena_2", "scena_3")
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm"}
@@ -103,10 +106,37 @@ def library_items() -> list[dict]:
         return _load_library()["items"]
 
 
+def knowledge_model_for(model_id: str) -> str:
+    """The knowledge name (a key of MODEL_FILES) of a real model id used by the Studio (OpenRouter, OpenAI direct)."""
+    lowered = (model_id or "").lower()
+    for name in MODEL_FILES:
+        if name.lower() == lowered:
+            return name
+    if "gpt-image" in lowered or "gpt-5.4-image" in lowered:
+        return "GPT Image"
+    if "gemini" in lowered or "nano-banana" in lowered:
+        return "Nano Banana"
+    if "seedream" in lowered:
+        return "Seedream"
+    if "seedance" in lowered:
+        return "Seedance 2.5"
+    if "kling" in lowered:
+        return "Kling"
+    if "flux" in lowered:
+        return "Flux"
+    return ""
+
+
 def model_knowledge(model: str = "", category: str = "") -> str:
-    """The vertical knowledge for the chosen image model and the kind of piece (knowledge/fucina/*.md)."""
+    """The vertical knowledge for the chosen image model and the kind of piece (knowledge/fucina/*.md).
+    The model can be a knowledge name ("GPT Image") or a real id ("openai/gpt-image-2.6-sunburst");
+    the category can be the mission's ("gioielli") or the Fucina's ("bijoux")."""
+    import categorie
+
+    model = model if model in MODEL_FILES else knowledge_model_for(model)
+    recipe = categorie.recipe_category(category) if category else ""
     parts: list[str] = []
-    for name in (MODEL_FILES.get(model, ""), f"ricetta-{category}.md" if category else ""):
+    for name in (MODEL_FILES.get(model, ""), f"ricetta-{recipe}.md" if recipe else ""):
         if not name:
             continue
         try:
@@ -139,6 +169,19 @@ def prompt_structure(kind: str) -> str:
 def video_direction() -> str:
     """Duration and safe movement for each kind of piece, and Aurora across several clips (knowledge/fucina/regia-reel.md)."""
     return _read_knowledge(KNOWLEDGE_DIR, "regia-reel.md").split("**Da verificare")[0].strip()
+
+
+def type_guide(subtype: str, cut: str = "") -> str:
+    """How to frame the worn shot of this kind of piece (knowledge/fucina/inquadratura-tipi.md, section "## <tipo>").
+    For clothing the section is the cut: "capo sopra", "capo sotto" or "capo intero"."""
+    if not subtype:
+        return ""
+    wanted = f"capo {cut or 'intero'}" if subtype == "capo" else subtype
+    for section in re.split(r"^## ", _read_knowledge(KNOWLEDGE_DIR, "inquadratura-tipi.md"), flags=re.MULTILINE):
+        head, _, body = section.partition("\n")
+        if head.strip().lower() == wanted:
+            return f"INQUADRATURA PER QUESTO TIPO DI PEZZO ({wanted}): {body.strip()}"
+    return ""
 
 
 def video_review_sheet() -> str:
@@ -329,12 +372,16 @@ class LabStore:
         final_prompts: dict[str, str],
         target_model: str = "",
         woman_token: str = "",
+        subtype: str = "",
+        cut: str = "",
     ) -> dict:
         """A new analysis replaces the prompts but keeps the attempts already made."""
         with _lock:
             old = self.read(folder) or {}
             lab = {
                 "category": category,
+                "subtype": subtype,
+                "garment_cut": cut,
                 "target_model": target_model,
                 "woman_token": woman_token,
                 "analisi": analisi,
@@ -359,7 +406,9 @@ class LabStore:
             self._write(folder, lab)
             return lab
 
-    def save_scenes(self, folder: Path, source_attempt: str, scenes: dict[str, str], idea: str) -> dict | None:
+    def save_scenes(
+        self, folder: Path, source_attempt: str, scenes: dict[str, str], idea: str, video_model: str = ""
+    ) -> dict | None:
         """The video scenes for the clothing worn by the woman: they start from one chosen photo (an attempt)."""
         with _lock:
             lab = self.read(folder)
@@ -368,6 +417,7 @@ class LabStore:
             lab["scenes"] = {key: {"text": text, "edited": False} for key, text in scenes.items()}
             lab["scenes_source"] = source_attempt
             lab["scenes_idea"] = idea
+            lab["scenes_model"] = video_model if video_model in VIDEO_MODELS else VIDEO_MODEL
             # the scenes of a previous round stay in the attempts, so nothing already made is lost
             self._write(folder, lab)
             return lab
@@ -384,7 +434,7 @@ class LabStore:
                 {
                     "id": uuid.uuid4().hex[:8],
                     "shot": shot,
-                    "model": _clean(model, 60) or (VIDEO_MODEL if is_scene else lab.get("target_model")) or "Higgsfield",
+                    "model": _clean(model, 60) or ((lab.get("scenes_model") or VIDEO_MODEL) if is_scene else lab.get("target_model")) or "Higgsfield",
                     "prompt": text,
                     "created_at": _now(),
                     "result": "",
@@ -693,9 +743,21 @@ SCENE_TAIL = (
 
 
 def scenes_prompt(lab: dict, category_note: str, hints_text: str) -> str:
-    knowledge = f"{model_knowledge(VIDEO_MODEL, lab.get('category', ''))}\n\n{prompt_structure('video')}\n\n{video_direction()}"
+    video_model = lab.get("scenes_model") if lab.get("scenes_model") in VIDEO_MODELS else VIDEO_MODEL
+    knowledge = "\n\n".join(filter(None, (
+        model_knowledge(video_model, lab.get("category", "")),
+        type_guide(lab.get("subtype", ""), lab.get("garment_cut", "")),
+        prompt_structure("video"),
+        video_direction(),
+    )))
+    start = (
+        "Genjutsu parte da un VIDEO VERO girato col telefono (motion transfer o object swap): la foto qui sotto è il "
+        "riferimento del capo e della donna da usare nel video"
+        if video_model == "Genjutsu"
+        else f"sarà il PRIMO FOTOGRAMMA di ogni scena ({video_model}, da immagine a video)"
+    )
     return f"""Sei il regista dei video Instagram di I Monili Ravenna, boutique di Ravenna. Devi restituire SOLO un JSON valido.
-Hai in mano la foto del capo già indossato dalla donna di questo pezzo: sarà il PRIMO FOTOGRAMMA di ogni scena (Seedance 2.5, da immagine a video).
+Hai in mano la foto del capo già indossato dalla donna di questo pezzo: {start}.
 
 Analisi del capo: {str(lab.get("analisi", ""))[:1200]}
 La donna: {(lab.get("woman_token") + " (la sceglie Matteo a mano: scrivi esattamente " + lab.get("woman_token") + ", non descriverne il volto)") if lab.get("woman_token") else lab.get("woman", "")}

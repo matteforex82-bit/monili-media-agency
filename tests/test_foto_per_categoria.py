@@ -61,7 +61,8 @@ def _mission(tmp_path, monkeypatch, capsys, analisi, clean_ok=True, detail=False
         Image.new("RGB", (1200, 1500), (200, 180, 150)).save(buffer, "PNG")
         return ["data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")]
 
-    def fake_clean(photo, model_path, notify=None):
+    def fake_clean(photo, model_path, notify=None, **options):
+        calls.setdefault("clean_options", []).append(options)
         return Image.new("RGB", (1200, 1500), (250, 247, 240)), ([] if clean_ok else ["bordi sporchi"])
 
     monkeypatch.setattr(main, "generate_text_with_openrouter", fake_text)

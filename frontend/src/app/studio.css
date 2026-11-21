@@ -659,3 +659,15 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .pub-missing { display: grid; gap: 10px; justify-items: start; padding: 16px; border: 1px dashed var(--bot-border-hi); border-radius: 12px; }
 .pub-missing p { margin: 0; color: var(--bot-ink-2); }
 .pub-copy { min-height: 36px; }
+
+/* ── Post con testo: etichette, titolo, look, carosello ── */
+.post-maker { gap: 14px; }
+.post-modes { grid-template-columns: repeat(2, 1fr); margin: 0; }
+.post-form { display: grid; gap: 8px; }
+.post-piece { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border: 1px solid var(--bot-border); border-radius: 10px; padding: 10px; margin: 0; }
+.post-piece legend { font-size: 13px; font-weight: 600; padding: 0 4px; }
+.post-piece input:first-of-type { grid-column: 1 / -1; }
+.post-check { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: 14px; }
+.post-options { display: flex; flex-wrap: wrap; gap: 12px; }
+.post-options label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; }
+.post-made { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid var(--bot-border); }

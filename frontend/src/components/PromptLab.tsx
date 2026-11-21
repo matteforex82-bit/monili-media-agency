@@ -5,6 +5,7 @@ import { API_URL } from '@/lib/apiUrl';
 import { loadSettings } from '@/lib/settings';
 import type { Progress } from '@/lib/drafts';
 import LearnPanel from '@/components/LearnPanel';
+import { CUT_OPTIONS, SUBTYPE_GROUPS } from '@/lib/tipi';
 
 interface CritiqueItem {
   label: string;
@@ -71,6 +72,7 @@ const SHOT_LABELS: Record<string, string> = {
 };
 const CATEGORY_LABELS: Record<string, string> = { bijoux: 'Bijoux', abbigliamento: 'Abbigliamento', accessori: 'Accessori' };
 const MODELS = ['Seedream', 'Nano Banana', 'GPT Image', 'Altro'];
+const VIDEO_MODELS = ['Seedance 2.5', 'Kling', 'Genjutsu'];
 const CODEX_MODEL_KEY = 'monili_codex_model';
 const PREFS_KEY = 'monili_lab_prefs';
 const ESITO_LABEL = { ok: 'ok', dubbio: 'dubbio', problema: 'problema' } as const;
@@ -82,8 +84,11 @@ interface Prefs {
   woman: string;
   engine: string;
   category: string;
+  subtype: string;
+  cut: string;
+  videoModel: string;
 }
-const DEFAULT_PREFS: Prefs = { target: MODELS[0], woman: 'token', engine: 'codex', category: '' };
+const DEFAULT_PREFS: Prefs = { target: MODELS[0], woman: 'token', engine: 'codex', category: '', subtype: '', cut: '', videoModel: VIDEO_MODELS[0] };
 
 function loadPrefs(): Prefs {
   try {
@@ -204,7 +209,9 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
         request(
           '/prompt',
           json('POST', {
-            category: prefs.category,
+            category: prefs.subtype ? '' : prefs.category,
+            subtype: prefs.subtype,
+            cut: prefs.subtype === 'capo' ? prefs.cut : '',
             model: prefs.target,
             woman: prefs.woman,
             engine: prefs.engine,
@@ -257,7 +264,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
     if (!source) return;
     setBusy(true);
     await run(
-      () => request('/scene', json('POST', { attempt_id: source, engine: prefs.engine, codex_model: codexModel, text_model: loadSettings().textModel })),
+      () => request('/scene', json('POST', { attempt_id: source, video_model: prefs.videoModel, engine: prefs.engine, codex_model: codexModel, text_model: loadSettings().textModel })),
       'Non sono riuscito a scrivere le scene',
     );
     setBusy(false);
@@ -307,15 +314,31 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
           </label>
           <label>
             Tipo di pezzo
-            <select className="lab-select" value={prefs.category} onChange={(e) => changePrefs({ category: e.target.value })}>
+            <select className="lab-select" value={prefs.subtype} onChange={(e) => changePrefs({ subtype: e.target.value, category: '' })}>
               <option value="">Lo capisce lo Studio</option>
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
+              {SUBTYPE_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.items.map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </label>
+          {prefs.subtype === 'capo' && (
+            <label>
+              Che capo è
+              <select className="lab-select" value={prefs.cut} onChange={(e) => changePrefs({ cut: e.target.value })}>
+                {CUT_OPTIONS.map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label>
             Donna nel prompt
             <select className="lab-select" value={prefs.woman} onChange={(e) => changePrefs({ woman: e.target.value })}>
@@ -513,7 +536,7 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
         <div className="step-body">
           {errorBox}
           {pickable.length === 0 ? (
-            <p className="step-hint">Quando hai caricato la foto del capo indossato, scegli qui quella da animare: lo Studio scrive le scene per Seedance 2.5.</p>
+            <p className="step-hint">Quando hai caricato la foto del capo indossato, scegli qui quella da animare: lo Studio scrive le scene per il modello video che scegli.</p>
           ) : (
             <>
               <p className="step-hint">Parti da questa foto: sarà il primo fotogramma di ogni scena.</p>
@@ -527,6 +550,17 @@ export default function PromptLab({ draftId, mainPhoto, step, onStep, onProgress
                 ))}
               </div>
             </>
+          )}
+          <label className="lab-inline">
+            Modello video
+            <select className="lab-select" value={prefs.videoModel} onChange={(e) => changePrefs({ videoModel: e.target.value })}>
+              {VIDEO_MODELS.map((m) => (
+                <option key={m}>{m}</option>
+              ))}
+            </select>
+          </label>
+          {prefs.videoModel === 'Genjutsu' && (
+            <p className="step-hint">Genjutsu parte da un video vero girato col telefono: le scene ti dicono cosa girare e cosa cambiare.</p>
           )}
           {lab?.scenes_idea && <p className="step-hint">Idea: {lab.scenes_idea}</p>}
           {Object.entries(scenes).map(([key, sc]) => (

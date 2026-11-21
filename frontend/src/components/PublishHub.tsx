@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import InstagramShare from '@/components/InstagramShare';
+import PostMaker from '@/components/PostMaker';
 
 type ReelData = {
   id: string;
@@ -39,6 +40,7 @@ interface Props {
   siteState: 'none' | 'draft' | 'published';
   hasAiWomanPhoto: boolean;
   onGoTo: (stage: 'sito' | 'video') => void;
+  runId?: string;
 }
 
 type PlatformId = 'sito' | 'reel' | 'storia' | 'post' | 'google' | 'whatsapp';
@@ -127,7 +129,7 @@ function Missing({ children, action, onClick }: { children: React.ReactNode; act
   );
 }
 
-export default function PublishHub({ apiUrl, reelIds, photos, texts, siteState, hasAiWomanPhoto, onGoTo }: Props) {
+export default function PublishHub({ apiUrl, reelIds, photos, texts, siteState, hasAiWomanPhoto, onGoTo, runId }: Props) {
   const [reels, setReels] = useState<ReelData[]>([]);
   const [loadingReels, setLoadingReels] = useState(reelIds.length > 0);
   const [platform, setPlatform] = useState<PlatformId>('reel');
@@ -291,6 +293,7 @@ export default function PublishHub({ apiUrl, reelIds, photos, texts, siteState, 
               </div>
             </div>
           )}
+          {runId && <PostMaker apiUrl={apiUrl} runId={runId} caption={postText} hashtags={texts.hashtags} />}
         </div>
       )}
 

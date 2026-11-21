@@ -38,6 +38,7 @@ from main import (
     agent_analisi,
     extract_json_object,
     generate_text_with_openrouter,
+    platform_rules,
     select_openrouter_image_model,
     select_openrouter_text_model,
 )
@@ -239,6 +240,8 @@ def create_reel(
     woman: str = "",
     woman_reference: Path | None = None,
     scheda_run_id: str = "",
+    subtype: str = "",
+    garment_cut: str = "",
 ) -> dict:
     """woman / woman_reference: la donna della Scheda pezzo dello stesso pezzo (descrizione e foto indossata).
     Senza, la inventa il regista nello storyboard: una per pezzo, mai due donne diverse con lo stesso pezzo."""
@@ -263,6 +266,8 @@ def create_reel(
         "woman": woman or None,
         "woman_reference": rel(woman_reference) if woman_reference else None,
         "scheda_run_id": scheda_run_id or None,
+        "subtype": subtype or None,
+        "garment_cut": garment_cut or None,
         "poster_cover": bool(poster_cover),
         "target_seconds": target_seconds,
         "video_model": hf.select_video_model(video_model),
@@ -688,6 +693,44 @@ def _woman_block(state: dict) -> str:
     return "\n".join(line for line in lines if line)
 
 
+def piece_kind(state: dict) -> tuple[str, str, str]:
+    """Category, type and cut of the piece of this Reel: chosen in the Scheda pezzo (state) or read from the analysis."""
+    import categorie
+
+    analysis = state.get("analysis", "") or ""
+    brief = state.get("brief", "") or ""
+    subtype = categorie.valid_subtype(state.get("subtype"))
+    category = categorie.SUBTYPES[subtype]["category"] if subtype else categorie.recipe_category(
+        categorie.category_from(analysis, brief=brief)
+    )
+    subtype = subtype or categorie.subtype_for(category, categorie.exact_category_line(analysis), brief, analysis)
+    cut = (categorie.valid_cut(state.get("garment_cut")) or categorie.garment_cut(
+        categorie.exact_category_line(analysis), brief, analysis
+    )) if subtype == "capo" else ""
+    return category, subtype, cut
+
+
+def video_knowledge(state: dict) -> str:
+    """What the director must know to write the shots (PRD prompt completi, T4): the video skeleton, safe duration and
+    movement per piece, the video model and the recipe of the category, the framing of this type, the defects a
+    reviewer looks for; and, for keyframe_prompt_en (an image prompt), the photo skeleton and the image model."""
+    import prompt_lab
+
+    category, subtype, cut = piece_kind(state)
+    video_name = prompt_lab.knowledge_model_for(state.get("video_model", "")) or "Kling"
+    image_name = prompt_lab.knowledge_model_for(state.get("keyframe_model", "")) or "GPT Image"
+    blocks = [
+        ("REGIA VIDEO (struttura di motion_prompt_en)", prompt_lab.prompt_structure("video")),
+        ("DURATA E MOVIMENTO PER TIPO DI PEZZO", prompt_lab.video_direction()),
+        (f"MODELLO VIDEO ({video_name}) E RICETTA DELLA CATEGORIA", prompt_lab.model_knowledge(video_name, category)),
+        ("TIPO DI PEZZO", prompt_lab.type_guide(subtype, cut)),
+        ("DIFETTI CHE IL REVISORE CERCA NEI VIDEO (evitali gia nel prompt)", prompt_lab.video_review_sheet()),
+        ("FOTOGRAMMA CHIAVE (keyframe_prompt_en e un prompt IMMAGINE 9:16: segui questa struttura)", prompt_lab.prompt_structure("foto")),
+        (f"MODELLO IMMAGINE DEL FOTOGRAMMA ({image_name})", prompt_lab.model_knowledge(image_name)),
+    ]
+    return "\n\n".join(f"=== {title} ===\n{text}" for title, text in blocks if text)
+
+
 def agent_storyboard(state: dict, photo: Path) -> dict:
     fmt = FORMATS[state["format"]]
     clips = state.get("clips") or []
@@ -716,16 +759,19 @@ artigianale e boho del negozio. Sorprendi: non ripartire sempre dal solito banco
 {casting.avoid_block("SCENE DEGLI ULTIMI REEL", casting.recent_scenes(exclude_reel=state.get("id", "")))}
 COSE DA NON MOSTRARE MAI: {"; ".join(casting.never_show()) or "nessuna"}
 
+CONOSCENZA PER SCRIVERE LE INQUADRATURE (vale piu delle tue abitudini):
+{video_knowledge(state)}
+
 REGOLE:
 - I primi 1.5 secondi sono un HOOK visivo forte (movimento, luce che colpisce le pietre, gesto).
 - Se ci sono clip reali usale (source "clip") dove rendono di piu: l'autenticita del negozio vende.
 - Le inquadrature AI partono da un fotogramma chiave generato dalla foto reale: il prodotto deve restare identico.
-- Gioielli piccoli: preferisci movimenti lenti (slow push-in, orbit leggero, rack focus), evita rotazioni veloci.
 - Luce naturale e bella, adatta alla scena che inventi.
 - Ogni inquadratura AI dura 3-6 secondi; l'ultima chiude SEMPRE con invito concreto: "Scrivici, ti diciamo se è disponibile" o "Ti aspettiamo in centro a Ravenna".
 - Stile: autentico ed elegante, colori e sfondi che fanno risaltare il prodotto. Mai effetti pacchiani.
 - on_screen_text in italiano, max 6 parole, tono da amica.
-- keyframe_prompt_en e motion_prompt_en in inglese, concreti e visivi.
+- keyframe_prompt_en e motion_prompt_en in inglese, concreti e visivi, scritti con le strutture qui sopra; durata e movimento
+  di camera entro i limiti sicuri del tipo di pezzo (una sola azione e un solo movimento per inquadratura).
 - keyframe_mode "original_photo" = usa la foto reale cosi com'e (massima fedelta, utile per il dettaglio prodotto).
 - COERENZA AL 100%: tutte le inquadrature AI avvengono nella STESSA scena descritta in scene_bible (stesso luogo,
   stessa luce, stessa palette, stessa donna con gli stessi abiti). Cambiano solo inquadratura, distanza e azione.
@@ -1183,6 +1229,9 @@ ANALISI PRODOTTO (estratto):
 REGOLE:
 {skills.base_template("testi")}
 {skills.section(state.get("recipe", ""), "copy")}
+
+REGOLE DELLA PIATTAFORMA E DELLA VOCE (Instagram, scritto come una persona):
+{platform_rules(["stile-umano", "instagram"])}
 
 Rispondi SOLO con JSON valido:
 {{
