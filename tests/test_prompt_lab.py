@@ -21,6 +21,7 @@ def _jpeg(color=(200, 120, 60), size=(600, 800)) -> bytes:
 @pytest.fixture(autouse=True)
 def isolated_library(tmp_path, monkeypatch):
     monkeypatch.setattr(prompt_lab, "LIBRARY_FILE", tmp_path / "prompt_lab.json")
+    monkeypatch.setattr(prompt_lab, "RULES_FILE", tmp_path / "regole_fucina.json")
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
 
 
@@ -139,6 +140,21 @@ def test_model_knowledge_loads_the_model_and_the_recipe():
     for name in set(prompt_lab.MODEL_FILES.values()):
         text = (prompt_lab.KNOWLEDGE_DIR / name).read_text(encoding="utf-8")
         assert 80 < len(text.split()) < 1100, name
+
+
+def test_the_prompt_skeletons_and_video_rules_reach_the_studio_prompts():
+    photo, video = prompt_lab.prompt_structure("foto"), prompt_lab.prompt_structure("video")
+    assert "Sei blocchi" in photo and "Sette blocchi" in video
+    assert "Quale modello per quale pezzo" not in photo + video  # the model is already chosen when these are used
+    assert "Durata e movimento sicuri" in prompt_lab.video_direction() and "Da verificare" not in prompt_lab.video_direction()
+    assert "Da scartare" in prompt_lab.video_review_sheet()
+    lab = {"category": "abbigliamento", "analisi": "gilet ricamato"}
+    scenes = prompt_lab.scenes_prompt(lab, "", "")
+    assert "Sette blocchi" in scenes and "Durata e movimento sicuri" in scenes and "Aurora + pezzo in più clip" in scenes
+    video_review = prompt_lab.critique_prompt(lab, {"shot": "worn", "model": "Seedance 2.5", "prompt": "p"}, is_video=True)
+    assert "DIFETTI DA CERCARE NEL VIDEO" in video_review and "Sette blocchi" in video_review
+    photo_review = prompt_lab.critique_prompt(lab, {"shot": "worn", "model": "Seedream", "prompt": "p"})
+    assert "Sei blocchi" in photo_review and "DIFETTI DA CERCARE NEL VIDEO" not in photo_review
 
 
 def test_clothing_two_steps_photo_then_seedance_scenes_and_codex_critique(monkeypatch):
@@ -327,3 +343,164 @@ def test_the_corrected_prompt_keeps_the_woman_tag():
     # end to end through the normalizer
     out = prompt_lab.normalize_critique({"prompt_corretto": "Better jacket prompt."}, "m", prompt_lab.CHECKLIST, original)
     assert "@MODELLA" in out["prompt_corretto"]
+
+
+def test_external_photo_of_a_garment_is_reviewed_as_a_garment(monkeypatch):
+    # bug: a photo made elsewhere on a piece never analysed had no category, so Codex used the jewellery checklist
+    draft = _draft()
+    did = draft["id"]
+    made = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "worn", "model": "Seedream", "prompt": "", "category": "abbigliamento"}).json()
+    assert made["lab"]["category"] == "abbigliamento"
+    attempt = made["lab"]["attempts"][0]
+    client.post(f"/bozze/{did}/prove/{attempt['id']}/risultato", files={"foto": ("r.jpg", _jpeg(), "image/jpeg")})
+    seen = {}
+    monkeypatch.setattr(server.fucina_codex, "run", lambda prompt, images, model="": seen.update(prompt=prompt) or '{"checklist": {}, "giudizio": "ok", "voto_proposto": 3, "correzione": "", "prompt_corretto": ""}')
+    assert client.post(f"/bozze/{did}/prove/{attempt['id']}/valuta", json={}).status_code == 200
+    assert "Motivo, colori e tessuto" in seen["prompt"] and "Numero delle pietre" not in seen["prompt"]
+    assert "ORDINE DI IMPORTANZA" in seen["prompt"] and "fedeltà" in seen["prompt"]
+    assert "Capo indossato" in seen["prompt"]  # the goal for the worn garment
+
+
+def test_each_kind_of_piece_has_its_own_review_sheet():
+    import categorie
+
+    assert categorie.subtype_from("", "anello con ametista 159 euro") == "anello"
+    assert categorie.subtype_from("", "orecchini a fiore smaltati") == "orecchini"
+    assert categorie.subtype_from("", "gilet ricamato", category="abbigliamento") == "capo"
+    assert categorie.subtype_from("", "qualcosa", category="accessori") == "foulard"
+    ring = prompt_lab.goal_for({"shot": "worn"}, {"category": "bijoux", "subtype": "anello"})
+    earring = prompt_lab.goal_for({"shot": "worn"}, {"category": "bijoux", "subtype": "orecchini"})
+    assert "dito" in ring and "orecchio" in earring and ring != earring
+    assert "fondo avorio" in prompt_lab.goal_for({"shot": "clean"}, {"category": "bijoux", "subtype": "collana"})
+    # no subtype: falls back to the category goal
+    assert prompt_lab.goal_for({"shot": "worn"}, {"category": "abbigliamento"}).startswith("Capo indossato")
+    # every sheet has both sections
+    for kind in ("anello", "orecchini", "collana", "bracciale", "capo", "borsa", "foulard"):
+        assert prompt_lab.review_sheet(kind, "clean") and prompt_lab.review_sheet(kind, "worn"), kind
+
+
+def test_brand_rules_come_from_one_file_and_promise_no_fixed_days():
+    import main as studio_main
+
+    text = studio_main.BRAND
+    assert "I Monili Ravenna" in text and studio_main.SEASON in text and "{SEASON}" not in text
+    assert "Martedi" not in text and "nessun giorno" in text.lower()
+    assert all(tag in text for tag in studio_main.FIXED_HASHTAGS)
+    import reel_studio
+
+    assert reel_studio.FIXED_HASHTAGS is studio_main.FIXED_HASHTAGS
+    assert studio_main.MAX_REEL_EXTRA_HASHTAGS == 5 and studio_main.MAX_EXTRA_HASHTAGS == 2
+    assert "Mar/Gio/Sab" not in open("reel_studio.py", encoding="utf-8").read()
+
+
+def test_an_approved_photo_is_exported_for_each_channel():
+    import channels
+
+    sizes = {c["id"]: (c["width"], c["height"]) for c in client.get("/canali").json()["channels"]}
+    assert sizes["google-foto"] == (1200, 1200) and sizes["tripadvisor"] == (1800, 1200) and sizes["sito"] == (1080, 1350)
+    draft = _draft()
+    did = draft["id"]
+    made = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "worn", "model": "Seedream", "prompt": "", "category": "bijoux"}).json()
+    attempt = made["lab"]["attempts"][0]
+    client.post(f"/bozze/{did}/prove/{attempt['id']}/risultato", files={"foto": ("r.jpg", _jpeg(), "image/jpeg")})
+    from PIL import Image
+    import io as _io
+
+    for channel, size in sizes.items():
+        res = client.get(f"/bozze/{did}/prove/{attempt['id']}/canale/{channel}")
+        assert res.status_code == 200 and res.headers["content-type"] == "image/jpeg", channel
+        assert Image.open(_io.BytesIO(res.content)).size == size, channel
+    assert client.get(f"/bozze/{did}/prove/{attempt['id']}/canale/facebook").status_code == 404
+
+
+def test_texts_follow_one_set_of_platform_rules():
+    import main as studio_main
+
+    rules = studio_main.platform_rules()
+    for needle in ("non è X, ma Y", "Instagram", "WhatsApp", "Google Business", "Tripadvisor", "155 caratteri"):
+        assert needle in rules, needle
+    assert "tripadvisor_text" in studio_main.publish_pack_fallback()
+    pack = studio_main.normalize_publish_pack({"tripadvisor_text": "Negozio in via Cavour."})
+    assert pack["tripadvisor_text"] == "Negozio in via Cavour."
+    assert "## Tripadvisor" in studio_main.format_publish_pack_markdown(pack)
+
+
+def test_go_to_site_makes_the_photo_a_site_photo_of_the_piece_whatever_the_rating():
+    draft = _draft()
+    did = draft["id"]
+    made = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "worn", "model": "Seedream", "prompt": "", "category": "bijoux"}).json()
+    attempt = made["lab"]["attempts"][0]
+    client.post(f"/bozze/{did}/prove/{attempt['id']}/risultato", files={"foto": ("r.jpg", _jpeg(), "image/jpeg")})
+    # no rating at all: the owner's OK is enough
+    res = client.post(f"/bozze/{did}/prove/{attempt['id']}/sito")
+    assert res.status_code == 200
+    body = res.json()
+    run_id = body["run_id"]
+    assert body["lab"]["attempts"][0]["site"]["run_id"] == run_id
+    assert client.get(f"/bozze/{did}").json()["run_id"] == run_id if client.get(f"/bozze/{did}").status_code == 200 else True
+    candidates = client.get(f"/missions/{run_id}/showcase/candidates").json()
+    assert [item["src"].rsplit("/", 1)[1] for item in candidates["items"]] == ["site_02_worn.jpg"]
+    # a second photo of the same piece joins the same run
+    clean = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "clean", "model": "Seedream", "prompt": "", "category": "bijoux"}).json()["lab"]["attempts"][-1]
+    client.post(f"/bozze/{did}/prove/{clean['id']}/risultato", files={"foto": ("c.jpg", _jpeg(), "image/jpeg")})
+    again = client.post(f"/bozze/{did}/prove/{clean['id']}/sito").json()
+    assert again["run_id"] == run_id
+    names = [item["src"].rsplit("/", 1)[1] for item in client.get(f"/missions/{run_id}/showcase/candidates").json()["items"]]
+    assert names == ["site_01_product_clean.jpg", "site_02_worn.jpg"]
+    # the AI catalog photo carries the "AI" label like the worn ones
+    import main as studio_main
+    assert "site_01_product_clean.jpg" in studio_main.AI_WORN_PHOTO_NAMES
+    # a video cannot go to the site
+    scene = client.post(f"/bozze/{did}/prove", json={"external": True, "shot": "scena_1", "model": "Seedance 2.5", "prompt": ""}).json()["lab"]["attempts"][-1]
+    assert client.post(f"/bozze/{did}/prove/{scene['id']}/sito").status_code in (400, 404)
+
+
+def test_good_examples_carry_why_they_pleased_and_skip_empty_prompts(tmp_path, monkeypatch):
+    monkeypatch.setattr(prompt_lab, "library_items", lambda: [
+        {"attempt_id": "a", "category": "abbigliamento", "model": "Seedream", "shot": "worn", "rating": 4, "prompt": "bomber jacket worn by @MODELLA", "note": "vestibilità da bomber, sfondo neutro", "rated_at": "2026-11-19T10:00:00"},
+        {"attempt_id": "b", "category": "abbigliamento", "model": "Seedream", "shot": "worn", "rating": 5, "prompt": "", "note": "bellissima", "rated_at": "2026-11-19T11:00:00"},
+    ])
+    text = prompt_lab.hints("abbigliamento", "Seedream")
+    assert "bomber jacket worn by @MODELLA" in text and "vestibilità da bomber" in text
+    assert "bellissima" not in text  # no prompt, nothing to learn from
+
+
+def _rate_three(model="Seedream", category="abbigliamento"):
+    for n, (rating, note) in enumerate([(4, "volto fedele alla modella, sfondo neutro"), (5, "vestibilità da bomber"), (1, "sfondo troppo carico")]):
+        prompt_lab.record({"id": f"x{n}", "shot": "worn", "model": model, "prompt": f"prompt {n}", "rating": rating, "note": note}, category, "d")
+
+
+def test_learning_proposes_rules_only_the_approved_ones_enter_the_prompts(monkeypatch):
+    # too few ratings: nothing to learn from
+    assert client.post("/fucina/regole/proponi", json={"engine": "openrouter"}).status_code == 400
+    _rate_three()
+    seen = {}
+
+    def fake_text(api_key, model, prompt, **kwargs):
+        seen["prompt"] = prompt
+        return '{"regole": [{"testo": "Sfondo neutro e volto fedele alla modella.", "modello": "Seedream", "categoria": "abbigliamento", "perche": "voti 4 e 5"}]}'
+
+    monkeypatch.setattr(studio_main, "generate_text_with_openrouter", fake_text)
+    res = client.post("/fucina/regole/proponi", json={"engine": "openrouter"})
+    assert res.status_code == 200
+    assert "sfondo troppo carico" in seen["prompt"] and "vestibilità da bomber" in seen["prompt"]
+    rule = res.json()["new"][0]
+    assert rule["status"] == "proposta" and rule["model"] == "Seedream" and rule["category"] == "abbigliamento"
+    # a proposal is not a rule yet
+    assert "Sfondo neutro" not in prompt_lab.hints("abbigliamento", "Seedream")
+
+    ok = client.put(f"/fucina/regole/{rule['id']}", json={"status": "approvata"})
+    assert ok.status_code == 200
+    text = prompt_lab.hints("abbigliamento", "Seedream")
+    assert "REGOLE DI MATTEO" in text and "Sfondo neutro e volto fedele alla modella." in text
+    # only for its model and category
+    assert "Sfondo neutro" not in prompt_lab.hints("abbigliamento", "Nano Banana")
+    assert "Sfondo neutro" not in prompt_lab.hints("bijoux", "Seedream")
+
+    # the same proposal twice is ignored; a discarded rule leaves the prompts
+    again = client.post("/fucina/regole/proponi", json={"engine": "openrouter"}).json()
+    assert again["new"] == []
+    client.put(f"/fucina/regole/{rule['id']}", json={"status": "scartata"})
+    assert "Sfondo neutro" not in prompt_lab.hints("abbigliamento", "Seedream")
+    assert client.delete(f"/fucina/regole/{rule['id']}").status_code == 200
+    assert client.get("/fucina/regole").json()["rules"] == []

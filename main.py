@@ -133,20 +133,19 @@ def openrouter_chat_completion(
     api_key: str,
     model: str,
     prompt: str,
-    image_path: Path | None = None,
+    image_path: Path | list[Path] | None = None,
     max_tokens: int = 2048,
     modalities: list[str] | None = None,
     image_config: dict | None = None,
 ) -> dict:
-    if image_path and image_path.exists():
-        image_data, media_type = encode_image(image_path)
+    # several images keep their order (Image 1, Image 2...): the prompt refers to them by position
+    paths = image_path if isinstance(image_path, list) else [image_path]
+    encoded = [encode_image(path) for path in paths if path and path.exists()]
+    if encoded:
         content = [
-            {
-                "type": "image_url",
-                "image_url": {"url": f"data:{media_type};base64,{image_data}"},
-            },
-            {"type": "text", "text": prompt},
-        ]
+            {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_data}"}}
+            for image_data, media_type in encoded
+        ] + [{"type": "text", "text": prompt}]
     else:
         content = prompt
 
@@ -343,7 +342,7 @@ def generate_image_with_openrouter(
     api_key: str,
     model: str,
     prompt: str,
-    image_path: Path | None = None,
+    image_path: Path | list[Path] | None = None,
     aspect_ratio: str = "1:1",
 ) -> list[str]:
     if model.startswith("openai/gpt-image"):
@@ -432,26 +431,12 @@ def current_season_label(now: datetime | None = None) -> str:
 
 SEASON = current_season_label()
 
-BRAND = f"""
-BRAND: I Monili Ravenna - boutique in centro storico a Ravenna (Emilia-Romagna)
-Prodotti: bijoux artigianali in argento con pietre colorate (ametista, quarzo rosa, citrino, turchese, opale),
-orecchini smaltati a fiore, giacche e gilet ricamati, borse in cuoio, abbigliamento dal gusto boho-etnico
-Identita: colorata, artigianale, eclettica, pezzi particolari che non si trovano nelle catene
-Target: donna 30-55, Ravenna e dintorni, ama i pezzi unici e il colore
-Tono: caldo, complice, femminile - come un'amica che consiglia, non un brand che vende
-Stagione: {SEASON}
-Hashtag fissi: #imoniliravenna #ravenna #romagnastyle
-Stile visivo: luce naturale calda, sfondi crema/neutri che fanno risaltare i colori dei prodotti;
-testi in stile editoriale (serif elegante su fondo crema), mai scritte stile fumetto o neon
-Formati prioritari: Story video e Reel (i post statici fanno il 4% delle visualizzazioni)
-Chiusura di ogni contenuto: invito concreto al DM ("scrivici, ti diciamo se è disponibile") o a passare in negozio. Mai promettere di mettere da parte un pezzo: la riserva nasce solo dopo la verifica in negozio
-Ravenna: citta dei mosaici - il legame colori/pietre/mosaico e un tema naturale
-Posting: Martedi/Giovedi/Sabato (orari in verifica sugli Insights)
-"""
+BRAND = (Path(__file__).parent / "knowledge" / "brand.md").read_text(encoding="utf-8").replace("{SEASON}", SEASON)
 
 
 FIXED_HASHTAGS = ["#imoniliravenna", "#ravenna", "#romagnastyle"]
-MAX_EXTRA_HASHTAGS = 2
+MAX_EXTRA_HASHTAGS = 2  # Scheda pezzo: 3 fissi + 2
+MAX_REEL_EXTRA_HASHTAGS = 5  # Reel: 3 fissi + fino a 5 (stessa regola in knowledge/brand.md e skills/_base/testi.md)
 
 
 def agent_analisi(text_model: str, api_key: str, foto: Path, brief: str) -> str:
@@ -509,9 +494,18 @@ def scheda_plan_defaults() -> dict:
 
 
 def agent_scheda_plan(
-    text_model: str, api_key: str, foto: Path, analisi: str, brief: str, category: str = "bijoux", target_model: str = ""
+    text_model: str,
+    api_key: str,
+    foto: Path,
+    analisi: str,
+    brief: str,
+    category: str = "bijoux",
+    target_model: str = "",
+    subtype: str = "",
+    cut: str = "",
 ) -> dict:
-    """One call for styling notes and the site photo prompts, framed for the kind of piece."""
+    """One call for styling notes and the site photo prompts, framed for the kind of piece.
+    target_model is a knowledge name ("GPT Image") or the real image model id the mission uses."""
     log("PIANO SCHEDA", "Styling e prompt delle foto sito (catalogo + indossato)...")
     import casting
     import categorie
@@ -525,6 +519,19 @@ def agent_scheda_plan(
         else ""
     )
 
+    fixed_woman = casting.testimonial()
+    if fixed_woman:
+        woman_rule = (
+            "LA DONNA: e sempre la testimonial fissa del negozio (Aurora), la stessa in tutti i pezzi, nei Reel e nelle Storie. "
+            f"Nel campo \"woman\" copia questa descrizione senza cambiarla: {fixed_woman}"
+        )
+    else:
+        woman_rule = (
+            f"LA DONNA DI QUESTO PEZZO: la inventi tu. {casting.woman_guide()}\n"
+            "Sara lei anche nei Reel di questo pezzo, come una modella ingaggiata per lui.\n"
+            + casting.avoid_block("DONNE GIA USATE DI RECENTE", casting.recent_women())
+        )
+
     prompt = f"""Sei l'art director del sito vetrina di I Monili Ravenna. Devi restituire SOLO un JSON valido.
 {BRAND}
 Knowledge prompt immagine:
@@ -534,12 +541,13 @@ Analisi prodotto: {analisi[:1400]}
 Brief utente: {brief if brief else "Nessun brief"}
 
 COME FOTOGRAFARLO INDOSSATO: {categorie.SHOT_GUIDE.get(category, categorie.SHOT_GUIDE["bijoux"])}
-{prompt_lab.model_knowledge(target_model, category)}
-{prompt_lab.hints(category, target_model)}
+{prompt_lab.type_guide(subtype, cut)}
+{prompt_lab.prompt_structure("foto")}
 
-LA DONNA DI QUESTO PEZZO: la inventi tu. {casting.woman_guide()}
-Sara lei anche nei Reel di questo pezzo, come una modella ingaggiata per lui.
-{casting.avoid_block("DONNE GIA USATE DI RECENTE", casting.recent_women())}
+{prompt_lab.model_knowledge(target_model, category)}
+{prompt_lab.hints(categorie.recipe_category(category), prompt_lab.knowledge_model_for(target_model))}
+
+{woman_rule}
 COSE DA NON MOSTRARE MAI: {"; ".join(casting.never_show()) or "nessuna"}
 
 JSON esatto:
@@ -565,7 +573,7 @@ Regole per i prompt:
         log("PIANO SCHEDA", "JSON non valido, uso prompt standard", "warn")
         return plan
     plan["styling"] = str(parsed.get("styling", "")).strip()
-    plan["woman"] = " ".join(str(parsed.get("woman", "")).split())[:600]
+    plan["woman"] = casting.testimonial() or " ".join(str(parsed.get("woman", "")).split())[:600]
     prompts = parsed.get("site_prompts") if isinstance(parsed.get("site_prompts"), dict) else {}
     for key in ("clean", "worn", "worn_2"):
         value = str(prompts.get(key, "")).strip()
@@ -586,7 +594,7 @@ DETAIL_PHOTO_NAME = "site_05_detail.jpg"
 VARIANTS_PHOTO_NAME = "site_06_variants.jpg"  # real photo of the colour options, cleaned on the PC
 VARIANTS_AI_PHOTO_NAME = "site_07_variants_ai.jpg"  # the same options tidied by the AI (only when the real one does not fit)
 # Photos made by the AI: the site labels them "AI" when they are sent.
-AI_WORN_PHOTO_NAMES = (WORN_PHOTO_NAME, SITE_IMAGE_SPECS["worn_2"][1], VARIANTS_AI_PHOTO_NAME)
+AI_WORN_PHOTO_NAMES = (SITE_IMAGE_SPECS["clean"][1], WORN_PHOTO_NAME, SITE_IMAGE_SPECS["worn_2"][1], VARIANTS_AI_PHOTO_NAME)
 
 
 def generate_image_with_fallback(api_key: str, model: str, prompt: str, foto: Path | list[Path], label: str) -> list[str]:
@@ -633,10 +641,27 @@ def create_variants_ai_image(output_dir: Path, api_key: str, selected_model: str
     return f"{output_dir.name}/07_SHOWCASE/{VARIANTS_AI_PHOTO_NAME}"
 
 
-def controlled_site_prompt(prompt: str, key: str, woman: str = "", never: str = "", woman_token: str = "") -> str:
+def controlled_site_prompt(
+    prompt: str, key: str, woman: str = "", never: str = "", woman_token: str = "", woman_photos: int = 0
+) -> str:
     """The full text the image model receives for a site photo: the art director's prompt, the woman of the
-    piece (worn shots), and the fixed fidelity rules. The Studio shows this same text so it can be pasted by hand."""
+    piece (worn shots), and the fixed fidelity rules. The Studio shows this same text so it can be pasted by hand.
+    woman_photos > 0: the first images sent are the testimonial's reference photos, the piece comes after them."""
     prompt = str(prompt).strip()
+    if key.startswith("worn") and woman_photos:
+        piece = woman_photos + 1
+        faces = "Image 1" if woman_photos == 1 else f"Images 1-{woman_photos}"
+        prompt = (
+            f"{prompt}\nWOMAN: {woman}\n{faces}: the woman. Take ONLY her face, skin and hair from {faces.lower()}; "
+            f"ignore the clothes, jewellery and background she has there.\nImage {piece}: the product, the source-of-truth. "
+            "Take ONLY the product from it; zero colour or texture blending between the images."
+        ).replace("WOMAN: \n", "")
+        return f"""{prompt}
+
+Preserve exact product shape, color, material, proportions, stones and distinctive details from Image {piece}.
+Create a single website-ready product photograph, composed safely for 4:5 product cards.
+No text, no logos, no watermark, no phone screens, no fake UI.
+{never}""".strip()
     if key.startswith("worn") and woman_token:
         # the owner picks the model by hand (a trained character or another one): the prompt only names the slot
         prompt = (
@@ -662,7 +687,9 @@ def generate_showcase_images(
     site_prompts: dict,
     woman: str = "",
     shots: list[str] | None = None,
+    woman_refs: list[Path] | None = None,
 ) -> list[str]:
+    """woman_refs: reference photos of the fixed testimonial (Aurora), sent before the product in the worn shots."""
     if not api_key:
         log("SITO VISUAL", "OPENROUTER_API_KEY mancante - salto immagini sito dedicate", "warn")
         return []
@@ -686,8 +713,9 @@ def generate_showcase_images(
             continue
         try:
             log("SITO VISUAL", f"Generazione foto sito {index}/{len(shots)}", "data")
-            controlled = controlled_site_prompt(prompt, key, woman, never)
-            data_urls = generate_image_with_fallback(api_key, model, controlled, foto, f"Foto {key}")
+            refs = list(woman_refs or []) if key.startswith("worn") else []
+            controlled = controlled_site_prompt(prompt, key, woman, never, woman_photos=len(refs))
+            data_urls = generate_image_with_fallback(api_key, model, controlled, refs + [foto] if refs else foto, f"Foto {key}")
             if not data_urls:
                 continue
             source_path = source_dir / source_name
@@ -712,6 +740,7 @@ def create_real_photo_image(
     final_name: str = REAL_PHOTO_NAME,
     label: str = "Foto reale",
     tight: bool = False,
+    fill: float | None = None,
 ) -> tuple[str, dict]:
     """The real photo cut out, with light fixed, on the ivory 4:5 background (free, done on the PC).
 
@@ -727,7 +756,8 @@ def create_real_photo_image(
         with Image.open(source_path) as source:
             photo = ImageOps.exif_transpose(source).convert("RGB")
         cleaned, issues = photo_cleanup.clean_photo(
-            photo, CUTOUT_MODEL_PATH, notify=lambda msg: log("SITO VISUAL", msg, "data"), **({"tight": True} if tight else {})
+            photo, CUTOUT_MODEL_PATH, notify=lambda msg: log("SITO VISUAL", msg, "data"),
+            **({"tight": True} if tight else {}), **({"fill": fill} if fill and not tight else {})
         )
         save_jpeg_budget(cleaned, destination, target_kb=420)
         check = {"cleaned": True, "ok": not issues, "issues": issues}
@@ -790,6 +820,23 @@ def normalize_hashtags(tags: object) -> list[str]:
     return FIXED_HASHTAGS + extra[:MAX_EXTRA_HASHTAGS]
 
 
+TEXT_RULES_DIR = Path(__file__).parent / "knowledge" / "testi"
+TEXT_PLATFORMS = ("sito", "whatsapp", "google-business", "instagram", "tripadvisor")
+
+
+def platform_rules(names: list[str] | None = None) -> str:
+    """Rules of each platform plus the human-voice rules (knowledge/testi/*.md): one source for every text the Studio writes.
+    names: only these files (the Reel texts need Instagram and the human voice, not the site SEO)."""
+    names = names or ["stile-umano", "seo-sito", "whatsapp", "google-business", "instagram", "tripadvisor"]
+    parts = []
+    for name in names:
+        try:
+            parts.append((TEXT_RULES_DIR / f"{name}.md").read_text(encoding="utf-8").strip())
+        except OSError:
+            continue
+    return "\n\n".join(parts)
+
+
 def publish_pack_fallback() -> dict:
     return {
         "product_name": "",
@@ -799,6 +846,7 @@ def publish_pack_fallback() -> dict:
         "gmb_title": "Nuovo arrivo in negozio",
         "gmb_text": "Pezzo disponibile in boutique in via Cavour, nel centro di Ravenna: passa a provarlo.",
         "caption": "Nuovo arrivo da I Monili Ravenna: scrivici, ti diciamo se è disponibile.",
+        "tripadvisor_text": "",
         "hashtags": [],
         "cta": "Scrivici su WhatsApp o passa in via Cavour: ti diciamo se è disponibile.",
     }
@@ -849,6 +897,9 @@ Brief utente: {brief if brief else "Nessun brief"}
 A cosa servono: far trovare il pezzo su Google e dalle AI, dare un link da girare su WhatsApp,
 portare la gente nei due negozi di via Cavour a Ravenna. La vendita avviene su WhatsApp e DM.
 
+REGOLE DI SCRITTURA (ogni testo nel registro della sua piattaforma, e scritto in modo naturale, come una persona):
+{platform_rules()}
+
 JSON esatto:
 {{
   "product_name": "nome breve e concreto del pezzo, es. Anello in argento con ametista",
@@ -857,6 +908,7 @@ JSON esatto:
   "whatsapp_share": "messaggio breve da mandare insieme al link del pezzo, chiude con 'ti diciamo se è disponibile'",
   "gmb_title": "titolo post Google Business",
   "gmb_text": "testo post Google Business, max 80 parole, con via Cavour e Ravenna",
+  "tripadvisor_text": "descrizione per Tripadvisor, max 70 parole, per chi visita Ravenna",
   "caption": "una caption breve per la storia che rimanda al pezzo, max 2 emoji",
   "hashtags": ["max 2 hashtag specifici del pezzo, i 3 fissi li aggiungo io"],
   "cta": "invito breve: scrivici in DM o passa in negozio"
@@ -882,6 +934,7 @@ def format_publish_pack_markdown(pack: dict) -> str:
         f"## Google (titolo e descrizione)\n{pack.get('seo_title') or '-'}\n\n{pack.get('seo_description') or '-'}\n\n"
         f"## WhatsApp\n{pack.get('whatsapp_share') or '-'}\n\n"
         f"## Google Business Post\nTitolo: {pack.get('gmb_title') or '-'}\n\nTesto: {pack.get('gmb_text') or '-'}\n\n"
+        f"## Tripadvisor\n{pack.get('tripadvisor_text') or '-'}\n\n"
         f"## Caption storia\n{pack.get('caption') or '-'}\n\n{' '.join(pack.get('hashtags') or [])}\n\n"
         f"## Invito\n{pack.get('cta') or '-'}\n"
     )
@@ -894,7 +947,9 @@ def run_agency(
     text_model: str = "",
     detail_path: str = "",
     variants_path: str = "",
+    subtype: str = "",
 ) -> None:
+    """subtype: the kind of piece chosen by the owner (categorie.SUBTYPES); empty = worked out from the analysis."""
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
         print("OPENROUTER_API_KEY non trovata. Impostala nelle variabili d'ambiente.", flush=True)
@@ -945,13 +1000,21 @@ def run_agency(
     import categorie
 
     category = categorie.category_from(analisi, brief=brief)
+    chosen = categorie.valid_subtype(subtype)
+    if chosen:
+        # the owner said what it is: the category follows the type (a scarf is never a jewel)
+        category = {"bijoux": "gioielli"}.get(categorie.SUBTYPES[chosen]["category"], categorie.SUBTYPES[chosen]["category"])
+    subtype = chosen or categorie.subtype_for(category, categorie.exact_category_line(analisi), brief, analisi)
+    cut = categorie.garment_cut(categorie.exact_category_line(analisi), brief, analisi) if subtype == "capo" else ""
+    log("SITO VISUAL", f"Tipo di pezzo: {categorie.SUBTYPES.get(subtype, {}).get('label', 'non riconosciuto')}"
+        f"{' (' + categorie.CUT_LABELS[cut] + ')' if cut else ''}{' - scelto da te' if chosen else ''}", "data")
 
     # The real photo first: it is free, and when it comes out clean it is the
     # cover, so the AI catalog photo is not needed (and not paid for).
     real_photo = ""
     real_photo_check: dict = {}
     try:
-        real_photo, real_photo_check = create_real_photo_image(output_dir, foto)
+        real_photo, real_photo_check = create_real_photo_image(output_dir, foto, fill=categorie.subtype_fill(subtype))
     except Exception as e:
         log("SITO VISUAL", f"Foto reale non preparata: {e}", "warn")
     real_ok = bool(real_photo and real_photo_check.get("ok"))
@@ -965,7 +1028,9 @@ def run_agency(
     )
 
     try:
-        plan = agent_scheda_plan(selected_text_model, api_key, foto, analisi, brief, category)
+        plan = agent_scheda_plan(
+            selected_text_model, api_key, foto, analisi, brief, category, selected_image_model, subtype, cut
+        )
         safe_write(output_dir / "02_PIANO" / "scheda_plan.json", json.dumps(plan, indent=2, ensure_ascii=False))
     except Exception as e:
         log("PIANO SCHEDA", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
@@ -973,10 +1038,11 @@ def run_agency(
     try:
         import casting
 
-        woman = plan.get("woman") or casting.FALLBACK_WOMAN
+        woman = plan.get("woman") or casting.fallback_woman()
         log("SITO VISUAL", f"La donna di questo pezzo: {woman}", "data")
         ai_site_images = generate_showcase_images(
-            output_dir, api_key, selected_image_model, foto, plan["site_prompts"], woman, shots
+            output_dir, api_key, selected_image_model, foto, plan["site_prompts"], woman, shots,
+            casting.testimonial_photos() if casting.testimonial() else [],
         )
     except Exception as e:
         log("SITO VISUAL", f"ERRORE: {e}\n{traceback.format_exc()}", "warn")
@@ -1086,6 +1152,8 @@ def run_agency(
         results["variants_ai"] = variants_ai
     # Decided once here: the site form starts from it (api/server.py).
     results["category"] = category
+    results["subtype"] = subtype
+    results["garment_cut"] = cut
 
     results["decision_summary"] = build_decision_summary(publish_pack, ai_site_images, real_photo_check)
     results["asset_report_json"] = json.dumps(
@@ -1118,9 +1186,10 @@ def main():
     parser.add_argument("--text-model", default="")
     parser.add_argument("--dettaglio", default="", help="foto vera del dettaglio (facoltativa)")
     parser.add_argument("--varianti", default="", help="foto vera delle varianti di colore (facoltativa)")
+    parser.add_argument("--tipo", default="", help="tipo di pezzo scelto dal titolare (anello, borsa, capo...)")
     args = parser.parse_args()
     try:
-        run_agency(args.foto, args.brief, args.image_model, args.text_model, args.dettaglio, args.varianti)
+        run_agency(args.foto, args.brief, args.image_model, args.text_model, args.dettaglio, args.varianti, args.tipo)
     except Exception as e:
         print(f"\nCRASH FATALE: {e}", flush=True)
         print(traceback.format_exc(), flush=True)

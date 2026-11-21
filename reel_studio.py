@@ -24,17 +24,21 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 import casting
 import higgsfield_client as hf
 import reel_kit as kit
+import remotion_graphics
 import results_log
 import skills_loader as skills
 from piece_code import add_reference, piece_code
 from main import (
     BRAND,
+    FIXED_HASHTAGS,
+    MAX_REEL_EXTRA_HASHTAGS,
     MEMORY_ROOT,
     OUTPUT_ROOT,
     SEASON,
     agent_analisi,
     extract_json_object,
     generate_text_with_openrouter,
+    platform_rules,
     select_openrouter_image_model,
     select_openrouter_text_model,
 )
@@ -236,6 +240,8 @@ def create_reel(
     woman: str = "",
     woman_reference: Path | None = None,
     scheda_run_id: str = "",
+    subtype: str = "",
+    garment_cut: str = "",
 ) -> dict:
     """woman / woman_reference: la donna della Scheda pezzo dello stesso pezzo (descrizione e foto indossata).
     Senza, la inventa il regista nello storyboard: una per pezzo, mai due donne diverse con lo stesso pezzo."""
@@ -260,6 +266,8 @@ def create_reel(
         "woman": woman or None,
         "woman_reference": rel(woman_reference) if woman_reference else None,
         "scheda_run_id": scheda_run_id or None,
+        "subtype": subtype or None,
+        "garment_cut": garment_cut or None,
         "poster_cover": bool(poster_cover),
         "target_seconds": target_seconds,
         "video_model": hf.select_video_model(video_model),
@@ -441,7 +449,6 @@ CLOSING_SECONDS = 2.5
 CLOSING_FADE = "dissolve"
 EXTERNAL_MAX_SECONDS = WEB_REEL_MAX_SECONDS - CLOSING_SECONDS
 FONT_DIR = Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"
-FIXED_HASHTAGS = ["#imoniliravenna", "#ravenna", "#romagnastyle"]
 
 
 def probe_size(path: Path) -> tuple[int, int]:
@@ -532,6 +539,10 @@ def import_external_video(
     add_closing: bool = True,
     api_key: str = "",
     text_model: str = "",
+    scheda_run_id: str = "",
+    graphics: bool = False,
+    price: str = "",
+    location: str = "",
 ) -> dict:
     """Importa un video verticale fatto fuori dallo Studio (Gemini/Veo, telefono) come Reel finito."""
     width, height = probe_size(source)
@@ -546,6 +557,8 @@ def import_external_video(
         "id": reel_id,
         "status": "rendering",
         "source": "esterno",
+        "graphics": {"on": bool(graphics), "price": (price or "").strip()[:20], "place": remotion_graphics.place_label(location)},
+        "scheda_run_id": (scheda_run_id or "").strip(),
         "created_at": datetime.now().isoformat(),
         "brief": note,
         "format": "reel",
@@ -579,20 +592,42 @@ def _finish_external(state: dict, source: Path, seconds: float, add_closing: boo
     out_dir = reel_dir(reel_id)
     body = normalize_clip(source, out_dir / "shots" / "esterno.mp4", seconds)
     final_video = out_dir / f"monili_reel_{reel_id}.mp4"
-    if add_closing:
-        card = make_closing_card(out_dir / "chiusura.png")
-        closing = _still_clip(card, out_dir / "shots" / "chiusura.mp4", CLOSING_SECONDS)
-        assemble([(body, seconds), (closing, CLOSING_SECONDS)], [CLOSING_FADE], final_video)
-        log(reel_id, "MONTAGGIO", "Chiusura \"Scrivici, ti diciamo se è disponibile\" aggiunta", "success")
-    else:
-        shutil.copyfile(body, final_video)
-    # Copertina: un fotogramma verso la fine del video, quando di solito si vede la persona.
-    frame = _frame_at(body, seconds * 0.85, out_dir / "cover_frame.jpg")
-    cover = make_cover(frame, out_dir / "cover_foto.jpg")
 
+    # I testi si scrivono prima del montaggio: la frase d'apertura della grafica viene da qui.
     log(reel_id, "COPY", "Caption, hashtag e testi...")
     copy = _external_copy(state, api_key)
     (out_dir / "testi.md").write_text(_copy_markdown(state, copy), encoding="utf-8")
+
+    graphics = state.get("graphics") or {}
+    done_with_graphics = False
+    if graphics.get("on"):
+        try:
+            log(reel_id, "GRAFICA", "Grafica Monili con Remotion (frase, targhetta, chiusura)...")
+            remotion_graphics.render_graphics(
+                body,
+                final_video,
+                seconds,
+                hook=str(copy.get("cover_text") or ""),
+                title=str((state.get("storyboard") or {}).get("title") or ""),
+                price=str(graphics.get("price") or ""),
+                place=str(graphics.get("place") or remotion_graphics.DEFAULT_PLACE),
+                closing=add_closing,
+            )
+            done_with_graphics = True
+            log(reel_id, "GRAFICA", "Grafica aggiunta", "success")
+        except Exception as exc:
+            log(reel_id, "GRAFICA", f"Grafica non riuscita ({exc}): uso il montaggio semplice", "warn")
+    if not done_with_graphics:
+        if add_closing:
+            card = make_closing_card(out_dir / "chiusura.png")
+            closing = _still_clip(card, out_dir / "shots" / "chiusura.mp4", CLOSING_SECONDS)
+            assemble([(body, seconds), (closing, CLOSING_SECONDS)], [CLOSING_FADE], final_video)
+            log(reel_id, "MONTAGGIO", "Chiusura \"Scrivici, ti diciamo se è disponibile\" aggiunta", "success")
+        else:
+            shutil.copyfile(body, final_video)
+    # Copertina: un fotogramma verso la fine del video, quando di solito si vede la persona.
+    frame = _frame_at(body, seconds * 0.85, out_dir / "cover_frame.jpg")
+    cover = make_cover(frame, out_dir / "cover_foto.jpg")
 
     def _done(s: dict):
         s["status"] = "done"
@@ -605,6 +640,7 @@ def _finish_external(state: dict, source: Path, seconds: float, add_closing: boo
             "shots": [],
             "preview_only": False,
             "external": True,
+            "graphics_applied": done_with_graphics,
             "completed_at": datetime.now().isoformat(),
         }
 
@@ -639,11 +675,14 @@ def _performance_hints() -> str:
 
 def _woman(state: dict) -> str:
     """La donna di questo Reel: quella della Scheda pezzo o quella inventata dal regista, uguale in ogni scena."""
-    return state.get("woman") or casting.FALLBACK_WOMAN
+    return state.get("woman") or casting.fallback_woman()
 
 
 def _woman_block(state: dict) -> str:
     same_woman = "Usa use_model true nelle inquadrature dove compare lei: in tutto il Reel e sempre la stessa donna."
+    fixed = casting.testimonial()
+    if fixed and not state.get("woman"):
+        return f"LA DONNA DI QUESTO REEL e la testimonial fissa del negozio, non inventarne un'altra: {fixed}\n{same_woman}"
     if state.get("woman"):
         return f"DONNA DI QUESTO PEZZO (gia scelta nella Scheda pezzo, non cambiarla): {state['woman']}\n{same_woman}"
     lines = (
@@ -652,6 +691,44 @@ def _woman_block(state: dict) -> str:
         casting.avoid_block("DONNE GIA USATE DI RECENTE", casting.recent_women()),
     )
     return "\n".join(line for line in lines if line)
+
+
+def piece_kind(state: dict) -> tuple[str, str, str]:
+    """Category, type and cut of the piece of this Reel: chosen in the Scheda pezzo (state) or read from the analysis."""
+    import categorie
+
+    analysis = state.get("analysis", "") or ""
+    brief = state.get("brief", "") or ""
+    subtype = categorie.valid_subtype(state.get("subtype"))
+    category = categorie.SUBTYPES[subtype]["category"] if subtype else categorie.recipe_category(
+        categorie.category_from(analysis, brief=brief)
+    )
+    subtype = subtype or categorie.subtype_for(category, categorie.exact_category_line(analysis), brief, analysis)
+    cut = (categorie.valid_cut(state.get("garment_cut")) or categorie.garment_cut(
+        categorie.exact_category_line(analysis), brief, analysis
+    )) if subtype == "capo" else ""
+    return category, subtype, cut
+
+
+def video_knowledge(state: dict) -> str:
+    """What the director must know to write the shots (PRD prompt completi, T4): the video skeleton, safe duration and
+    movement per piece, the video model and the recipe of the category, the framing of this type, the defects a
+    reviewer looks for; and, for keyframe_prompt_en (an image prompt), the photo skeleton and the image model."""
+    import prompt_lab
+
+    category, subtype, cut = piece_kind(state)
+    video_name = prompt_lab.knowledge_model_for(state.get("video_model", "")) or "Kling"
+    image_name = prompt_lab.knowledge_model_for(state.get("keyframe_model", "")) or "GPT Image"
+    blocks = [
+        ("REGIA VIDEO (struttura di motion_prompt_en)", prompt_lab.prompt_structure("video")),
+        ("DURATA E MOVIMENTO PER TIPO DI PEZZO", prompt_lab.video_direction()),
+        (f"MODELLO VIDEO ({video_name}) E RICETTA DELLA CATEGORIA", prompt_lab.model_knowledge(video_name, category)),
+        ("TIPO DI PEZZO", prompt_lab.type_guide(subtype, cut)),
+        ("DIFETTI CHE IL REVISORE CERCA NEI VIDEO (evitali gia nel prompt)", prompt_lab.video_review_sheet()),
+        ("FOTOGRAMMA CHIAVE (keyframe_prompt_en e un prompt IMMAGINE 9:16: segui questa struttura)", prompt_lab.prompt_structure("foto")),
+        (f"MODELLO IMMAGINE DEL FOTOGRAMMA ({image_name})", prompt_lab.model_knowledge(image_name)),
+    ]
+    return "\n\n".join(f"=== {title} ===\n{text}" for title, text in blocks if text)
 
 
 def agent_storyboard(state: dict, photo: Path) -> dict:
@@ -682,16 +759,19 @@ artigianale e boho del negozio. Sorprendi: non ripartire sempre dal solito banco
 {casting.avoid_block("SCENE DEGLI ULTIMI REEL", casting.recent_scenes(exclude_reel=state.get("id", "")))}
 COSE DA NON MOSTRARE MAI: {"; ".join(casting.never_show()) or "nessuna"}
 
+CONOSCENZA PER SCRIVERE LE INQUADRATURE (vale piu delle tue abitudini):
+{video_knowledge(state)}
+
 REGOLE:
 - I primi 1.5 secondi sono un HOOK visivo forte (movimento, luce che colpisce le pietre, gesto).
 - Se ci sono clip reali usale (source "clip") dove rendono di piu: l'autenticita del negozio vende.
 - Le inquadrature AI partono da un fotogramma chiave generato dalla foto reale: il prodotto deve restare identico.
-- Gioielli piccoli: preferisci movimenti lenti (slow push-in, orbit leggero, rack focus), evita rotazioni veloci.
 - Luce naturale e bella, adatta alla scena che inventi.
 - Ogni inquadratura AI dura 3-6 secondi; l'ultima chiude SEMPRE con invito concreto: "Scrivici, ti diciamo se è disponibile" o "Ti aspettiamo in centro a Ravenna".
 - Stile: autentico ed elegante, colori e sfondi che fanno risaltare il prodotto. Mai effetti pacchiani.
 - on_screen_text in italiano, max 6 parole, tono da amica.
-- keyframe_prompt_en e motion_prompt_en in inglese, concreti e visivi.
+- keyframe_prompt_en e motion_prompt_en in inglese, concreti e visivi, scritti con le strutture qui sopra; durata e movimento
+  di camera entro i limiti sicuri del tipo di pezzo (una sola azione e un solo movimento per inquadratura).
 - keyframe_mode "original_photo" = usa la foto reale cosi com'e (massima fedelta, utile per il dettaglio prodotto).
 - COERENZA AL 100%: tutte le inquadrature AI avvengono nella STESSA scena descritta in scene_bible (stesso luogo,
   stessa luce, stessa palette, stessa donna con gli stessi abiti). Cambiano solo inquadratura, distanza e azione.
@@ -890,7 +970,7 @@ def plan_reel(reel_id: str, api_key: str) -> None:
         storyboard = normalize_storyboard(state, raw_storyboard)
         state.pop("api_key", None)
         # La donna inventata dal regista (se il pezzo non ne aveva già una): da qui in poi è lei.
-        woman = state.get("woman") or " ".join(str(raw_storyboard.get("woman") or "").split())[:600] or None
+        woman = state.get("woman") or casting.testimonial() or " ".join(str(raw_storyboard.get("woman") or "").split())[:600] or None
         state["storyboard"] = storyboard
         state["estimate"] = estimate_reel(state)
         log(reel_id, "REGISTA", f"Storyboard pronto: {len(storyboard['shots'])} inquadrature", "success")
@@ -1150,6 +1230,9 @@ REGOLE:
 {skills.base_template("testi")}
 {skills.section(state.get("recipe", ""), "copy")}
 
+REGOLE DELLA PIATTAFORMA E DELLA VOCE (Instagram, scritto come una persona):
+{platform_rules(["stile-umano", "instagram"])}
+
 Rispondi SOLO con JSON valido:
 {{
   "caption": "caption principale completa con a capo",
@@ -1159,16 +1242,16 @@ Rispondi SOLO con JSON valido:
   "first_comment": "primo commento da pubblicare",
   "story_stickers": ["idea sticker sondaggio/domanda 1", "idea 2"],
   "music_suggestion": "che tipo di audio di tendenza cercare su Instagram",
-  "best_slot": "giorno e ora consigliati (Mar/Gio/Sab 18:30-20:00)",
+  "best_slot": "momento consigliato per pubblicare; nessun giorno fisso promesso, se non sei sicuro scrivi 'da verificare'",
   "alt_text": "descrizione accessibile del video"
 }}"""
     raw = generate_text_with_openrouter(api_key, state["text_model"], prompt, max_tokens=1600)
     copy = extract_json_object(raw)
     if not copy:
         copy = {"caption": raw}
-    fixed = ["#imoniliravenna", "#ravenna", "#romagnastyle"]
+    fixed = list(FIXED_HASHTAGS)
     tags = [str(t).strip() for t in copy.get("hashtags") or [] if str(t).strip()]
-    copy["hashtags"] = (fixed + [t for t in tags if t.lower() not in fixed])[:14]
+    copy["hashtags"] = (fixed + [t for t in tags if t.lower() not in fixed])[: len(fixed) + MAX_REEL_EXTRA_HASHTAGS]
     return _with_piece_code(state, copy)
 
 

@@ -47,7 +47,7 @@ def _mission(tmp_path, monkeypatch, capsys, variants_ok):
         calls["image"].append(prompt)
         return _png()
 
-    def fake_clean(photo, model_path, notify=None, tight=False):
+    def fake_clean(photo, model_path, notify=None, tight=False, **options):
         if tight and not variants_ok:
             return Image.new("RGB", (1200, 1500), (250, 247, 240)), ["Il pezzo è lungo e stretto"]
         return Image.new("RGB", (1200, 1500), (250, 247, 240)), []

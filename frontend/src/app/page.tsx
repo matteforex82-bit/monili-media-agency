@@ -9,6 +9,7 @@ import QuickCapture from '@/components/QuickCapture';
 import { API_URL } from '@/lib/apiUrl';
 import { photoPalette } from '@/lib/palette';
 import { loadSettings } from '@/lib/settings';
+import { SUBTYPE_GROUPS } from '@/lib/tipi';
 
 type MissionState = 'idle' | 'running' | 'error';
 
@@ -46,6 +47,7 @@ export default function NewPiecePage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [palette, setPalette] = useState<string[]>([]);
   const [brief, setBrief] = useState('');
+  const [tipo, setTipo] = useState('');
   const [stage, setStage] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState('');
@@ -229,6 +231,7 @@ export default function NewPiecePage() {
     if (detail) form.append('dettaglio', detail);
     if (variants) form.append('varianti', variants);
     form.append('brief', brief);
+    if (tipo) form.append('tipo', tipo);
     form.append('text_model', settings.textModel);
     form.append('image_model', settings.imageModel);
     try {
@@ -241,7 +244,7 @@ export default function NewPiecePage() {
       setError(`Non riesco ad avviare il lavoro: ${err instanceof Error ? err.message : err}`);
       setState('error');
     }
-  }, [photo, brief, follow]);
+  }, [photo, brief, tipo, follow]);
 
   // Una bozza salvata in negozio è partita: da qui è lo stesso lavoro di sempre (attesa, poi si apre la scheda).
   const startFromDraft = useCallback(
@@ -405,6 +408,24 @@ export default function NewPiecePage() {
           </div>
         </div>
       )}
+
+      <div>
+        <label className="field-label" htmlFor="tipo">
+          Tipo di pezzo <small>facoltativo</small>
+        </label>
+        <select id="tipo" className="lab-select" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <option value="">Lo capisce lo Studio dalla foto</option>
+          {SUBTYPE_GROUPS.map((group) => (
+            <optgroup key={group.label} label={group.label}>
+              {group.items.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
 
       <div>
         <label className="field-label" htmlFor="brief">

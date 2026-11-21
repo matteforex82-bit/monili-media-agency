@@ -23,11 +23,15 @@ LIBRARY_FILE = MEMORY_ROOT / "prompt_lab.json"
 SHOTS = ("clean", "worn", "worn_2")
 MODELS = ("Seedream", "Nano Banana", "GPT Image", "Altro")
 VIDEO_MODEL = "Seedance 2.5"
+# I modelli video per cui la Fucina scrive le scene (a mano su Higgsfield). Genjutsu lavora da un video vero
+# (motion transfer, object swap): nell'API di higgsfield_client non c'è, quindi si sceglie solo qui.
+VIDEO_MODELS = ("Seedance 2.5", "Kling", "Genjutsu")
 WOMAN_TOKEN = "@MODELLA"  # nel prompt: Matteo sceglie a mano chi è (Aurora o un'altra modella)
 SCENES = ("scena_1", "scena_2", "scena_3")
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".webm"}
 AUTO_MODELS = ("Nano Banana", "GPT Image")  # i modelli del flusso automatico dello Studio
 KNOWLEDGE_DIR = Path(__file__).parent / "knowledge" / "fucina"
+REVIEW_DIR = Path(__file__).parent / "knowledge" / "valutazione"
 MODEL_FILES = {
     "Seedream": "seedream.md",
     "Nano Banana": "nano-banana.md",
@@ -102,10 +106,37 @@ def library_items() -> list[dict]:
         return _load_library()["items"]
 
 
+def knowledge_model_for(model_id: str) -> str:
+    """The knowledge name (a key of MODEL_FILES) of a real model id used by the Studio (OpenRouter, OpenAI direct)."""
+    lowered = (model_id or "").lower()
+    for name in MODEL_FILES:
+        if name.lower() == lowered:
+            return name
+    if "gpt-image" in lowered or "gpt-5.4-image" in lowered:
+        return "GPT Image"
+    if "gemini" in lowered or "nano-banana" in lowered:
+        return "Nano Banana"
+    if "seedream" in lowered:
+        return "Seedream"
+    if "seedance" in lowered:
+        return "Seedance 2.5"
+    if "kling" in lowered:
+        return "Kling"
+    if "flux" in lowered:
+        return "Flux"
+    return ""
+
+
 def model_knowledge(model: str = "", category: str = "") -> str:
-    """The vertical knowledge for the chosen image model and the kind of piece (knowledge/fucina/*.md)."""
+    """The vertical knowledge for the chosen image model and the kind of piece (knowledge/fucina/*.md).
+    The model can be a knowledge name ("GPT Image") or a real id ("openai/gpt-image-2.6-sunburst");
+    the category can be the mission's ("gioielli") or the Fucina's ("bijoux")."""
+    import categorie
+
+    model = model if model in MODEL_FILES else knowledge_model_for(model)
+    recipe = categorie.recipe_category(category) if category else ""
     parts: list[str] = []
-    for name in (MODEL_FILES.get(model, ""), f"ricetta-{category}.md" if category else ""):
+    for name in (MODEL_FILES.get(model, ""), f"ricetta-{recipe}.md" if recipe else ""):
         if not name:
             continue
         try:
@@ -116,29 +147,196 @@ def model_knowledge(model: str = "", category: str = "") -> str:
     return "\n\n".join(parts)
 
 
+def _read_knowledge(directory: Path, name: str) -> str:
+    try:
+        return (directory / name).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def prompt_structure(kind: str) -> str:
+    """The skeleton of a prompt (knowledge/fucina/struttura-prompt.md): kind is "foto" (6 blocks) or "video" (7 blocks).
+    The paragraph that chooses the model for the piece is left out: the model is already chosen when this is used."""
+    marker = "per le foto" if kind == "foto" else "per i video"
+    for section in re.split(r"^## ", _read_knowledge(KNOWLEDGE_DIR, "struttura-prompt.md"), flags=re.MULTILINE):
+        head, _, body = section.partition("\n")
+        if marker in head.lower():
+            paragraphs = [p for p in body.strip().split("\n\n") if not p.lstrip().startswith("**Quale modello")]
+            return f"{head.strip()}\n" + "\n\n".join(paragraphs)
+    return ""
+
+
+def video_direction() -> str:
+    """Duration and safe movement for each kind of piece, and Aurora across several clips (knowledge/fucina/regia-reel.md)."""
+    return _read_knowledge(KNOWLEDGE_DIR, "regia-reel.md").split("**Da verificare")[0].strip()
+
+
+def type_guide(subtype: str, cut: str = "") -> str:
+    """How to frame the worn shot of this kind of piece (knowledge/fucina/inquadratura-tipi.md, section "## <tipo>").
+    For clothing the section is the cut: "capo sopra", "capo sotto" or "capo intero"."""
+    if not subtype:
+        return ""
+    wanted = f"capo {cut or 'intero'}" if subtype == "capo" else subtype
+    for section in re.split(r"^## ", _read_knowledge(KNOWLEDGE_DIR, "inquadratura-tipi.md"), flags=re.MULTILINE):
+        head, _, body = section.partition("\n")
+        if head.strip().lower() == wanted:
+            return f"INQUADRATURA PER QUESTO TIPO DI PEZZO ({wanted}): {body.strip()}"
+    return ""
+
+
+def video_review_sheet() -> str:
+    """The defects to look for, frame by frame, in an AI video (knowledge/valutazione/valutazione-video.md)."""
+    return _read_knowledge(REVIEW_DIR, "valutazione-video.md")
+
+
 def hints(category: str = "", model: str = "") -> str:
     """Examples to put in front of the art director: what worked and what went wrong, from the owner's own ratings.
     Only the ones made for the same image model (the automatic flow sees the models it really uses)."""
+    rules = approved_rules(category, model)
     items = library_items()
     wanted = (model,) if model else AUTO_MODELS
     items = [i for i in items if i.get("model") in wanted]
     if not items:
-        return ""
+        return rules
     same = [i for i in items if i.get("category") == category] or items
 
     def recent(selected: list[dict]) -> list[dict]:
         return sorted(selected, key=lambda i: i.get("rated_at", ""), reverse=True)[:HINTS_PER_KIND]
 
-    good = recent([i for i in same if i.get("rating", 0) >= GOOD_FROM])
+    # an example without its prompt (photo made elsewhere, prompt not pasted) teaches nothing: skipped
+    good = recent([i for i in same if i.get("rating", 0) >= GOOD_FROM and _clean(i.get("prompt", ""))])
     bad = recent([i for i in same if i.get("rating", 0) <= BAD_UNTIL and i.get("note")])
     lines: list[str] = []
     if good:
         lines.append("PROMPT CHE HANNO DATO UN BUON RISULTATO (voti di Matteo), ispirati al loro modo di scrivere:")
-        lines += [f'- ({i["rating"]}/5, {i.get("shot", "")}) {_clean(i["prompt"], 500)}' for i in good]
+        for i in good:
+            why = f' Perché è piaciuto a Matteo: {_clean(i["note"], 240)}' if i.get("note") else ""
+            lines.append(f'- ({i["rating"]}/5, {i.get("shot", "")}) {_clean(i["prompt"], 500)}{why}')
     if bad:
         lines.append("ERRORI GIA VISTI (voti bassi di Matteo): non ripeterli.")
         lines += [f'- ({i["rating"]}/5) {_clean(i["note"], 240)}' for i in bad]
-    return "\n".join(lines)
+    return "\n".join(filter(None, [rules, *lines]))
+
+
+
+# -- regole imparate dai voti (approvate da Matteo) -------------------------------------------------------------
+RULES_FILE = MEMORY_ROOT / "regole_fucina.json"
+RULE_STATUSES = ("proposta", "approvata", "scartata")
+MIN_RATED_TO_LEARN = 3
+
+
+def _load_rules() -> list[dict]:
+    try:
+        data = json.loads(RULES_FILE.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return [r for r in data if isinstance(r, dict) and r.get("id")]
+    except Exception:
+        pass
+    return []
+
+
+def _save_rules(rules: list[dict]) -> None:
+    RULES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = RULES_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(rules, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(RULES_FILE)
+
+
+def rules_all() -> list[dict]:
+    with _lock:
+        return _load_rules()
+
+
+def add_proposals(items: list[dict]) -> list[dict]:
+    """New rules proposed by the AI from the owner's ratings: they wait for his OK. Same text twice is ignored."""
+    added: list[dict] = []
+    with _lock:
+        rules = _load_rules()
+        known = {r["text"].strip().lower() for r in rules}
+        for item in items:
+            text = _clean(item.get("testo", ""), 300)
+            if not text or text.lower() in known:
+                continue
+            model = str(item.get("modello", "")).strip()
+            category = str(item.get("categoria", "")).strip().lower()
+            rule = {
+                "id": uuid.uuid4().hex[:8],
+                "text": text,
+                "model": model if model in MODELS else "",
+                "category": category if category in CATEGORIES else "",
+                "why": _clean(item.get("perche", ""), 240),
+                "status": "proposta",
+                "created_at": _now(),
+            }
+            rules.append(rule)
+            known.add(text.lower())
+            added.append(rule)
+        _save_rules(rules)
+    return added
+
+
+def update_rule(rule_id: str, status: str = "", text: str = "") -> dict | None:
+    with _lock:
+        rules = _load_rules()
+        rule = next((r for r in rules if r["id"] == rule_id), None)
+        if not rule:
+            return None
+        if status in RULE_STATUSES:
+            rule["status"] = status
+            rule["decided_at"] = _now()
+        if text.strip():
+            rule["text"] = _clean(text, 300)
+        _save_rules(rules)
+        return rule
+
+
+def delete_rule(rule_id: str) -> bool:
+    with _lock:
+        rules = _load_rules()
+        kept = [r for r in rules if r["id"] != rule_id]
+        _save_rules(kept)
+        return len(kept) != len(rules)
+
+
+def approved_rules(category: str = "", model: str = "") -> str:
+    """The rules Matteo approved, for this kind of piece and this image model (a rule without model/category holds for all)."""
+    models = ("", model) if model else ("", *AUTO_MODELS)
+    chosen = [
+        r
+        for r in rules_all()
+        if r.get("status") == "approvata" and r.get("model", "") in models and r.get("category", "") in ("", category)
+    ]
+    if not chosen:
+        return ""
+    return "REGOLE DI MATTEO (imparate dai suoi voti e approvate da lui: valgono sempre):\n" + "\n".join(f"- {r['text']}" for r in chosen)
+
+
+def learn_prompt() -> str:
+    """The request that makes the AI read the owner's ratings and propose rules. Empty if there is too little to learn from."""
+    items = [i for i in library_items() if i.get("rating", 0) > 0]
+    if len(items) < MIN_RATED_TO_LEARN:
+        return ""
+    lines = []
+    for i in sorted(items, key=lambda i: i.get("rated_at", ""), reverse=True)[:40]:
+        lines.append(
+            f'- voto {i["rating"]}/5 | modello {i.get("model", "")} | categoria {i.get("category", "")} | foto {i.get("shot", "")}\n'
+            f'  prompt: {_clean(i.get("prompt", ""), 400) or "(non indicato)"}\n'
+            f'  nota di Matteo: {_clean(i.get("note", ""), 240) or "(nessuna)"}'
+        )
+    existing = "\n".join(f"- {r['text']}" for r in rules_all() if r.get("status") != "scartata") or "nessuna"
+    return f"""Sei l'art director di I Monili Ravenna. Matteo ha dato dei voti alle foto fatte con i prompt qui sotto.
+Cerca cosa si ripete: cosa piace (voti 4-5) e cosa no (voti 1-2), nelle note e nei prompt. Proponi da 1 a 5 REGOLE brevi,
+concrete e generali, che aiutino a scrivere i prossimi prompt. Ogni regola vale per più pezzi, non per uno solo.
+
+VOTI DI MATTEO:
+{chr(10).join(lines)}
+
+REGOLE GIA ESISTENTI (non ripeterle):
+{existing}
+
+Rispondi SOLO con un JSON valido:
+{{"regole": [{{"testo": "regola in italiano, un'istruzione breve", "modello": "uno tra {', '.join(MODELS)} oppure vuoto se vale per tutti", "categoria": "uno tra {', '.join(CATEGORIES)} oppure vuoto", "perche": "una frase: quali voti la sostengono"}}]}}
+Se i voti non bastano a dire niente di nuovo, restituisci {{"regole": []}}. Non inventare: ogni regola deve poggiare su voti o note che vedi."""
 
 
 def library_summary() -> dict:
@@ -174,12 +372,16 @@ class LabStore:
         final_prompts: dict[str, str],
         target_model: str = "",
         woman_token: str = "",
+        subtype: str = "",
+        cut: str = "",
     ) -> dict:
         """A new analysis replaces the prompts but keeps the attempts already made."""
         with _lock:
             old = self.read(folder) or {}
             lab = {
                 "category": category,
+                "subtype": subtype,
+                "garment_cut": cut,
                 "target_model": target_model,
                 "woman_token": woman_token,
                 "analisi": analisi,
@@ -204,7 +406,9 @@ class LabStore:
             self._write(folder, lab)
             return lab
 
-    def save_scenes(self, folder: Path, source_attempt: str, scenes: dict[str, str], idea: str) -> dict | None:
+    def save_scenes(
+        self, folder: Path, source_attempt: str, scenes: dict[str, str], idea: str, video_model: str = ""
+    ) -> dict | None:
         """The video scenes for the clothing worn by the woman: they start from one chosen photo (an attempt)."""
         with _lock:
             lab = self.read(folder)
@@ -213,6 +417,7 @@ class LabStore:
             lab["scenes"] = {key: {"text": text, "edited": False} for key, text in scenes.items()}
             lab["scenes_source"] = source_attempt
             lab["scenes_idea"] = idea
+            lab["scenes_model"] = video_model if video_model in VIDEO_MODELS else VIDEO_MODEL
             # the scenes of a previous round stay in the attempts, so nothing already made is lost
             self._write(folder, lab)
             return lab
@@ -229,7 +434,7 @@ class LabStore:
                 {
                     "id": uuid.uuid4().hex[:8],
                     "shot": shot,
-                    "model": _clean(model, 60) or (VIDEO_MODEL if is_scene else lab.get("target_model")) or "Higgsfield",
+                    "model": _clean(model, 60) or ((lab.get("scenes_model") or VIDEO_MODEL) if is_scene else lab.get("target_model")) or "Higgsfield",
                     "prompt": text,
                     "created_at": _now(),
                     "result": "",
@@ -240,7 +445,7 @@ class LabStore:
             self._write(folder, lab)
             return lab
 
-    def add_external(self, folder: Path, shot: str, model: str, prompt: str) -> dict:
+    def add_external(self, folder: Path, shot: str, model: str, prompt: str, category: str = "") -> dict:
         """A photo made elsewhere (another prompt, another tool): it can be rated without going through the Studio's prompt."""
         with _lock:
             lab = self.read(folder) or {
@@ -254,6 +459,9 @@ class LabStore:
                 "attempts": [],
                 "created_at": _now(),
             }
+            # without an analysis the lab has no category: the review would fall back to the jewellery checklist
+            if category in CATEGORIES and not lab.get("category"):
+                lab["category"] = category
             lab["attempts"].append(
                 {
                     "id": uuid.uuid4().hex[:8],
@@ -313,6 +521,17 @@ class LabStore:
             snapshot = dict(attempt)
             category = lab.get("category", "bijoux")
         record(snapshot, category, draft_id)
+        return lab
+
+    def mark_site(self, folder: Path, attempt_id: str, run_id: str, name: str) -> dict | None:
+        """The owner said OK: this photo went to the piece's site photos."""
+        with _lock:
+            lab = self.read(folder)
+            attempt = self._attempt(lab, attempt_id) if lab else None
+            if not attempt:
+                return None
+            attempt["site"] = {"run_id": run_id, "name": name, "at": _now()}
+            self._write(folder, lab)
         return lab
 
     def delete_attempt(self, folder: Path, attempt_id: str) -> dict | None:
@@ -406,12 +625,34 @@ GOALS = {
         "una sola persona con anatomia naturale (mani, dita, gambe), luce coerente."
     ),
 }
+GOALS[("worn", "accessori")] = (
+    "Accessorio indossato o portato (borsa a tracolla o in mano, foulard, cintura): materiale, colori, cuciture e chiusure identici "
+    "alla foto vera, scala credibile rispetto al corpo, una sola persona con anatomia naturale, luce coerente."
+)
 GOALS[("worn_2", "abbigliamento")] = GOALS[("worn", "abbigliamento")]
 GOALS[("clean", "accessori")] = GOALS[("clean", "abbigliamento")]
 
 
+def review_sheet(subtype: str, shot: str) -> str:
+    """What the photo must be for this kind of piece (knowledge/valutazione/valutazione-<tipo>.md, sections studio / indossata)."""
+    if not subtype or "/" in subtype or "\\" in subtype:
+        return ""
+    try:
+        text = (REVIEW_DIR / f"valutazione-{subtype}.md").read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    sections = re.split(r"^## ", text, flags=re.MULTILINE)
+    wanted = "foto studio" if shot == "clean" else "foto indossata"
+    for section in sections:
+        head, _, body = section.partition("\n")
+        if head.strip().lower() == wanted:
+            return body.strip()
+    return ""
+
+
 def goal_for(attempt: dict, lab: dict) -> str:
-    return GOALS.get((attempt.get("shot", ""), lab.get("category", "")), "")
+    sheet = review_sheet(lab.get("subtype", ""), attempt.get("shot", "").replace("worn_2", "worn"))
+    return sheet or GOALS.get((attempt.get("shot", ""), lab.get("category", "")), "")
 
 
 def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:
@@ -426,6 +667,11 @@ def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:
         if category in ("abbigliamento", "accessori")
         else "se una pietra cambia colore o numero, il voto è 2 o meno"
     )
+    priority = (
+        "\nORDINE DI IMPORTANZA per il voto: 1) fedeltà del pezzo alla foto vera (è il criterio dominante: se il pezzo non è lui, "
+        "il voto è 2 o meno qualunque sia il resto); 2) luminosità e luce; 3) armonia di composizione e sfondo; "
+        "4) anatomia (mani, occhi, volto, gambe) solo dove c'è una persona; 5) niente di aggiunto.\n"
+    )
     mentions = list(dict.fromkeys(MENTION_RE.findall(attempt.get("prompt", ""))))
     keep = (
         f"\nNel prompt_corretto tieni IDENTICI i riferimenti alla modella: {', '.join(mentions)} deve restare scritto così, "
@@ -434,10 +680,15 @@ def critique_prompt(lab: dict, attempt: dict, is_video: bool = False) -> str:
         else ""
     )
     knowledge = model_knowledge(attempt.get("model", ""), category)
+    if is_video:
+        knowledge = f"{knowledge}\n\n{prompt_structure('video')}\n\n{video_direction()}".strip()
+        goal_block = f"\nDIFETTI DA CERCARE NEL VIDEO (fotogramma per fotogramma, contro la foto vera):\n{video_review_sheet()}\n"
+    else:
+        knowledge = f"{knowledge}\n\n{prompt_structure('foto')}".strip()
     return f"""Sei il revisore di immagini di I Monili Ravenna, una gioielleria di Ravenna.
 {"Hai quattro immagini: la PRIMA è la foto vera del pezzo (la verità), le altre tre sono fotogrammi (inizio, metà, fine) di un video creato con l'AI (" + attempt.get("model", "") + "). Oltre al pezzo controlla che tra un fotogramma e l'altro il capo, la donna e i colori restino uguali, e che non ci siano deformazioni o sfarfallii." if is_video else "Hai due immagini: la PRIMA è la foto vera del pezzo (la verità), la SECONDA è la foto creata con l'AI (" + attempt.get("model", "") + ").\nConfrontale con occhio critico: il pezzo nella seconda deve essere identico a quello della prima."}
 
-{goal_block}
+{goal_block}{priority}
 PROMPT USATO:
 {attempt.get("prompt", "")}
 
@@ -492,9 +743,21 @@ SCENE_TAIL = (
 
 
 def scenes_prompt(lab: dict, category_note: str, hints_text: str) -> str:
-    knowledge = model_knowledge(VIDEO_MODEL, lab.get("category", ""))
+    video_model = lab.get("scenes_model") if lab.get("scenes_model") in VIDEO_MODELS else VIDEO_MODEL
+    knowledge = "\n\n".join(filter(None, (
+        model_knowledge(video_model, lab.get("category", "")),
+        type_guide(lab.get("subtype", ""), lab.get("garment_cut", "")),
+        prompt_structure("video"),
+        video_direction(),
+    )))
+    start = (
+        "Genjutsu parte da un VIDEO VERO girato col telefono (motion transfer o object swap): la foto qui sotto è il "
+        "riferimento del capo e della donna da usare nel video"
+        if video_model == "Genjutsu"
+        else f"sarà il PRIMO FOTOGRAMMA di ogni scena ({video_model}, da immagine a video)"
+    )
     return f"""Sei il regista dei video Instagram di I Monili Ravenna, boutique di Ravenna. Devi restituire SOLO un JSON valido.
-Hai in mano la foto del capo già indossato dalla donna di questo pezzo: sarà il PRIMO FOTOGRAMMA di ogni scena (Seedance 2.5, da immagine a video).
+Hai in mano la foto del capo già indossato dalla donna di questo pezzo: {start}.
 
 Analisi del capo: {str(lab.get("analisi", ""))[:1200]}
 La donna: {(lab.get("woman_token") + " (la sceglie Matteo a mano: scrivi esattamente " + lab.get("woman_token") + ", non descriverne il volto)") if lab.get("woman_token") else lab.get("woman", "")}
@@ -504,7 +767,7 @@ Appunti del titolare: {category_note or "nessuno"}
 {hints_text}
 
 Scrivi 3 scene diverse, da 4-5 secondi l'una, che si montano in un Reel 9:16. Ogni scena:
-- prompt in inglese, in questo ordine: cosa NON cambia (capo, donna), una sola azione semplice, un solo movimento di camera lento, luce;
+- prompt in inglese che segue la struttura video qui sopra (regola "One continuous shot, no cuts", riferimento della foto di partenza, cosa NON cambia, azione a finestre di secondi, un solo movimento di camera lento con parole fisiche, luce, pochi vincoli concreti in coda); mai "fast", mai verbi come edit, replace, change to; rispetta durata e movimento sicuri per questo tipo di capo;
 - azioni facili e naturali (camminare piano, girarsi, sistemarsi il capo, il vento sul tessuto): niente mani che maneggiano oggetti piccoli;
 - la scena 1 mostra il capo intero, la 2 un dettaglio (tessuto, ricamo, bottoni), la 3 il movimento (si gira o cammina).
 

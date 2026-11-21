@@ -213,12 +213,16 @@ Verifica:
 def poster_prompt(cover_text: str, subtitle: str = "", skill_id: str = "") -> str:
     template = skills.base_template("copertina")
     subtitle_line = f'Small italic subtitle under the headline, exactly once: "{subtitle}"' if subtitle else ""
-    return skills.fill(
+    import casting
+
+    text = skills.fill(
         template,
         cover_text=cover_text,
         subtitle_line=subtitle_line,
         skill_notes=skills.section(skill_id, "cover") if skill_id else "",
     )
+    # the shop's "never in our content" list (skills/_base/divieti.md) holds for covers too
+    return f"{text}\n{casting.never_line()}".strip()
 
 
 def make_poster_cover(

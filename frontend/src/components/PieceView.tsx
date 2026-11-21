@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import InstagramShare from '@/components/InstagramShare';
+import PublishHub from '@/components/PublishHub';
 import type { PieceSummary } from '@/lib/pieces';
 
 interface Props {
@@ -20,6 +20,7 @@ type PublishPack = {
   whatsapp_share?: string;
   gmb_title?: string;
   gmb_text?: string;
+  tripadvisor_text?: string;
   caption?: string;
   hashtags?: string[];
   cta?: string;
@@ -31,6 +32,13 @@ type PublishPack = {
   selected_gmb_text?: string;
   selected_cta?: string;
 };
+
+type Stage = 'sito' | 'video' | 'pubblica';
+const STAGES: Array<{ id: Stage; label: string }> = [
+  { id: 'sito', label: 'Sito' },
+  { id: 'video', label: 'Video' },
+  { id: 'pubblica', label: 'Pubblica' },
+];
 
 type ShowcaseCandidate = {
   src: string;
@@ -389,80 +397,6 @@ function ShowcaseSection({
 }
 
 
-type ReelForShare = {
-  format?: string;
-  storyboard?: { shots?: Array<{ use_model?: boolean }> } | null;
-  results?: { final_video?: string; copy?: { caption?: string; hashtags?: string[] } };
-};
-
-// Se il pezzo ha un Reel pronto si condivide quello; altrimenti le foto, come post.
-function InstagramSection({
-  apiUrl,
-  reelId,
-  photos,
-  postCaption,
-}: {
-  apiUrl: string;
-  reelId: string;
-  photos: string[];
-  postCaption: string;
-}) {
-  const [reel, setReel] = useState<ReelForShare | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    if (!reelId) return;
-    let alive = true;
-    setReel(null);
-    setFailed(false);
-    fetch(`${apiUrl}/reel/${encodeURIComponent(reelId)}`, { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data) => alive && setReel(data))
-      .catch(() => alive && setFailed(true));
-    return () => {
-      alive = false;
-    };
-  }, [apiUrl, reelId]);
-
-  const video = reel?.results?.final_video;
-  const reelCaption = [reel?.results?.copy?.caption, (reel?.results?.copy?.hashtags || []).join(' ')].filter(Boolean).join('\n\n');
-  const reelFiles = useMemo(
-    () => (video ? [{ url: `${apiUrl}/files/${video}`, filename: `monili-${reel?.format === 'story' ? 'storia' : 'reel'}.mp4` }] : []),
-    [apiUrl, video, reel?.format],
-  );
-  const photoFiles = useMemo(
-    () => photos.map((src) => ({ url: `${apiUrl}/files/${src}`, filename: `${siteImageSlug(src)}.jpg` })),
-    [apiUrl, photos],
-  );
-
-  if (reelId && !failed && !reel) return <p className="step-hint">Preparo il Reel...</p>;
-  if (reelId && reel && reelFiles.length) {
-    return (
-      <>
-        <p className="step-hint">Condividi il Reel pronto di questo pezzo.</p>
-        <InstagramShare
-          files={reelFiles}
-          caption={reelCaption}
-          kind={reel.format === 'story' ? 'Storia' : 'Reel'}
-          hasAiWoman={Boolean(reel.storyboard?.shots?.some((shot) => shot.use_model))}
-        />
-      </>
-    );
-  }
-  if (!photoFiles.length) return <p className="step-hint">Non ci sono foto o Reel da condividere.</p>;
-  return (
-    <>
-      <p className="step-hint">Non c&apos;è ancora un Reel pronto: puoi condividere le foto come post. I Reel arrivano di più a chi non ti segue.</p>
-      <InstagramShare
-        files={photoFiles}
-        caption={postCaption}
-        kind="Post"
-        hasAiWoman={photos.some((src) => src.includes('site_02_worn'))}
-      />
-    </>
-  );
-}
-
 export default function PieceView({ results, apiUrl, runId, summary, onChanged }: Props) {
   const pack = parseJsonObject<PublishPack>(results.publish_pack_json, {});
   const hashtags = (pack.hashtags || pack.selected_hashtags || []).join(' ');
@@ -499,41 +433,98 @@ export default function PieceView({ results, apiUrl, runId, summary, onChanged }
         ),
     [results],
   );
-  const postCaption = [caption, cta, hashtags].filter(Boolean).join('\n\n');
+  const [stage, setStage] = useState<Stage>('sito');
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('tab');
+    if (wanted === 'video' || wanted === 'pubblica' || wanted === 'sito') setStage(wanted);
+  }, []);
+  const goTo = (next: Stage) => {
+    setStage(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const doneReelIds = reels.filter((reel) => reel.status === 'done').map((reel) => reel.id);
+  const hubPhotos = sitePhotos.map((src) => ({ src, label: siteImageLabel(src), slug: siteImageSlug(src) }));
+  const stageState: Record<Stage, string> = {
+    sito: summary?.steps.sito === 'published' ? 'fatto' : summary?.steps.sito === 'draft' ? 'bozza' : 'da fare',
+    video: doneReel ? 'fatto' : reels.length ? 'in corso' : 'da fare',
+    pubblica: summary?.steps.instagram === 'published' ? 'fatto' : 'ultimo passo',
+  };
 
   return (
     <>
-      <ShowcaseSection apiUrl={apiUrl} runId={runId} published={summary?.steps.sito ?? 'none'} onSent={onChanged} />
+      <nav className="stages" aria-label="Passaggi del pezzo">
+        {STAGES.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            className="stage"
+            aria-current={stage === item.id ? 'step' : undefined}
+            data-done={stageState[item.id] === 'fatto'}
+            onClick={() => goTo(item.id)}
+          >
+            <span className="stage-num">{stageState[item.id] === 'fatto' ? '✓' : index + 1}</span>
+            <span className="stage-text">
+              <strong>{item.label}</strong>
+              <small>{stageState[item.id]}</small>
+            </span>
+          </button>
+        ))}
+      </nav>
 
-      <section className="step" aria-labelledby="step-testi">
-        <h2 className="step-title" id="step-testi">Testi pronti</h2>
-        <p className="step-hint">Un tocco su Copia e incolli dove serve.</p>
-        <div className="stack">
-          <TextCard title="WhatsApp" value={whatsapp} />
-          <TextCard title="Google Business" value={gmb} />
-          <TextCard title="Instagram" value={[caption, hashtags, cta].filter(Boolean).join('\n\n')} />
-          <TextCard title="Titolo e descrizione per Google" value={seo} />
-        </div>
-      </section>
+      {stage === 'sito' && (
+        <>
+          <ShowcaseSection apiUrl={apiUrl} runId={runId} published={summary?.steps.sito ?? 'none'} onSent={onChanged} />
+          <div className="stage-next">
+            <button type="button" className="btn-mission" onClick={() => goTo('video')}>Avanti: il video</button>
+            <button type="button" className="btn-secondary" onClick={() => goTo('pubblica')}>Salta a Pubblica</button>
+          </div>
+        </>
+      )}
 
-      <section className="step" aria-labelledby="step-reel">
-        <h2 className="step-title" id="step-reel">Reel di questo pezzo</h2>
-        <p className="step-hint">Parte dalla foto di questa scheda e usa la stessa donna della foto indossata.</p>
-        <div className="reel-links">
-          <Link href={`/reel?pezzo=${encodeURIComponent(runId)}`} className="btn-mission">Fai il Reel</Link>
-          {reels.map((reel) => (
-            <Link key={reel.id} href={`/reel?reel=${encodeURIComponent(reel.id)}`} className="reel-row">
-              <span>{reel.title || 'Reel senza titolo'}</span>
-              <span>{reel.status === 'done' ? 'Pronto' : reel.status === 'error' ? 'Da riprovare' : 'In lavorazione'}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {stage === 'video' && (
+        <section className="step" aria-labelledby="step-reel">
+          <h2 className="step-title" id="step-reel">Il video di questo pezzo</h2>
+          <p className="step-hint">Due strade: lo Studio lo crea dalle foto con la stessa donna della foto indossata, oppure carichi un video già pronto.</p>
+          <div className="reel-links">
+            <Link href={`/reel?pezzo=${encodeURIComponent(runId)}`} className="btn-mission">Crea il video dalle foto</Link>
+            <Link href={`/reel?pezzo=${encodeURIComponent(runId)}&modo=video`} className="btn-secondary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Ho già un video</Link>
+            {reels.map((reel) => (
+              <Link key={reel.id} href={`/reel?reel=${encodeURIComponent(reel.id)}`} className="reel-row">
+                <span>{reel.title || 'Video senza titolo'}</span>
+                <span>{reel.status === 'done' ? 'Pronto' : reel.status === 'error' ? 'Da riprovare' : 'In lavorazione'}</span>
+              </Link>
+            ))}
+          </div>
+          <div className="stage-next">
+            <button type="button" className="btn-mission" onClick={() => goTo('pubblica')}>Avanti: pubblica</button>
+          </div>
+        </section>
+      )}
 
-      <section className="step" aria-labelledby="step-ig">
-        <h2 className="step-title" id="step-ig">Instagram</h2>
-        <InstagramSection apiUrl={apiUrl} reelId={doneReel?.id || ''} photos={sitePhotos} postCaption={postCaption} />
-      </section>
+      {stage === 'pubblica' && (
+        <section className="step" aria-labelledby="step-pub">
+          <h2 className="step-title" id="step-pub">Pubblica</h2>
+          <p className="step-hint">Scegli dove. Per ogni posto trovi il materiale finale, la caption, gli hashtag e il testo da copiare.</p>
+          <PublishHub
+            apiUrl={apiUrl}
+            runId={runId}
+            reelIds={doneReelIds}
+            photos={hubPhotos}
+            texts={{
+              caption,
+              hashtags: (pack.hashtags || pack.selected_hashtags || []).filter(Boolean),
+              cta,
+              whatsapp,
+              gmb,
+              seo,
+              tripadvisor: pack.tripadvisor_text || '',
+            }}
+            siteState={summary?.steps.sito ?? 'none'}
+            hasAiWomanPhoto={sitePhotos.some((src) => src.includes('site_02_worn') || src.includes('site_04_worn'))}
+            onGoTo={(next) => goTo(next)}
+          />
+        </section>
+      )}
 
       <section className="step">
         <details>

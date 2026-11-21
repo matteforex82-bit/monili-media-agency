@@ -10,20 +10,45 @@ Le regole si cambiano in skills/_base/donne.md e divieti.md, anche dalla pagina 
 """
 
 import json
+from pathlib import Path
 
 import skills_loader as skills
-from main import OUTPUT_ROOT
+from main import OUTPUT_ROOT, STORAGE_ROOT
 
 DEFAULT_GUIDE = (
     "Invent a real woman who suits this piece, elegant in a natural everyday way, not a fashion model: "
     "real skin texture, light makeup, relaxed genuine expression."
 )
-# Quando l'AI non ha descritto la donna (risposta non valida): resta una persona vera, non una modella.
-FALLBACK_WOMAN = "a real elegant woman from around Ravenna, not a fashion model, natural skin and light makeup"
+_PLAIN_FALLBACK = "a real elegant woman from around Ravenna, not a fashion model, natural skin and light makeup"
 
 
 def _sections(name: str) -> dict:
     return skills.parse_skill(skills.base_template(name))["sections"]
+
+
+def testimonial() -> str:
+    """The shop's fixed testimonial (Aurora), same face in every content; empty if the section is removed (then the AI invents)."""
+    return " ".join(_sections("donne").get("testimonial", "").split())
+
+
+TESTIMONIAL_PHOTOS_DIR = STORAGE_ROOT / "aurora-riferimenti"
+MAX_TESTIMONIAL_PHOTOS = 2  # la ricerca: da 2 a 4 riferimenti in tutto, compreso il pezzo
+
+
+def testimonial_photos() -> list[Path]:
+    """The testimonial's master photos (neutral face, no jewellery), chosen by Matteo and copied into
+    <storage>/aurora-riferimenti. They go to the image model before the product so the face stays the same.
+    Empty folder: only the written description is used, as before."""
+    try:
+        files = sorted(p for p in TESTIMONIAL_PHOTOS_DIR.iterdir() if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"))
+    except OSError:
+        return []
+    return files[:MAX_TESTIMONIAL_PHOTOS]
+
+
+def fallback_woman() -> str:
+    """When the AI gave no valid woman: the testimonial, otherwise a real person, not a model."""
+    return testimonial() or _PLAIN_FALLBACK
 
 
 def woman_guide() -> str:

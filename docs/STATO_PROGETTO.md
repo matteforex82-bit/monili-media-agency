@@ -219,3 +219,30 @@ Ramo `studio-workspace-ux`, PR https://github.com/matteforex82-bit/monili-media-
 - **F, confronto al 100%:** nel passo Valutare il pulsante «Zoom al 100%, una accanto all'altra» apre foto vera e risultato a grandezza reale, in due riquadri che scorrono insieme (si chiude con Esc o «Chiudi»). Solo per le foto, non per i video (`ZoomCompare` in `PromptLab.tsx`).
 - **J, un blocco per passo:** nel passo Valutare ogni prova ha tre blocchi numerati: 1 Confronta, 2 Codex, 3 Il tuo voto.
 - Verificato: `npx tsc --noEmit` pulito. **Non provato a schermo** (zoom e scorrimento sincronizzato da vedere con lo Studio riavviato).
+
+## Riprogettazione del percorso Studio: Fase 1 in corso (18-19/11/2026, ramo `studio-percorso-unico`)
+Piano completo approvato in `C:\Users\matte\.claude\plans\dopo-questo-vorrei-insieme-glistening-hummingbird.md` (scelte: un solo percorso per pezzo, Aurora testimonial fissa, due foto base studio+indossata, libreria di clip proprie per Genjutsu, fonte unica in `knowledge/`, costi con stima+OK+tetto).
+Fatto finora:
+- **Bug categoria:** una foto fatta altrove su un pezzo mai analizzato veniva giudicata con i criteri dei gioielli; ora riceve la categoria (modulo + nota). Giudizio con ordine di importanza (fedeltà all'originale per prima).
+- **Valutazione per tipo di pezzo:** `knowledge/valutazione/valutazione-<tipo>.md` (anello, orecchini, collana, bracciale, capo, borsa, foulard), letti da `prompt_lab.goal_for`; tipo riconosciuto da `categorie.subtype_from`. `knowledge/come-si-indossa.md` (solo documento).
+- **Fonte unica del brand:** `knowledge/brand.md` (letto da `main.BRAND`), niente giorni fissi, hashtag Scheda 3+2 e Reel 3+5 (il 5 è una scelta da verificare con i Risultati), chiave `sessions` corretta.
+- **Aurora testimonial fissa** (`skills/_base/donne.md`, sezione Testimonial) in Scheda pezzo e Reel; `CLAUDE.md` allineato. La quota «un contenuto su tre senza volto» è solo scritta, non applicata dal codice.
+- **Foto per canale:** `channels.py` + `knowledge/formati-canali.md`, `GET /canali` e `/bozze/{id}/prove/{id}/canale/{canale}`, link «Scarica per canale» nel passo Valutare. Le misure di Google e Tripadvisor sono `[fonte]` (siti di terzi), da verificare sulle pagine ufficiali.
+- **Testi per piattaforma:** `knowledge/testi/*.md` (stile umano da skill humanizer, sito, WhatsApp, Google Business, Instagram, Tripadvisor) iniettati nel prompt dei testi; nuovo campo `tripadvisor_text` nella Scheda. Non passa ancora da un secondo giro di riscrittura con la skill: solo regole nel prompt.
+- Test: 167 passati, `tsc` pulito. Non provato a schermo né con generazioni vere.
+- **Vai al sito (19/11):** pulsante nel passo Valutare, indipendente dal voto: la foto (catalogo o indossata) diventa foto del sito 4:5 del pezzo (`POST /bozze/{id}/prove/{id}/sito`), nella stessa scheda del pezzo (creata se non c'è); la foto catalogo AI porta ora l'etichetta «AI». Il pezzo creato così non ha ancora i testi (Fase 2).
+Fase 1 completata. Da fare: Fase 2 (percorso unico bozze+pezzi) e Fase 3 (automazione MCP).
+
+## Fucina: «Impara dai miei voti» (19/11/2026)
+- Nel passo Prompt, pannello **«Cosa ha imparato lo Studio»** (`LearnPanel.tsx`). «Impara dai miei voti» (servono 3 foto votate) manda a Codex (o OpenRouter) i voti, le note e i prompt della libreria e raccoglie da 1 a 5 **regole proposte**. Matteo le corregge, **approva o scarta**; solo le approvate entrano nei prompt (`prompt_lab.approved_rules`, dentro `hints`), per il modello e il tipo di pezzo indicati (vuoto = tutti). Archivio: `MoniliStorage/memory/regole_fucina.json`. Rotte: `/fucina/regole` (GET, `/proponi`, PUT e DELETE per id).
+- Il voto di Codex resta un suggerimento: contano i voti e le note di Matteo. I prompt votati 4-5 portano ora anche la nota («perché è piaciuto»); quelli senza prompt sono ignorati. Tolto «Scarica per canale» dal passo Valutare (l'export `/bozze/.../canale/...` resta nel backend).
+- Test 170 passati. Non provato a schermo (serve riavviare lo Studio).
+
+## Prompt completi per tutti i prodotti (20/11/2026, ramo `studio-percorso-unico`, non committato)
+PRD: `docs/prd-prompt-completi.md`. Decisioni: D1 prezzo = quello vero della scheda pezzo (se manca non compare); D2 logo, prezzo e Rif. disegnati dal codice, titolo dall'AI con rilettura lettera per lettera; D3 sì, carosello; D4 foto base = pezzo vero scontornato con scala fissa per tipo; D5 post solo con GPT Image o Nano Banana.
+- **Tipi di pezzo** (`categorie.SUBTYPES`): anello, orecchini, collana, bracciale, cavigliera, borsa, pochette, sciarpa, foulard, cintura, cappello, occhiali, capo (sopra/sotto/intero). Scelta nel Nuovo pezzo e nella Fucina, altrimenti dedotta. Schede nuove in `knowledge/valutazione/`, inquadrature in `knowledge/fucina/inquadratura-tipi.md`.
+- **Bug corretto**: la missione passava "gioielli" e nessun modello, quindi i gioielli non ricevevano la ricetta né la knowledge del modello immagine.
+- **Foto sito**: scala del pezzo fissa per tipo; foto di Aurora come Image 1 se presenti in `MoniliStorage\aurora-riferimenti` (da scegliere).
+- **Reel**: lo storyboard legge struttura video, regia, modello video, tipo, difetti video, struttura foto e modello immagine del fotogramma. Fucina: scene per Seedance, Kling o Genjutsu (Genjutsu non è nell'API, solo prompt a mano).
+- **Post con testo** (`post_grafica.py`, Pubblica → Instagram Post → "Crea un post con testo"): Outfit con prezzi (foto vera), Titolo editoriale, Look con Aurora, Carosello da 3.
+- Test: `tests/test_prompt_completi.py`; suite 228 verdi. Prove reali: `docs/pacchetto-prova-prompt.md`.

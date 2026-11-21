@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FileDropzone from '@/components/FileDropzone';
 import InstagramShare from '@/components/InstagramShare';
@@ -126,6 +127,7 @@ interface ReelState {
 }
 
 interface ReelConfig {
+  remotion_available?: boolean;
   higgsfield_configured: boolean;
   video_models: { id: string; label: string; min_duration: number; max_duration: number }[];
   default_video_model: string;
@@ -308,6 +310,8 @@ export default function ReelStudioPage() {
   const [seconds, setSeconds] = useState(12);
   const [videoModel, setVideoModel] = useState('');
   const [recipe, setRecipe] = useState('libera');
+  // Due strade verso lo stesso risultato: far fare tutto all'AI dalle foto, o partire da un video già pronto.
+  const [mode, setMode] = useState<'foto' | 'video'>('foto');
   const [keyframeModel, setKeyframeModel] = useState('');
   const [posterCover, setPosterCover] = useState(true);
   // Video già pronto (Gemini/Veo, telefono)
@@ -315,6 +319,10 @@ export default function ReelStudioPage() {
   const [importTitle, setImportTitle] = useState('');
   const [importNote, setImportNote] = useState('');
   const [importClosing, setImportClosing] = useState(true);
+  // Grafica Monili con Remotion: frase d'apertura, targhetta col prezzo, chiusura animata.
+  const [importGraphics, setImportGraphics] = useState(true);
+  const [importPrice, setImportPrice] = useState('');
+  const [importPlace, setImportPlace] = useState('');
   // Il pezzo della Scheda da cui parte il Reel (/reel?pezzo=<run_id>): stessa donna della foto indossata.
   const [piece, setPiece] = useState<Piece | null>(null);
   // Il contenuto del Piano da cui si parte (/reel?piano=<settimana>:<ruolo>): a creazione avvenuta lo segna come creato.
@@ -345,6 +353,10 @@ export default function ReelStudioPage() {
     const data: ReelState = await res.json();
     setReel(data);
     return data;
+  }, []);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('modo') === 'video') setMode('video');
   }, []);
 
   useEffect(() => {
@@ -489,6 +501,10 @@ export default function ReelStudioPage() {
       form.append('title', importTitle);
       form.append('note', importNote);
       form.append('add_closing', importClosing ? 'true' : 'false');
+      if (piece) form.append('scheda_run_id', piece.runId);
+      form.append('graphics', importGraphics && config?.remotion_available ? 'true' : 'false');
+      form.append('price', importPrice);
+      form.append('location', importPlace);
       const res = await fetch(`${API_URL}/reel/import`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(await readError(res));
       const data: ReelState = await res.json();
@@ -637,17 +653,31 @@ export default function ReelStudioPage() {
         )}
         {error && <div className="rs-error">{error}</div>}
 
-        {/* ── NUOVO REEL ─────────────────────────────────────────────── */}
+        {/* ── SCELTA DELLA STRADA ───────────────────────────────────── */}
         {!reel && (
+          <div className="rs-modes" role="tablist" aria-label="Come parti">
+            <button type="button" role="tab" aria-selected={mode === 'foto'} className="rs-mode" onClick={() => setMode('foto')}>
+              <strong>Parto da una foto</strong>
+              <span>L&apos;AI scrive la regia e crea il video</span>
+            </button>
+            <button type="button" role="tab" aria-selected={mode === 'video'} className="rs-mode" onClick={() => setMode('video')}>
+              <strong>Ho già un video</strong>
+              <span>Aggiungo chiusura, copertina e testi</span>
+            </button>
+          </div>
+        )}
+
+        {piece && !reel && <PieceBanner piece={piece} onClear={() => setPiece(null)} />}
+
+        {/* ── NUOVO REEL ─────────────────────────────────────────────── */}
+        {!reel && mode === 'foto' && (
           <section className="card rs-card">
-            <div className="label-eyebrow">Nuovo contenuto video</div>
-            <h2 className="rs-h1">Dalla foto al Reel</h2>
+            <div className="label-eyebrow">Dalla foto al video</div>
+            <h2 className="rs-h1">Scegli le foto</h2>
             <p className="rs-muted">
               Carica 1-3 foto del prodotto. Se vuoi, aggiungi fino a 3 clip vere girate in negozio: il regista AI le
               mescola con le scene generate. Senza clip, fa tutto l&apos;AI.
             </p>
-
-            {piece && <PieceBanner piece={piece} onClear={() => setPiece(null)} />}
 
             <div className="rs-grid-2">
               <FileDropzone
@@ -681,29 +711,11 @@ export default function ReelStudioPage() {
               />
             </Field>
 
-            <Field label="Ricetta">
-              <div className="rs-recipes">
-                {(config?.recipes || []).map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`rs-recipe ${recipe === item.id ? 'rs-recipe-on' : ''}`}
-                    onClick={() => {
-                      setRecipe(item.id);
-                      const nextFormat = item.formats.includes(format) ? format : item.formats[0];
-                      if (nextFormat !== format) setFormat(nextFormat);
-                      if (item.default_seconds && config) {
-                        const spec = config.formats[nextFormat];
-                        setTimeout(() => setSeconds(Math.min(spec.max_seconds, Math.max(spec.min_seconds, item.default_seconds!))), 0);
-                      }
-                    }}
-                  >
-                    <span className="rs-recipe-label">{item.label}</span>
-                    <span className="rs-recipe-desc">{item.description}</span>
-                  </button>
-                ))}
-              </div>
-            </Field>
+            {recipe !== 'libera' && (
+              <p className="rs-hint rs-from-plan">
+                Dal Piano: {config?.recipes.find((item) => item.id === recipe)?.label || recipe}. La regia segue questa idea.
+              </p>
+            )}
 
             {!piece && config?.recipes.find((item) => item.id === recipe)?.uses_model && (
               <WomanNote />
@@ -768,10 +780,10 @@ export default function ReelStudioPage() {
         )}
 
         {/* ── VIDEO GIÀ PRONTO ───────────────────────────────────────── */}
-        {!reel && (
+        {!reel && mode === 'video' && (
           <section className="card rs-card">
-            <div className="label-eyebrow">Hai già un video?</div>
-            <h2 className="rs-h1">Carica un video esterno</h2>
+            <div className="label-eyebrow">Video già pronto</div>
+            <h2 className="rs-h1">Carica il video</h2>
             <p className="rs-muted">
               Fatto con Gemini (Veo) o girato col telefono, in verticale 9:16. Lo Studio aggiunge la chiusura, la
               copertina e i testi: poi lo mandi sul sito e su Instagram come gli altri Reel. Non costa crediti video.
@@ -803,6 +815,31 @@ export default function ReelStudioPage() {
                 />
               </Field>
             </div>
+            {config?.remotion_available && (
+              <div className="rs-graphics">
+                <label className="rs-check">
+                  <input type="checkbox" checked={importGraphics} onChange={(e) => setImportGraphics(e.target.checked)} />
+                  <span>
+                    <strong>Grafica Monili</strong>: frase d&apos;apertura, targhetta col nome e il prezzo, chiusura animata.
+                    Il render richiede circa un minuto.
+                  </span>
+                </label>
+                {importGraphics && (
+                  <div className="rs-grid-2">
+                    <Field label="Prezzo sulla targhetta (facoltativo)">
+                      <input className="rs-input" value={importPrice} onChange={(e) => setImportPrice(e.target.value)} placeholder="Es. 39 €" />
+                    </Field>
+                    <Field label="Negozio sulla targhetta">
+                      <select className="rs-input" value={importPlace} onChange={(e) => setImportPlace(e.target.value)}>
+                        <option value="">Via Cavour, Ravenna</option>
+                        <option value="via-cavour-17">Via Cavour 17 (argento e pietre)</option>
+                        <option value="via-cavour-21">Via Cavour 21 (il resto)</option>
+                      </select>
+                    </Field>
+                  </div>
+                )}
+              </div>
+            )}
             <label className="rs-check">
               <input type="checkbox" checked={importClosing} onChange={(e) => setImportClosing(e.target.checked)} />
               <span>Aggiungi la chiusura &quot;Ti piace? Scrivici, ti diciamo se è disponibile.&quot; (2,5 s su fondo crema)</span>
@@ -1231,6 +1268,12 @@ function ResultView({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
 
   return (
     <div className="rs-result">
+      {reel.scheda_run_id && (
+        <Link href={`/pezzi/${encodeURIComponent(reel.scheda_run_id)}?tab=pubblica`} className="rs-to-publish">
+          <span>Video pronto. Scegli dove pubblicarlo</span>
+          <strong>Vai a Pubblica ›</strong>
+        </Link>
+      )}
       {results.preview_only && (
         <div className="rs-banner">Questa è un&apos;<strong>anteprima</strong>: le scene AI sono fotogrammi animati. Con Higgsfield collegato diventano video AI veri.</div>
       )}

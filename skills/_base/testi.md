@@ -4,7 +4,7 @@ description: Regole per caption, hashtag, testi a schermo e chiusure
 ---
 - Tono caldo e complice da amica, mai formale; massimo 2-3 emoji per caption.
 - La prima riga è un hook che fa fermare: un'emozione o un risultato, non una descrizione.
-- Hashtag: sempre #imoniliravenna #ravenna #romagnastyle + 6-9 hashtag pertinenti (mix nicchia e locale).
+- Hashtag: sempre #imoniliravenna #ravenna #romagnastyle + da 3 a 5 hashtag pertinenti (mix nicchia e locale); il Studio taglia oltre i 5 extra.
 - Chiusura SEMPRE con un invito concreto. Alterna:
   - "Scrivici in DM, ti diciamo se è disponibile"
   - "Mandalo a chi te lo regalerebbe" (spinge gli invii, il segnale che porta i Reel a chi non ci segue)

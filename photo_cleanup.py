@@ -186,6 +186,7 @@ def clean_photo(
     model_path: Path,
     notify: Callable[[str], None] | None = None,
     tight: bool = False,
+    fill: float | None = None,
 ) -> tuple[Image.Image, list[str]]:
     """The real photo on the ivory 4:5 background, plus the reasons not to suggest it (if any).
 
@@ -198,4 +199,5 @@ def clean_photo(
         box = mask.point(lambda v: 255 if v > 20 else 0).getbbox()
         if box and max(box[2] - box[0], box[3] - box[1]) / max(1, min(box[2] - box[0], box[3] - box[1])) > TIGHT_MAX_RATIO:
             issues.append("Il pezzo è lungo e stretto: nel riquadro del sito resta piccolo")
-    return compose(correct_product(photo, alpha), mask, fill=0.93 if tight else None), issues
+    # fill: the share of the frame the piece takes for its kind (categorie.SUBTYPES): same type, same scale on the site
+    return compose(correct_product(photo, alpha), mask, fill=0.93 if tight else fill), issues

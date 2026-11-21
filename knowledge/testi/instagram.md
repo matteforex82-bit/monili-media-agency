@@ -1,0 +1,2 @@
+# Instagram (caption e Storie)
+Tono: caldo, complice, da amica che consiglia; massimo 2-3 emoji. Prima riga = cosa è il pezzo, in modo concreto. Corpo breve (2-4 frasi). Chiusura con un invito concreto ("Scrivici, ti diciamo se è disponibile" oppure "Ti aspettiamo in via Cavour"), mai "te lo mettiamo da parte". Hashtag: i 3 fissi più i pertinenti (Scheda: 2, Reel: fino a 5). Si può citare il prezzo e il codice Rif. nei contenuti di prodotto. Contenuto con persona AI: ricordare "Info sull'AI".

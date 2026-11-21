@@ -8,4 +8,5 @@ Stato: sulla CLI di Higgsfield c'è come "Flux 2" e "Flux Kontext Max", ma solo 
 - In modifica non descrivere tutta la scena: scrivere comandi come "Change the blazer colour to #1D3557, remove reflections on the sapphire, maintain face and posture". [fonte: report 13/11]
 - Tende a scaldare i bianchi e l'argento: aggiungere "cool neutral daylight white balance". Su Flex e Kontext tenere la guidance tra 2.5 e 3.5. [fonte: report 13/11, nodi e community]
 - Mantiene i volti meno bene di altri modelli. [fonte: report 13/11]
+**Da verificare [dubbio]**: una ricerca del 19/11 propone "FLUX 3" per la foto delle borse strutturate; non è nel nostro catalogo.
 Per approfondire: `Learn Higgsfield/docs/Prompting Avanzato Gioielleria e Moda.md` (sezione 2), `costi_test.csv` (prova 1b).
