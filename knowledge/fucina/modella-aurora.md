@@ -30,4 +30,4 @@ Dal 18/11/2026 (sera) Aurora è la testimonial fissa del negozio: anche il fluss
 - Sguardo: GPT Image guarda sempre in camera, per pose spontanee Seedream 5.5. Lentiggini e pelle "illustrata" su GPT: scrivere "real photograph, authentic skin texture".
 - Etichetta AI: la norma europea sulle immagini sintetiche realistiche vale dal 2 agosto 2026 [dubbio: fonte un blog, da verificare con il consulente; vedi `docs/impegni-legali.md`].
 
-Per approfondire: `Learn Higgsfield/STATUS.md`, `HANDOFF.md`, `PIANO_DATASET_MODELLA.md`, `GENJUTSU_PROVE_E_RICETTA.md`.
+Per approfondire: `Learn Higgsfield/STATUS.md`, `docs/archivio/handoff/handoff-2026-11-20.md`, `PIANO_DATASET_MODELLA.md`, `GENJUTSU_PROVE_E_RICETTA.md`.
