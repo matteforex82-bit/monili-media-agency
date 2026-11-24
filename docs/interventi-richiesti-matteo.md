@@ -55,7 +55,7 @@ Riferimento: `docs/prd-fiscale.md`. Solo progettato; nulla installato né toccat
 - [ ] **32. Corrispettivi mensili:** ogni mese i totali lordi dei negozi 17 e 21 (modulo n8n con foto del documento); promemoria mensile con la data da scegliere.
 - [ ] **33. Decisione sugli strumenti** dopo la prova con dati finti: Metabase o Grafana per la dashboard, Paperless-ngx per l'archivio documentale (Fase 2).
 - [ ] **34. Backup fuori dalla VPS:** dove salvare le copie cifrate e chi controlla la prova di ripristino.
-- [ ] **35. Mettere in sicurezza la VPS prima dei dati reali (bloccante):** chiavi SSH al posto della password, niente accesso diretto di root, firewall che lascia entrare solo Tailscale, fail2ban, backup. Con tuo ok esplicito, l'AI prepara i comandi e li lancia con te a fianco, tenendo una seconda sessione aperta per non chiuderti fuori.
+- [ ] **35. Mettere in sicurezza la VPS prima dei dati reali (bloccante):** chiavi SSH al posto della password, niente accesso diretto di root, firewall che lascia entrare solo Tailscale, fail2ban, backup. Con tuo ok esplicito, l'AI prepara i comandi e li lancia con te a fianco, tenendo una seconda sessione aperta per non chiuderti fuori. **Piano passo per passo: `docs/piano-sicurezza-vps.md` (parti dal passo 0: console di emergenza del fornitore).**
 - [ ] **36. Verificare cosa può leggere Hermes sulla stessa macchina** (file, porte, permessi) e decidere se i dati fiscali stanno qui con un utente dedicato o su una macchina separata.
 
 ## Cosa fa l'AI quando sblocchi
