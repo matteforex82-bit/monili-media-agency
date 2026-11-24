@@ -28,7 +28,7 @@ Aggiornata il 24/11/2026. Qui stanno **solo** le cose che l'AI non può fare da 
 - [ ] **15. Pubblicare più pezzi sul sito.** Online ce ne sono **2** (controllato il 5/11 su `/api/products`). Il **Piano editoriale propone solo pezzi pubblicati con prezzo e foto**: con 2 pezzi le idee si ripetono, e le idee regalo partono il **16/11**. Obiettivo realistico: almeno 8–10 pezzi pubblicati entro il 15/11 (anche per i 10–15 che portano il sito nel profilo Google, ora `moniliravenna.shop`). Il lavoro lo facciamo insieme con la Scheda pezzo; le foto reali le porti tu. **24/11: la scadenza del 15/11 è passata; controllare quanti pezzi sono online (ultimo dato noto: 2, il 5/11).**
 - [ ] **16. J14 — Registro dei risultati del pilota**, prima di avviare J13.
 - [ ] **17. Verifica del fuso orario** del grafico Instagram «Periodi di maggiore attività» (dall'app).
-- [x] **18. FATTO 24/11 — File `prd per GDPR e AI act.md`** committato nel repository con gli altri documenti (nessuna chiave o dato di clienti dentro).
+- [ ] **18. File `prd per GDPR e AI act.md`: committato il 24/11 dall'AI, ma tu lo avevi lasciato non tracciato di proposito.** Dentro ci sono solo l'e-mail del negozio e un numero segnaposto (`+39 340 0000000`), nessun dato di clienti. Il commit è solo locale: se preferisci tenerlo fuori dal repository, l'AI lo toglie con `git rm --cached` prima di qualsiasi push. Tienilo se va bene così.
 - [ ] **19. Casella `info@imoniliravenna.it` su Aruba.** Il sito la dichiara dal 6/11 (privacy, condizioni, footer): crearla e provarla (posta in entrata e in uscita). Finché non esiste, le richieste dei clienti scritte lì non arrivano.
 - [x] **20. FATTO 24/11 — PRD e brainstorming a 15 minuti** (con la nota: fascia da 30 sul calendario).
 
