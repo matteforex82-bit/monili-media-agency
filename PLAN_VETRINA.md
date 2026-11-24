@@ -100,6 +100,30 @@ Tutto arriva come `draft`: niente va online senza un "Approva" in `/admin/review
 
 **Rischio tecnico da verificare**: le funzioni Vercel accettano body di **max ~4,5 MB**. Lo Studio può inviare fino a 8 foto in base64 da ~650 KB (~7 MB) → l'ingest fallirebbe proprio sui prodotti con più foto. Rimedio semplice: max 4 foto per invio in `api/server.py` (`selected_images[:4]`).
 
+### 2.1 Tag pietra nella Scheda pezzo (da realizzare, deciso il 17/11/2026)
+
+**A cosa serve.** La fascia a scorrimento della home (Argento, Ametista, Quarzo rosa, Citrino, Turchese, Opale, Smalti, Ricami, Cuoio) diventerà una serie di **tag cliccabili**: toccando una pietra si aprono tutti i pezzi online con quel tag. Oggi la fascia è solo decorativa.
+
+**Perché serve un campo nuovo.** `materials` è testo libero e viene estratto dall'analisi (`_extract_materials` in `api/server.py`, con parole come "argento 925", "pietra dura", "lino"): non dice *quale* pietra è. Un filtro per "ametista" non si può costruire da lì. Resta com'è, per la descrizione del pezzo.
+
+**Studio (questo repo)**
+- Nuovo campo `stoneTags` nella Scheda pezzo: lista di codici scelti **da chi pubblica**, con un menu a scelta multipla. Nessuna deduzione automatica dall'analisi AI (stessa regola della sede: la sceglie chi pubblica; sul sito vanno solo cose certe).
+- Vocabolario iniziale, uguale alla fascia: `argento`, `ametista`, `quarzo-rosa`, `citrino`, `turchese`, `opale`, `smalti`, `ricami`, `cuoio`. Si aggiunge una voce in un solo punto per lato; un test verifica che l'elenco dello Studio e quello del sito coincidano.
+- Il campo parte nella `product_fiche` inviata a `/api/ingest/internal-webapp`: `"stoneTags": ["ametista", "argento"]`. È facoltativo: assente o vuoto vale "nessun tag", come per le schede già online.
+- Nessun dato di clienti nel campo e nei prompt (regola di `docs/impegni-legali.md`).
+
+**Sito (`monili-vetrina`)**
+- `ProductFiche` ottiene `stoneTags?: string[]`. L'ingest scarta i codici fuori vocabolario e lo registra nel log eventi; archivio JSON e Postgres lo salvano (campo JSON, nessuna migrazione dei pezzi esistenti).
+- `/admin/review` mostra i tag e permette di correggerli prima di pubblicare.
+- Filtro nel feed «Appena arrivati» con l'indirizzo `/?pietra=ametista#appena-arrivati`, combinabile con il tipo (`tipo=`).
+- Nella fascia, una pietra è un link **solo se ha almeno un pezzo pubblicato e non venduto**; le altre restano ferme, così nessuno arriva a una pagina vuota. Nome accessibile del link: "Ametista, 2 pezzi".
+
+**Immagini delle pietre.** Oggi le pietre della fascia sono disegnate in CSS. Per mostrare pietre vere servono foto ritagliate fatte in negozio; se invece sono generate dall'AI vanno marcate `aiGenerated` (regola del sito).
+
+**Fatto quando:** un pezzo con `stoneTags: ["ametista"]` pubblicato dall'admin fa diventare cliccabile "Ametista" e il filtro mostra solo quel pezzo; un tag fuori vocabolario viene scartato e registrato; un pezzo senza tag non cambia nulla; test dello Studio e del sito passano.
+
+**Stato:** da realizzare. Non presentarlo come attivo finché non è online e provato. Dipende da: scelta di Matteo tra foto vere e immagini AI per le pietre.
+
 ---
 
 ## 3. Decisioni di architettura

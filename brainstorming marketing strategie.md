@@ -134,13 +134,13 @@ L'invito principale per tornare è **seguire Instagram**. Non è stata approvata
 - Consulenza **gratuita e senza obbligo d'acquisto**.
 - In italiano, dal negozio, mostrando i prodotti reali.
 - **Quattro appuntamenti settimanali in momenti separati**, non concentrati obbligatoriamente in un unico blocco o in due blocchi.
-- Circa **dieci minuti di videocall** e cinque minuti organizzativi per ciascun appuntamento: un'ora settimanale programmata. Il tempo effettivo di gestione va misurato.
+- Circa **quindici minuti di videocall** (la fascia sul calendario è di 30, per avere margine) e cinque minuti organizzativi per ciascun appuntamento: un'ora settimanale programmata. Il tempo effettivo di gestione va misurato.
 - La categoria e la preselezione determinano dove organizzarsi e quali prodotti preparare tra 17 e 21.
 - Non promettere la presenza contemporanea di ogni pezzo dei due negozi durante la call.
 
 ### 7.2 Prenotazione
 
-Usare **Calendly Free**, un solo tipo di appuntamento e un calendario collegato. Appuntamento pubblico di dieci minuti e preparazione riservata nel calendario di Matteo. Gli orari reali dei quattro momenti devono essere inseriti dall'operatore prima del lancio, secondo la sua presenza effettiva; fuso di riferimento Europe/Rome.
+Usare **Calendly Free**, un solo tipo di appuntamento e un calendario collegato. Appuntamento pubblico di quindici minuti (fascia da 30 sul calendario) e preparazione riservata nel calendario di Matteo. Gli orari reali dei quattro momenti devono essere inseriti dall'operatore prima del lancio, secondo la sua presenza effettiva; fuso di riferimento Europe/Rome.
 
 - Anticipo minimo: **tre ore**.
 - La cliente non deve creare un account Calendly.
@@ -293,15 +293,16 @@ La tabella descrive il lavoro richiesto e non attribuisce al sito funzioni non a
 | J03 | Idee regalo e presentazione della consulenza, con accessi anche fuori dall'hero | Sito vetrina | **Fatto e online**: `/idee-regalo` (fasce di prezzo) attiva; `/consulenza` risponde 404 finché non c'è il link reale |
 | J04 | CTA «Chiedi disponibilità», riferimenti prodotto, link centrali al 21 e contatto DM | Sito vetrina | **Fatto e online** (commit 2d3bab9): WhatsApp centrale ovunque, messaggio con titolo, link e sede, «Chiedi disponibilità su WhatsApp». Contatto DM non ricontrollato |
 | J05 | Accesso di Matteo al WhatsApp del 21 su telefono e PC; indicazioni coerenti dei recapiti | Account e dispositivi | Da provare da parte di Matteo (nel sito i recapiti sono già coerenti) |
-| J06 | Calendly Free: evento, quattro disponibilità reali, tre ore di anticipo, domande e link personali | Account Calendly | Checklist e impostazioni pronte in `docs/consulenza-calendly-setup.md`; **account da configurare e provare da Matteo** |
-| J07 | Collegamento esterno al calendario reale, senza widget automatico | Sito vetrina | Codice pronto e spento: basta la variabile Vercel `NEXT_PUBLIC_CONSULTATION_BOOKING_URL` (https Calendly) e un redeploy, **dopo J06** |
-| J08 | Testi pronti e registro privato di ordini, riserve, scadenze e promemoria | Operatività privata | Testi pronti in `docs/messaggi-ordine-pronti.md` (con colonne minime del registro). **Registro privato ancora da creare** |
+| J06 | Calendly Free: evento, quattro disponibilità reali, tre ore di anticipo, domande e link personali | Account Calendly | **Fatto** (6/11, aggiornato il 24/11): evento da 15 minuti con fascia da 30, telefonata (chiama il negozio su WhatsApp), domanda facoltativa, collegato al calendario del negozio. Provato con due prenotazioni di Matteo. Checklist in `docs/consulenza-calendly-setup.md` |
+| J07 | Collegamento esterno al calendario reale, senza widget automatico | Sito vetrina | **Fatto e online** (6/11; link sostituito il 24/11 con `…/consulenza-gratuita-in-videochiamata-15min`): `/consulenza` 200, privacy e cookie con il paragrafo, nessuno script di terzi (`scripts/verifica_consulenza.py` TUTTO OK) |
+| J08 | Testi pronti e registro privato di ordini, riserve, scadenze e promemoria | Operatività privata | Testi pronti in `docs/messaggi-ordine-pronti.md` (con colonne minime del registro). **Registro delle consulenze fatto il 24/11** (foglio Google + script, `back-office/`); **registro di riserve e buoni ancora da creare** |
 | J09 | Pagamento SumUp o bonifico, controllo, chiusura delle richieste e gestione tardivi | Account e procedura | Da collaudare sul servizio reale |
 | J10 | Procedura pacchetto, ritiro per sede, spedizione regalo e tracciamento | Negozi e consegne | Da provare con titolare e commesse |
 | J11 | Registro privato buoni e uso da telefono con saldo unico e storico | Strumento operativo privato | Da realizzare e collaudare prima dei buoni digitali |
 | J12 | Allineamento di FAQ, condizioni, privacy, guida operativa e istruzioni ai contenuti | Sito e documenti | **Parziale**: fatti FAQ, WhatsApp centrale, contatto di recesso, istruzioni ai contenuti, privacy/cookie con paragrafo Calendly condizionato al link. **Mancano le condizioni di vendita** per le promesse nuove (`docs/impegni-legali.md` §3bis) |
 | J13 | Due contenuti settimanali, Storie riusate in tre giorni, prezzi e riferimenti | Instagram | Cadenza e frase di chiusura allineate negli Studio e nelle skill; codice breve `M-XXXXX` fatto (4/11). Dal 4/11 lo Studio ha la pagina **Piano** (§17.1bis) che propone i due contenuti a settimana. **Produzione da avviare** (Matteo) |
 | J14 | Registro dei risultati e revisione del pilota | Operatività privata | Da predisporre e usare dal lancio |
+| J15 | Tag pietra nella Scheda pezzo: campo `stoneTags` scelto nello Studio, inviato al sito, fascia pietre cliccabile e filtro nel feed | Studio e sito vetrina | **Da realizzare** (deciso il 17/11/2026): specifica in `PLAN_VETRINA.md` §2.1. La fascia oggi è decorativa |
 
 ## 13. Criteri di accettazione e pilota
 
