@@ -133,6 +133,53 @@ export default function PublishHub({ apiUrl, reelIds, photos, texts, siteState, 
   const [reels, setReels] = useState<ReelData[]>([]);
   const [loadingReels, setLoadingReels] = useState(reelIds.length > 0);
   const [platform, setPlatform] = useState<PlatformId>('reel');
+  const [googlePhoto, setGooglePhoto] = useState('');
+  const [googleText, setGoogleText] = useState(texts.gmb);
+  const [googleInfo, setGoogleInfo] = useState<{product_url: string | null; creatives?: string[]; creative_details?: Record<string, {label: string}>; zernio_configured: boolean; account_configured: boolean} | null>(null);
+  const [creativeStyle, setCreativeStyle] = useState("personalizzato");
+  const [creativeProvider, setCreativeProvider] = useState("chatgpt");
+  const [flowModel, setFlowModel] = useState("nano2");
+  const [creativeSource, setCreativeSource] = useState("");
+  const [creativePrompt, setCreativePrompt] = useState("");
+  const [creativeFormat, setCreativeFormat] = useState("auto");
+  const [creativeBusy, setCreativeBusy] = useState(false);
+  const [creativeMessage, setCreativeMessage] = useState("");
+  const [creativeZoom, setCreativeZoom] = useState(false);
+  const [creativeRemoving, setCreativeRemoving] = useState(false);
+  useEffect(() => {
+    if (!creativeZoom) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setCreativeZoom(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [creativeZoom]);
+  const [googleMessage, setGoogleMessage] = useState('');
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [googleWriting, setGoogleWriting] = useState(false);
+  const [googleAttempted, setGoogleAttempted] = useState(false);
+  const generateGoogleText = async (replace = false) => {
+    if (!runId) return;
+    setGoogleWriting(true); setGoogleMessage('');
+    try {
+      const response = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId)}/google/generate-text`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Generazione non riuscita.');
+      setGoogleText(current => replace || !current.trim() ? data.text : current);
+    } catch (error) { setGoogleMessage(error instanceof Error ? error.message : 'Generazione non riuscita.'); }
+    finally { setGoogleWriting(false); }
+  };
+  useEffect(() => {
+    if (platform === 'google' && runId && !googleText.trim() && !googleAttempted) {
+      setGoogleAttempted(true); void generateGoogleText();
+    }
+    // Generate only once on opening an empty post; further attempts are manual.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platform, runId, googleAttempted]);
+  useEffect(() => { setGoogleText(texts.gmb); }, [texts.gmb, runId]);
+  useEffect(() => { setGooglePhoto(photos[0]?.src || ''); setCreativeSource(photos[0]?.src || ''); }, [runId, photos[0]?.src]);
+  useEffect(() => {
+    if (!runId || platform !== 'google') return;
+    fetch(`${apiUrl}/missions/${encodeURIComponent(runId)}/google/info`).then(r => r.json()).then(setGoogleInfo).catch(() => setGoogleMessage('Impossibile verificare la scheda.'));
+  }, [apiUrl, runId, platform]);
 
   const idsKey = reelIds.join('|');
   useEffect(() => {
@@ -321,15 +368,75 @@ export default function PublishHub({ apiUrl, reelIds, photos, texts, siteState, 
         <div className="pub-panel">
           <div className="pub-grid">
             <div className="pub-media">
-              {cover && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className="pub-single" src={url(cover.src)} alt={cover.label} />
-              )}
-              <p className="pub-meta">Su Google Business: Aggiornamenti → Aggiungi post, con questa foto.</p>
+              {googlePhoto && runId && <button type="button" className="google-zoom-trigger" onClick={() => setCreativeZoom(true)} aria-label="Ingrandisci foto"><img className="pub-single google-preview" src={`${apiUrl}/missions/${encodeURIComponent(runId)}/google/prepare?photo=${encodeURIComponent(googlePhoto)}`} alt="Anteprima della foto nel formato Google Business 4:3" /><span>Ingrandisci foto</span></button>}
+              {creativeZoom && googlePhoto && <div className="google-lightbox" role="dialog" aria-modal="true" aria-label="Foto ingrandita" onClick={() => setCreativeZoom(false)}><button className="google-lightbox-close" type="button" onClick={() => setCreativeZoom(false)} aria-label="Chiudi anteprima">Chiudi ×</button><img src={url(googlePhoto)} alt="Foto ingrandita in formato originale" onClick={e => e.stopPropagation()} /></div>}
+              <label htmlFor="google-photo">Foto del pezzo</label>
+              <select id="google-photo" value={googlePhoto} onChange={e => setGooglePhoto(e.target.value)}>
+                {photos.map(photo => <option key={photo.src} value={photo.src}>{photo.label}</option>)}
+                {(googleInfo?.creatives || []).map((src, index) => <option key={src} value={src}>{googleInfo?.creative_details?.[src]?.label || "Generatore sconosciuto"} · {index + 1}</option>)}
+              </select>
+              {googleInfo?.creatives?.includes(googlePhoto) && <div><p className="pub-meta"><a href={url(googlePhoto)} target="_blank" rel="noreferrer" download>Apri o scarica l’originale</a></p><button type="button" className="btn-secondary" disabled={creativeRemoving || creativeBusy} onClick={async () => {
+                setCreativeRemoving(true); setCreativeMessage('');
+                try {
+                  const response = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId || '')}/google/creative/remove`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({photo:googlePhoto})});
+                  const data = await response.json();
+                  if (!response.ok) throw new Error(data.error || 'Rimozione non riuscita.');
+                  setGoogleInfo(current => current ? {...current, creatives:data.creatives, creative_details:data.creative_details} : current);
+                  setGooglePhoto(photos[0]?.src || ''); setCreativeMessage('Creativa rimossa.');
+                } catch (error) { setCreativeMessage(error instanceof Error ? error.message : 'Rimozione non riuscita.'); }
+                finally { setCreativeRemoving(false); }
+              }}>{creativeRemoving ? 'Rimuovo…' : 'Elimina questa creativa'}</button></div>}
+              <p className="pub-meta">Questa anteprima mostra il formato Google Business 4:3. Per una Storia, apri o scarica l’immagine originale.</p>
+              <div className="google-create">
+                <h3>Crea una foto con AI</h3>
+                <p className="pub-meta">Parti da una foto della scheda: la creativa viene salvata qui.</p>
+                <label htmlFor="creative-provider">Generatore</label>
+                <select id="creative-provider" value={creativeProvider} onChange={e => setCreativeProvider(e.target.value)}><option value="chatgpt">ChatGPT · Codex</option><option value="flow">Google Flow · Nano Banana</option></select>
+                {creativeProvider === 'flow' ? <><label htmlFor="flow-model">Modello Google Flow</label><select id="flow-model" value={flowModel} onChange={e => setFlowModel(e.target.value)}><option value="nano2">Nano Banana 2</option><option value="nano-pro">Nano Banana Pro</option><option value="nano2-lite">Nano Banana 2 Lite</option></select><p className="pub-meta">Usa l’account Google collegato a Flow; disponibilità e quota dipendono dal tuo account.</p></> : <p className="pub-meta">Usa l’accesso Codex collegato, nei limiti del piano.</p>}
+                <label htmlFor="creative-source">Foto di riferimento</label>
+                <select id="creative-source" value={creativeSource} onChange={e => setCreativeSource(e.target.value)}>{photos.map(photo => <option key={photo.src} value={photo.src}>{photo.label}</option>)}</select>
+                <label htmlFor="creative-style">Stile della foto</label>
+                <select id="creative-style" value={creativeStyle} onChange={e => setCreativeStyle(e.target.value)}>
+                  <option value="personalizzato">Prompt libero</option><option value="catalogo">Catalogo luminoso</option><option value="editoriale">Editoriale moda</option><option value="lifestyle">Lifestyle naturale</option><option value="dettaglio">Dettaglio prodotto</option>
+                </select>
+                <label htmlFor="creative-format">Formato della creativa</label>
+                <select id="creative-format" value={creativeFormat} onChange={e => setCreativeFormat(e.target.value)}>
+                  <option value="auto">Automatico dal prompt</option><option value="google">Google Business · 4:3</option><option value="story">Storia Instagram · 9:16</option>
+                </select>
+                <label htmlFor="creative-prompt">Il tuo prompt {creativeStyle === 'personalizzato' ? '' : '(facoltativo)'}</label>
+                <textarea id="creative-prompt" rows={5} maxLength={4000} value={creativePrompt} onChange={e => setCreativePrompt(e.target.value)} placeholder="Descrivi ambientazione, luce, inquadratura e atmosfera…" />
+                <p className="pub-meta">{creativeStyle === 'personalizzato' ? 'La foto seguirà le tue indicazioni.' : 'Le indicazioni si aggiungono allo stile scelto.'} </p>
+                <button type="button" className="btn-secondary" disabled={creativeBusy || !creativeSource || (creativeStyle === 'personalizzato' && !creativePrompt.trim())} onClick={async () => {
+                  setCreativeBusy(true); setCreativeMessage('Creo la foto: possono volerci alcuni minuti…');
+                  try {
+                    const response = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId || '')}/google/creative`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({photo:creativeSource, style:creativeStyle, prompt:creativePrompt, format:creativeFormat, provider:creativeProvider, flow_model:flowModel})});
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Generazione non riuscita.');
+                    setGoogleInfo(current => current ? {...current, creatives:data.creatives, creative_details:data.creative_details} : current); setGooglePhoto(data.photo);
+                    setCreativeMessage('Creativa pronta.');
+                  } catch (error) { setCreativeMessage(error instanceof Error ? error.message : 'Generazione non riuscita.'); }
+                  finally { setCreativeBusy(false); }
+                }}>{creativeBusy ? 'Creo la foto…' : creativeProvider === 'flow' ? 'Genera creativa con Google Flow' : 'Genera creativa con ChatGPT'}</button>
+                <p className="pub-meta" aria-live="polite">{creativeMessage}</p>
+              </div>
             </div>
             <div className="pub-texts">
-              <Block title="Testo per Google Business" text={texts.gmb} />
-              {texts.tripadvisor && <Block title="Tripadvisor" text={texts.tripadvisor} />}
+              <label htmlFor="google-text">Testo per Google Business</label>
+              <button type="button" className="btn-secondary" disabled={googleWriting} onClick={() => { if (!googleText.trim() || window.confirm("Sostituire il testo attuale con una nuova proposta?")) void generateGoogleText(true); }}>{googleWriting ? "Scrivo il testo…" : googleText.trim() ? "Riscrivi il testo con AI" : "Genera il testo con AI"}</button>
+              <textarea id="google-text" rows={8} maxLength={1500} value={googleText} onChange={e => setGoogleText(e.target.value)} />
+              <p className="pub-meta">{googleText.length}/1500 caratteri · Controlla materiali, prezzo e disponibilità prima dell’invio. Il link sarà nel pulsante del post.</p>
+              <div className="pub-block"><h3>Pulsante nel post Google</h3><strong>Scopri di più</strong>{googleInfo?.product_url ? <p className="pub-meta">Destinazione: <a href={googleInfo.product_url} target="_blank" rel="noreferrer">apri la scheda prodotto</a>. Il pulsante viene aggiunto alla bozza Zernio.</p> : <p className="pub-meta">Pubblica prima la scheda sul sito: il pulsante porterà alla pagina del prodotto.</p>}</div>
+              {googleInfo && (!googleInfo.zernio_configured || !googleInfo.account_configured) && <p className="pub-meta">Per inviare la bozza serve configurare Zernio nello Studio.</p>}
+              <button className="btn-mission" type="button" disabled={googleBusy || !googleText.trim() || !googlePhoto || !googleInfo?.product_url || !googleInfo.zernio_configured || !googleInfo.account_configured} onClick={async () => {
+                setGoogleBusy(true); setGoogleMessage('');
+                try {
+                  const response = await fetch(`${apiUrl}/missions/${encodeURIComponent(runId || '')}/google/draft`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({photo: googlePhoto, content: googleText})});
+                  const data = await response.json();
+                  setGoogleMessage(response.ok ? 'Bozza inviata a Zernio. Non è ancora pubblicata su Google.' : (data.error || 'Invio non riuscito.'));
+                } catch { setGoogleMessage('Connessione interrotta. Controlla le bozze su Zernio prima di riprovare.'); }
+                finally { setGoogleBusy(false); }
+              }}>{googleBusy ? 'Invio in corso…' : 'Invia la bozza a Zernio'}</button>
+              <p aria-live="polite">{googleMessage}</p>
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ Per ogni tipo: come si fa la foto indossata e cosa scrivere nel prompt (in ingle
 Solo il dito con l'anello e le nocche vicine, la mano tagliata a metà, mai mano intera né braccio [verificato: scelta di Matteo 07/11]. L'anello occupa almeno un terzo della larghezza, sfondo bello ma sfocato. Prompt: "tight macro on the ring finger, hand cropped at mid-palm, relaxed fingers, natural nails, 100mm macro, shallow depth of field". Ancorare la scala: "the stone covers about half the width of the finger". [fonte]
 
 ## orecchini
-Profilo o tre quarti, capelli dietro l'orecchio, inquadratura da tempia a spalla; il pezzo nitido e grande nel quadro [verificato: scelta del negozio]. Prompt: "three-quarter profile, hair tucked behind the ear, the earring hangs freely with its true length, 85mm, sharp focus on the earring". Indicare la lunghezza: "the drop reaches just below the jawline". [ipotesi]
+Profilo o tre quarti, capelli dietro l'orecchio, inquadratura stretta su orecchio, guancia, mascella e collo; il viso non si vede mai intero: l'inquadratura taglia a metà guancia o all'altezza degli occhi, mai la faccia piena, mai due occhi in camera; il pezzo nitido e grande nel quadro [scelta di Matteo 21/11]. Prompt: "three-quarter profile, hair tucked behind the ear, the earring hangs freely with its true length, 85mm, sharp focus on the earring". Indicare la lunghezza: "the drop reaches just below the jawline". [ipotesi]
 
 ## collana
 Collo e scollatura, dal mento a metà petto, scollo semplice che non copre il pezzo. Prompt: "framed from chin to mid-chest, open neckline, the pendant rests at the centre of the chest, chain lies flat on the skin". Mai mani sul collo. [fonte]

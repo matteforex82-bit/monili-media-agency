@@ -694,3 +694,19 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 /* Valutare: foto standard in attesa di essere caricate */
 .lab-slot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; min-height: 56px; }
 .lab-slot .lab-upload { min-height: 44px; padding: 0 16px; }
+
+.google-preview { aspect-ratio: 4 / 3; object-fit: contain; }
+.pub-media select, .pub-texts textarea { width: 100%; padding: 10px; font: inherit; }
+.pub-media label, .pub-texts label { display: block; font-weight: 600; margin: 10px 0 5px; }
+
+.google-create { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--bot-ink-2); }
+.google-create h3 { font-size: 17px; margin: 0 0 8px; }
+.google-create button { margin-top: 12px; width: 100%; }
+
+.google-create textarea { width: 100%; padding: 10px; font: inherit; }
+
+.google-zoom-trigger { width: 100%; border: 0; padding: 0; background: transparent; cursor: zoom-in; text-align: left; }
+.google-zoom-trigger span { display: block; margin-top: 4px; font-size: 13px; text-decoration: underline; }
+.google-lightbox { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.88); padding: 64px 20px 20px; }
+.google-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.google-lightbox-close { position: absolute; top: 15px; right: 20px; padding: 10px 16px; border: 0; border-radius: 8px; background: white; color: #111; cursor: pointer; }

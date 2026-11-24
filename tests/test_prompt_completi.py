@@ -335,3 +335,36 @@ def test_the_studio_remembers_a_prompt_job_that_is_running_and_how_it_ended():
     assert state["running"] == "" and "chiave non valida" in state["failed"]
     assert server._lab_begin(draft, "analisi") is True and server._lab_public(draft, None)["failed"] == ""
     server._lab_guarded(draft, lambda: None)
+
+
+def test_the_studio_photo_is_the_product_alone_on_white_with_no_pedestal():
+    import categorie
+    import main
+
+    art_director = "Rest the ring on a low matte warm-ivory stone pedestal in a three-quarter view"
+    for subtype in ("anello", "borsa", "capo", ""):
+        text = main.controlled_site_prompt(art_director, "clean", woman="Aurora", never="NEVER SHOW: x", subtype=subtype)
+        assert categorie.CLEAN_STUDIO_RULE in text and "NO pedestal" in text and "plain seamless white" in text
+        assert text.index(categorie.CLEAN_STUDIO_RULE) > text.index("pedestal in a three-quarter view")  # the rule comes last: it wins
+        assert "Aurora" not in text and "NEVER SHOW: x" in text and "source-of-truth" in text
+    assert categorie.CLEAN_STUDIO_RULE not in main.controlled_site_prompt("worn on the hand", "worn", subtype="orecchini")
+    assert "no pedestal" in main.scheda_plan_defaults()["site_prompts"]["clean"]
+
+
+def test_a_garment_can_have_only_the_studio_and_one_worn_prompt(monkeypatch, tmp_path):
+    monkeypatch.setattr(prompt_lab, "LIBRARY_FILE", tmp_path / "prompt_lab.json")
+    monkeypatch.setattr(prompt_lab, "RULES_FILE", tmp_path / "regole_fucina.json")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.setattr(main, "agent_analisi", lambda *a, **k: "## IDENTIFICAZIONE\n- Categoria esatta: cardigan")
+    monkeypatch.setattr(
+        main,
+        "agent_scheda_plan",
+        lambda *a, **k: {"styling": "s", "woman": "w", "site_prompts": {"clean": "c", "worn": "w", "worn_2": "w2"}},
+    )
+    buffer = io.BytesIO()
+    Image.new("RGB", (600, 800), (90, 90, 90)).save(buffer, "JPEG")
+    draft = client.post("/bozze", files=[("foto", ("a.jpg", buffer.getvalue(), "image/jpeg"))], data={"nota": "cardigan grigio 42 euro"}).json()
+    both = client.post(f"/bozze/{draft['id']}/prompt", json={"model": "Seedream", "subtype": "capo", "cut": "sopra"}).json()["lab"]
+    assert set(both["prompts"]) == {"clean", "worn", "worn_2"}
+    one = client.post(f"/bozze/{draft['id']}/prompt", json={"model": "Seedream", "subtype": "capo", "cut": "sopra", "single_worn": True}).json()["lab"]
+    assert set(one["prompts"]) == {"clean", "worn"}

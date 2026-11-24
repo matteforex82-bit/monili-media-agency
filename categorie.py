@@ -101,6 +101,15 @@ SUBTYPES = {
 
 # Pieces worn on a hand, wrist or ankle: the worn photo shows only that part, never a face. No woman is described
 # and Aurora's reference photos are not sent (they would only pull a face into the frame).
+# The studio (catalog) photo: the piece alone, nothing to rest it on. Without this the art director invents a stone
+# pedestal or a cube ("matte warm ivory stone" in the prompt knowledge) and the photo no longer matches the cut-outs.
+CLEAN_STUDIO_RULE = (
+    "STUDIO PHOTO, the product ALONE: plain seamless white background (a very light warm white, about RGB 250,247,240, the same as the "
+    "site's cut-out photos), with nothing under or around the product. NO pedestal, plinth, cube, block, podium, stone, step, tray, "
+    "display stand, bust, hanger, plants, flowers, fabric, props, hands or people. The product is shown complete, centred, floating "
+    "or lying flat, with only a soft natural contact shadow, soft even studio light and generous clean margins."
+)
+
 FACELESS_TYPES = ("anello", "bracciale", "cavigliera")
 
 

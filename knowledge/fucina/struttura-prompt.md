@@ -5,7 +5,7 @@ Etichette: [fonte: ricerca A 19/11] = dai test e dalle guide, non ancora provato
 1. Intento e soggetto, con il ruolo di ogni riferimento: "Real commercial macro photograph of the exact ring from Image 1" / "@Aurora wearing the piece from Image 2".
 2. Il pezzo da non cambiare (Product Lock): forma, numero di pietre, griffe, bottoni, taglio, colore vero, finitura del metallo, rilievo del ricamo, cuciture, fibbie. Misure in mm o cm dove le hai.
 3. Posa, contatto e scala: dove sta sul corpo (anulare, lobo, cm sotto le clavicole, sull'anca), ombra di contatto, niente che copra il pezzo.
-4. Scena e sfondo, in positivo: "matte warm ivory stone, pale cream seamless backdrop", mai lasciare vuoti da riempire.
+4. Scena e sfondo, in positivo: "matte warm ivory stone, pale cream seamless backdrop", mai lasciare vuoti da riempire. Vale per le foto indossate e di scena; la foto studio (catalogo) ha il prodotto solo su fondo bianco uniforme, senza piedistallo, cubo, pietra o supporti.
 5. Luce e materiali, scritti separati: sorgente e direzione ("soft light from camera-left"), poi finitura del metallo, smalto, grana del tessuto o della pelle.
 6. Inquadratura, ottica e chiusura: il taglio ("cropped just below the knuckles", volto almeno il 25% del quadro), 85mm o macro 2:1, "keep unchanged", e una sola frase corta di esclusioni concrete ("no hang tags, no logos, no text").
 Fuori dal prompt, nei controlli di Higgsfield: formato (1:1, 3:4, 4:5), risoluzione, qualità, Complexity o Thinking, sfondo opaco o trasparente. Scriverli nel testo non serve.

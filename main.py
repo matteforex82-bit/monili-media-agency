@@ -478,8 +478,8 @@ def scheda_plan_defaults() -> dict:
         "woman": "",
         "site_prompts": {
             "clean": (
-                "Clean premium catalog photo of the product, centered on a warm ivory background, "
-                "soft natural light, generous negative space, no model."
+                "Clean studio photo of the product alone, centered on a plain seamless white background, "
+                "soft even light, generous clean margins, no pedestal, no stand, no props, no model."
             ),
             "worn": (
                 "The product worn naturally by the woman described below, warm natural boutique light, "
@@ -568,12 +568,13 @@ JSON esatto:
   "styling": "2-3 frasi in italiano: come si indossa e con cosa abbinarlo",
   "woman": "in inglese, 1-2 frasi: eta, corporatura, viso, capelli e stile della donna che inventi per questo pezzo",
   "site_prompts": {{
-    "clean": "prompt in inglese: clean product catalog photo, warm ivory background, no model, product centered, generous negative space",
+    "clean": "prompt in inglese: studio photo of the product alone on a plain seamless white background, no model, no pedestal, no stand, no props, product centered, generous clean margins",
     "worn": "{worn_hint}"{worn_2_field}
   }}
 }}
 
 Regole per i prompt:
+- Nel prompt "clean" il prodotto sta SOLO su fondo bianco uniforme: mai piedistallo, cubo, podio, pietra, supporto, piante o altri oggetti (il punto 4 della struttura vale solo per la foto indossata).
 - Nel prompt "worn" sii creativo su luogo e posa, ma la donna descrivila solo nel campo "woman": lo Studio la aggiunge al prompt.
 - La foto caricata e la fonte di verita: forma, colore, materiale, proporzioni, pietre e dettagli identici.
 - Fotorealistico, pulito, nitido, composizione sicura per card 4:5.
@@ -664,6 +665,15 @@ def controlled_site_prompt(
     import categorie
 
     prompt = str(prompt).strip()
+    if key == "clean":
+        return f"""{prompt}
+{categorie.CLEAN_STUDIO_RULE}
+
+Use the uploaded reference photo as source-of-truth for the product.
+Preserve exact product shape, color, material, proportions, stones and distinctive details.
+Create a single website-ready product photograph, composed safely for 4:5 product cards.
+No text, no logos, no watermark, no phone screens, no fake UI.
+{never}""".strip()
     if key.startswith("worn") and categorie.is_faceless(subtype):
         # ring, bracelet, anklet: only the part of the body, no woman and no face reference at all
         return f"""{prompt}
@@ -936,7 +946,7 @@ JSON esatto:
   "seo_description": "max 155 caratteri, cosa e, materiali certi, dove si trova a Ravenna",
   "whatsapp_share": "messaggio breve da mandare insieme al link del pezzo, chiude con 'ti diciamo se è disponibile'",
   "gmb_title": "titolo post Google Business",
-  "gmb_text": "testo post Google Business, max 80 parole, con via Cavour e Ravenna",
+  "gmb_text": "aggiornamento Google Business: 40-80 parole, apri con prodotto e dettaglio certo, descrivilo con precisione e invita a scoprirne la scheda; tono naturale, senza hashtag, link o contatti. Non inventare materiali, disponibilità o offerte",
   "tripadvisor_text": "descrizione per Tripadvisor, max 70 parole, per chi visita Ravenna",
   "caption": "una caption breve per la storia che rimanda al pezzo, max 2 emoji",
   "hashtags": ["max 2 hashtag specifici del pezzo, i 3 fissi li aggiungo io"],

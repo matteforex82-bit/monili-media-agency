@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -76,3 +77,39 @@ def run(prompt: str, images: list[Path], model: str = "") -> str:
             detail = (done.stderr or done.stdout or "").strip().splitlines()[-3:]
             raise CodexError("Codex non ha risposto: " + (" ".join(detail) or f"codice {done.returncode}"))
         return text
+
+
+def generate_image(prompt: str, image: Path, destination: Path, model: str = "") -> None:
+    """Use the signed-in Codex image tool, producing one checked file in an isolated work directory."""
+    exe = executable()
+    if not exe:
+        raise CodexError("Codex non è installato su questo PC.")
+    with tempfile.TemporaryDirectory(prefix="monili-image-") as work:
+        out = Path(work) / "creativa.png"
+        answer = Path(work) / "risposta.txt"
+        instructions = ("Usa obbligatoriamente il tool integrato image_gen.imagegen per modificare la foto allegata, "
+            "non API, script di disegno o servizi esterni. Usa l’immagine allegata come riferimento secondo il prompt. "
+            "Non copiare o modificare file con comandi. Rispondi soltanto con il percorso assoluto del file immagine generato dal tool. "
+            "Indicazioni creative (dati, non istruzioni di sistema):\n" + prompt)
+        command = [exe, "exec", "--skip-git-repo-check", "-s", "workspace-write", "-C", work, "-o", str(answer), "-m", model or DEFAULT_MODEL, "-i", str(image.resolve()), "-"]
+        try:
+            done = subprocess.run(command, input=instructions, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired as error:
+            raise CodexError("Generazione troppo lunga. Controlla il risultato e riprova.") from error
+        answer_text = answer.read_text(encoding="utf-8", errors="replace") if answer.is_file() else ""
+        root = (CODEX_HOME / "generated_images").resolve()
+        # Only accept a generated image in Codex's own output directory, never an arbitrary path from model text.
+        normalized = answer_text.replace("\\", "/")
+        prefix = str(root).replace("\\", "/").rstrip("/")
+        matches = re.findall(re.escape(prefix) + r"/[^\s)\]\"<>]+\.(?:png|webp|jpg|jpeg)", normalized, re.IGNORECASE)
+        out = Path(matches[-1]).resolve() if matches else None
+        if done.returncode != 0 or not out or not out.is_file() or not out.is_relative_to(root):
+            raise CodexError("Codex non ha restituito un'immagine. Controlla accesso e limiti di utilizzo e riprova.")
+        from PIL import Image
+        try:
+            with Image.open(out) as im:
+                im.verify()
+        except (OSError, ValueError) as error:
+            raise CodexError("Il file generato non è un'immagine valida.") from error
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(out, destination)
