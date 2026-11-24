@@ -41,3 +41,9 @@ Aggiornata il 6/11/2026. Qui stanno **solo** le cose che l'AI non può fare da s
 | Elenco foto reali/IA (voce 9) | Marcatura `aiGenerated` sui 2 pezzi, ricontrollo online |
 | Piano Vercel deciso (voce 4) | Aggiornamento di privacy/documenti e verifica ambiente |
 | Pezzi inviati al sito (voce 15) | Verifica che il Piano li veda e rifaccia le proposte |
+
+## Aggiornamento 24/11/2026 (back-office consulenze)
+- Il link Calendly del sito è stato **sostituito** con `https://calendly.com/moniliravenna/consulenza-gratuita-in-videochiamata-15min` (Vercel Production + redeploy; verifica online TUTTO OK). Voce 2/3: il vecchio link `…/15min` non è più in uso.
+- Voce 5 (registro privato): per le **consulenze** il registro è il foglio Google «Appuntamenti Consulenza 2026» sull'account del negozio, alimentato da uno script (`back-office/README.md`). Riserve e buoni restano da fare (PRD `docs/prd-back-office.md`).
+- Voce 8 (conservazione un mese): lo script cancella riga del foglio ed evento del Calendario. **Resta da cancellare la prenotazione su Calendly** (verificare il piano Free o farlo a mano) e **aggiornare `/privacy`** con il passaggio nel foglio e nel Calendario.
+- Per Matteo: condividere il calendario del negozio con Mirca e con il telefono del negozio e attivare le notifiche a 2 ore e 1 ora; provare WhatsApp del 21 (J05).

@@ -56,3 +56,9 @@ Segnati l'appuntamento nel registro privato (scadenze e promemoria), mai nello S
 (Nessun riepilogo né sollecito commerciale dopo una consulenza conclusa senza acquisto: PRD §7.3.)
 
 Se la cliente decide di acquistare si passa al riepilogo del modello B di `docs/impegni-legali.md`, **dopo la verifica del pezzo in negozio** (PRD §8).
+
+## Aggiornamento 24/11/2026
+- **Link attuale:** `https://calendly.com/moniliravenna/consulenza-gratuita-in-videochiamata-15min` (sostituisce `…/15min`, già cambiato su Vercel e online).
+- **Durata:** pubblica 15 minuti, ma la fascia sul calendario è di 30 per lasciare margine (la cliente nella conferma vede la fascia da 30). **Chi chiama:** il negozio, su WhatsApp, al numero lasciato dalla cliente (tipo «telefonata»).
+- Domanda facoltativa: «Per favore, condividi tutto ciò che può essere utile per preparare il nostro incontro.» — la risposta arriva nella descrizione dell'evento del Calendario.
+- Archivio e avvisi: foglio «Appuntamenti Consulenza 2026» alimentato dallo script in `back-office/` (vedi `back-office/README.md`). Promemoria a 2 ore e 1 ora.
