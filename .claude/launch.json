@@ -4,20 +4,51 @@
     {
       "name": "studio-backend",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "uvicorn", "api.server:app", "--host", "127.0.0.1", "--port", "8000"],
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "api.server:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
       "port": 8000
     },
     {
       "name": "studio-frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "dev:local"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev:local"
+      ],
       "port": 3000
     },
     {
       "name": "vetrina-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "../Ecosistema Monili/apps/web", "run", "dev", "--", "-p", "3100"],
+      "runtimeArgs": [
+        "--prefix",
+        "../Ecosistema Monili/apps/web",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3100"
+      ],
       "port": 3100
+    },
+    {
+      "name": "vetrina-consulenza",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-Command",
+        "$env:NEXT_PUBLIC_CONSULTATION_BOOKING_URL='https://calendly.com/moniliravenna/consulenza-gratuita-in-videochiamata-15min'; npm --prefix '../Ecosistema Monili/apps/web' run dev -- -p 3101"
+      ],
+      "port": 3101
     }
   ]
 }
