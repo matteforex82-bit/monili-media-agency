@@ -44,6 +44,18 @@ Riferimento: `docs/prd-back-office.md` e `back-office/README.md`. Il modulo cons
 - [ ] **26. Avvisi WhatsApp automatici allo staff:** non attivi (API Business, a pagamento). Per ora basta la notifica del Calendario; decidi dopo un paio di settimane se serve di più.
 - [ ] **27. Buoni con scadenza e promemoria** (J11): dopo il parere fiscale della voce 13. Poi l'AI costruisce fogli «Buoni» e «Movimenti» e il promemoria WhatsApp semi-manuale (link `wa.me` già compilato, invio da una persona). Non annunciare i buoni prima.
 
+## Back-office fiscale (aperto il 24/11/2026)
+
+Riferimento: `docs/prd-fiscale.md`. Solo progettato; nulla installato né toccato sulla VPS.
+
+- [ ] **28. Domande al commercialista:** termine esatto («entro tot giorni») per inviare le fatture estere e indirizzo/formato preferito; regime IVA (liquidazione mensile o trimestrale); elenco delle scadenze dell'anno; cosa serve rispondere per le comunicazioni IVA; percentuale di accantonamento consigliata; **riepiloghi IVA e corrispettivi del 2025** per calcolare il rapporto di partenza.
+- [ ] **29. Conti e report:** quali conti (Mirca, negozio 21, altri), formato CSV esportabile dalla banca, ogni quanto li scarichi. Non incollare estratti conto in chat o nel repository.
+- [ ] **30. Controllo della VPS in sola lettura** (con tuo ok esplicito): sistema, RAM e disco, Postgres e Docker presenti o no, come si comanda n8n, backup, configurazione Tailscale. Poi la prova di Metabase e del modulo n8n **con dati finti**.
+- [ ] **31. Casella per l'invio al commercialista:** `info@imoniliravenna.it` su Aruba (voce 19) o un altro SMTP; destinatari fissi.
+- [ ] **32. Corrispettivi mensili:** ogni mese i totali lordi dei negozi 17 e 21 (modulo n8n con foto del documento); promemoria mensile con la data da scegliere.
+- [ ] **33. Decisione sugli strumenti** dopo la prova con dati finti: Metabase o Grafana per la dashboard, Paperless-ngx per l'archivio documentale (Fase 2).
+- [ ] **34. Backup fuori dalla VPS:** dove salvare le copie cifrate e chi controlla la prova di ripristino.
+
 ## Cosa fa l'AI quando sblocchi
 
 | Sblocco | Azione AI |
