@@ -13,7 +13,11 @@ Stato: **solo piano. Nessun comando è stato eseguito per applicarlo.** Riguarda
 2. Verificare che Tailscale su PC e iPhone sia attivo (già visibile oggi) e che l'iPhone entri in SSH almeno una volta con un client (facoltativo ma utile come seconda via).
 3. Decidere il **nome dell'utente di amministrazione** al posto di `root` (esempio: `matteo`).
 
+## Esito del passo 0 (24/11/2026)
+Il pannello del fornitore (sembra Contabo, istanza `vmi3431404`, Cloud VPS 10, regione UE, 173.212.242.57) ha: **VNC Control** (console di emergenza), **Rescue System**, **Manage Firewall** (firewall del fornitore, un'ulteriore difesa dall'esterno), **Manage Snapshots** (copia dell'intero disco). **Da non toccare:** Reinstall e Reset credentials. Da fare ancora: aprire VNC Control una volta per vedere che funzioni; **creare uno snapshot prima del passo 2** (controllando numero massimo e costo nel pannello); ricordare la password di root per la console, che non dipende da SSH.
+
 ## Passo 1 — Lettura: stato attuale (nessuna modifica)
+Script: `back-office/vps/passo1-lettura-accessi.sh`, lanciato da Matteo come il precedente.
 Con l'ok di Matteo: controllare chiavi già autorizzate (`authorized_keys`: solo conteggio e impronte), impostazioni effettive di SSH (`sshd -T`, inclusi i file in `sshd_config.d/`, perché `cloud-init` può forzare la password), utenti con shell, appartenenza al gruppo `docker`, regole di rete attive. **Esito atteso:** sapere se la chiave `id_ed25519` del PC è già autorizzata e chi altro può entrare.
 
 ## Passo 2 — Chiave SSH funzionante e utente di amministrazione
