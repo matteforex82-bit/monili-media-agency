@@ -1,0 +1,422 @@
+<meta charset="utf-8">
+<title>Sfoglia per tipo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Outfit:wght@300;400;500&display=swap">
+<style>
+/* Layout: one stage that behaves like the site (phone width or full desktop), four interchangeable category blocks inside it.
+   Palette and type are the site's own: crema paper, terracotta, gold, Cormorant over Outfit. */
+:root {
+  --bg: #efe8d8;
+  --surround: #ded5c1;
+  --paper: #f6f1e6;
+  --ink: #1a1a1a;
+  --ink-soft: #5a544c;
+  --rule: #cdc4b3;
+  --terra: #c8593a;
+  --terra-deep: #9e4128;
+  --gold: #c79849;
+  --stage: #16130f;
+  --serif: "Cormorant Garamond", "Times New Roman", serif;
+  --sans: "Outfit", system-ui, sans-serif;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: auto; }
+body {
+  margin: 0;
+  background: var(--surround);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+::selection { background: var(--terra); color: #fff; }
+a { color: inherit; text-decoration: none; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; }
+
+.note {
+  padding: 14px max(16px, env(safe-area-inset-left, 0px)) 14px max(16px, env(safe-area-inset-right, 0px));
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.stage {
+  container: st / inline-size;
+  background: var(--bg);
+  margin: 0 auto;
+  width: 100%;
+  min-height: 80vh;
+  padding-bottom: 120px;
+  transition: width 0.5s var(--ease), border-radius 0.5s var(--ease);
+}
+.stage[data-device="phone"] {
+  width: min(390px, 100%);
+  border-radius: 30px;
+  box-shadow: 0 30px 70px -40px rgba(60, 40, 20, 0.5), 0 0 0 1px var(--rule);
+  overflow-x: clip;
+}
+
+.head { padding: 56px 22px 26px; }
+.head h2 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(36px, 10cqi, 60px);
+  line-height: 1.02;
+  text-wrap: balance;
+}
+.head p { margin: 10px 0 0; max-width: 46ch; font-size: 14px; line-height: 1.5; color: var(--ink-soft); }
+@container st (min-width: 760px) { .head { padding: 90px 56px 40px; } }
+
+.photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; display: block; }
+.scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(22, 19, 15, 0.62), rgba(22, 19, 15, 0.08) 52%, transparent); pointer-events: none; }
+.arrow { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 9px 16px 9px 18px;
+  border-radius: 99px;
+  background: var(--terra);
+  color: #fff;
+  font-size: 13px; font-weight: 400; letter-spacing: 0.02em;
+  transition: background 0.3s;
+}
+a:hover > .pill, a:focus-visible > .pill, a:hover .pill { background: var(--terra-deep); }
+
+/* ---------- Toolbar ---------- */
+.bar {
+  position: fixed; z-index: 50;
+  left: 50%; translate: -50% 0;
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  display: flex; gap: 6px; align-items: center;
+  padding: 6px;
+  background: rgba(22, 19, 15, 0.92);
+  border-radius: 99px;
+  max-width: calc(100vw - 24px);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.5);
+}
+.bar button {
+  appearance: none; border: 0; cursor: pointer;
+  padding: 10px 14px; border-radius: 99px;
+  background: transparent; color: #cfc4ae;
+  font: 400 13px/1 var(--sans);
+  white-space: nowrap;
+  transition: background 0.25s, color 0.25s;
+}
+.bar button[aria-pressed="true"] { background: #f3e9d2; color: #16130f; }
+.bar .sep { width: 1px; align-self: stretch; margin: 6px 4px; background: rgba(243, 233, 210, 0.2); }
+.bar .dev { display: none; }
+@media (min-width: 820px) { .bar .dev, .bar .sep { display: block; } }
+@media (max-width: 400px) { .bar button { padding: 10px 11px; font-size: 12px; } }
+
+/* ---------- A. Carte da sfogliare ---------- */
+.a-track {
+  display: flex; gap: 14px;
+  overflow-x: auto; scroll-snap-type: x mandatory;
+  padding: 4px 22px 14px;
+  scroll-padding-inline: 22px;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.a-track::-webkit-scrollbar { display: none; }
+.a-card {
+  position: relative; flex: 0 0 74cqi; aspect-ratio: 4 / 5;
+  overflow: hidden; border-radius: 3px;
+  scroll-snap-align: start;
+  color: #fff; background: var(--paper);
+}
+.a-card .photo { width: calc(100% + 64px); left: -32px; translate: var(--px, 0px) 0; transition: scale 0.9s var(--ease); }
+.a-card:hover .photo { scale: 1.04; }
+.a-card__body { position: absolute; left: 22px; right: 22px; bottom: 22px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.a-card__t { font-family: var(--serif); font-weight: 400; font-size: clamp(36px, 11cqi, 52px); line-height: 0.95; letter-spacing: -0.005em; }
+.a-meter { display: flex; align-items: center; gap: 16px; padding: 14px 22px 0; }
+.a-meter__line { position: relative; flex: 1; height: 1px; background: var(--rule); }
+.a-meter__thumb { position: absolute; top: -1px; left: 0; height: 3px; width: 25%; background: var(--terra); border-radius: 2px; transform: translateX(var(--tx, 0%)); }
+.a-nav { display: none; gap: 8px; }
+.a-nav button { appearance: none; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--rule); background: transparent; color: var(--ink); cursor: pointer; display: grid; place-items: center; transition: background 0.25s, color 0.25s; }
+.a-nav button:hover { background: var(--ink); color: var(--bg); }
+.a-nav .arrow { width: 16px; height: 16px; }
+@container st (min-width: 760px) {
+  .a-track { padding-inline: 56px; scroll-padding-inline: 56px; gap: 18px; }
+  .a-card { flex-basis: 27cqi; }
+  .a-meter { padding-inline: 56px; }
+  .a-nav { display: flex; }
+}
+
+/* ---------- B. Mazzo che si impila ---------- */
+.b-deck { padding: 0 14px 40px; }
+.b-card {
+  display: block;
+  position: sticky; top: calc(18px + var(--i) * 14px);
+  height: min(70vh, 540px);
+  margin-bottom: 26vh;
+  border-radius: 12px; overflow: hidden;
+  transform-origin: 50% 0;
+  scale: var(--s, 1);
+  color: #fff; background: var(--paper);
+  box-shadow: 0 -18px 40px -28px rgba(22, 19, 15, 0.6);
+  will-change: scale;
+}
+.b-card:last-child { margin-bottom: 0; }
+.b-card .photo { filter: brightness(var(--b, 1)); }
+.b-card__body { position: absolute; left: 22px; right: 22px; bottom: 22px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.b-card__t { font-family: var(--serif); font-weight: 400; font-size: clamp(36px, 11.5cqi, 76px); line-height: 0.92; }
+@container st (min-width: 760px) {
+  .b-card__body { flex-direction: row; align-items: flex-end; justify-content: space-between; left: 28px; right: 28px; bottom: 28px; }
+  .b-deck { padding: 0 56px 40px; max-width: 1000px; margin: 0 auto; }
+  .b-card { height: min(66vh, 520px); }
+}
+
+/* ---------- C. Elenco editoriale ---------- */
+.c-list { border-top: 1px solid var(--rule); }
+.c-row { display: block; border-bottom: 1px solid var(--rule); padding: 20px 22px; }
+.c-row__top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.c-word {
+  font-family: var(--serif); font-weight: 300;
+  font-size: clamp(40px, 12.5cqi, 128px); line-height: 1; letter-spacing: -0.012em;
+  transition: color 0.5s var(--ease), translate 0.6s var(--ease);
+  min-width: 0; overflow-wrap: anywhere;
+}
+.c-go { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 1px solid var(--rule); display: grid; place-items: center; transition: background 0.4s, color 0.4s, border-color 0.4s, rotate 0.6s var(--ease); }
+.c-go .arrow { width: 18px; height: 18px; }
+.c-row[data-on="true"] .c-word { color: var(--terra-deep); translate: 8px 0; }
+.c-row[data-on="true"] .c-go { background: var(--terra); border-color: var(--terra); color: #fff; rotate: 45deg; }
+.c-media { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.8s var(--ease); }
+.c-row[data-on="true"] .c-media { grid-template-rows: 1fr; }
+.c-media__in { display: block; overflow: hidden; min-height: 0; }
+.c-media__img { display: block; position: relative; margin-top: 16px; height: min(52cqi, 240px); border-radius: 3px; overflow: hidden; clip-path: inset(0 0 100% 0); transition: clip-path 0.9s var(--ease); }
+.c-row[data-on="true"] .c-media__img { clip-path: inset(0); }
+.c-media__img .photo { scale: 1.18; transition: scale 1.4s var(--ease); }
+.c-row[data-on="true"] .c-media__img .photo { scale: 1; }
+.c-float { position: fixed; left: 0; top: 0; width: 280px; aspect-ratio: 4 / 5; pointer-events: none; z-index: 20; border-radius: 3px; overflow: hidden; clip-path: inset(50% 50% 50% 50%); transition: clip-path 0.6s var(--ease); display: none; will-change: transform; }
+.c-float[data-show="true"] { clip-path: inset(0); }
+.c-float img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.35s; }
+.c-float img[data-on="true"] { opacity: 1; }
+@container st (min-width: 760px) {
+  .c-row { padding: 34px 56px; }
+  .c-word { font-size: clamp(80px, 11cqi, 150px); }
+  .c-media { display: none; }
+}
+
+/* ---------- D. Collage ---------- */
+.d-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 14px; padding: 0 16px 20px; align-items: start; }
+.d-tile { position: relative; display: block; margin-top: var(--off, 0px); margin-bottom: 26px; translate: 0 calc(var(--dy, 0px) * var(--sp, 1)); }
+.d-tile__photo { display: block; position: relative; aspect-ratio: var(--ar); overflow: hidden; border-radius: 2px; background: var(--paper); }
+.d-tile__photo .photo { transition: scale 1.1s var(--ease); }
+.d-tile:hover .photo { scale: 1.06; }
+.d-tile__label {
+  position: absolute; left: -6px; bottom: -16px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px 8px 14px;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-weight: 400; font-size: 26px; line-height: 1;
+  box-shadow: 0 10px 24px -14px rgba(60, 40, 20, 0.5);
+  transition: background 0.3s, color 0.3s;
+}
+.d-tile:hover .d-tile__label { background: var(--terra); color: #fff; }
+@container st (min-width: 760px) {
+  .d-grid { grid-template-columns: repeat(4, 1fr); gap: 22px; padding: 0 56px 40px; }
+  .d-tile__label { font-size: 32px; left: -10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; }
+  .d-tile { translate: none !important; }
+  .a-card .photo { translate: none !important; }
+}
+</style>
+
+<p class="note">Anteprima di 4 modi per rifare «Sfoglia per tipo». Le foto sono quelle provvisorie del sito di oggi. Scorri, tocca e passa il mouse su ogni variante.</p>
+
+<div class="stage" id="stage" data-device="full">
+  <div id="v-a" class="v" hidden></div>
+  <div id="v-b" class="v" hidden></div>
+  <div id="v-c" class="v" hidden></div>
+  <div id="v-d" class="v" hidden></div>
+</div>
+<div class="c-float" id="cFloat" aria-hidden="true"></div>
+
+<nav class="bar" aria-label="Varianti">
+  <button type="button" data-v="a" aria-pressed="true">A · Carte</button>
+  <button type="button" data-v="b" aria-pressed="false">B · Mazzo</button>
+  <button type="button" data-v="c" aria-pressed="false">C · Elenco</button>
+  <button type="button" data-v="d" aria-pressed="false">D · Collage</button>
+  <span class="sep"></span>
+  <button type="button" class="dev" data-d="phone" aria-pressed="false">Telefono</button>
+  <button type="button" class="dev" data-d="full" aria-pressed="true">Desktop</button>
+</nav>
+
+<script>
+(function () {
+  var IMG = {
+    bijoux: "__BIJOUX__",
+    abbigliamento: "__ABBIGLIAMENTO__",
+    accessori: "__ACCESSORI__",
+    unici: "__UNICI__"
+  };
+  var ITEMS = [
+    { id: "bijoux", label: "Bijoux", ar: "4 / 5", alt: "Vetrina dei bijoux in negozio" },
+    { id: "abbigliamento", label: "Abbigliamento", ar: "1 / 1", alt: "Giacca di camoscio con camicia ricamata" },
+    { id: "accessori", label: "Accessori", ar: "1 / 1", alt: "Giacca, camicia e cintura intrecciata" },
+    { id: "unici", label: "Pezzi unici", ar: "4 / 3", alt: "Interno del negozio" }
+  ];
+  var ARROW = '<svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>';
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var stage = document.getElementById("stage");
+  function photo(it) { return '<img class="photo" src="' + IMG[it.id] + '" alt="' + it.alt + '" draggable="false">'; }
+  function head(t, p) { return '<div class="head"><h2>' + t + '</h2>' + (p ? '<p>' + p + '</p>' : '') + '</div>'; }
+  function href(it) { return '/?tipo=' + it.id + '#appena-arrivati'; }
+
+  /* A */
+  var a = document.getElementById("v-a");
+  a.innerHTML = head("Sfoglia per tipo.") +
+    '<div class="a-track" id="aTrack">' + ITEMS.map(function (it) {
+      return '<a class="a-card" href="' + href(it) + '">' + photo(it) + '<span class="scrim"></span><span class="a-card__body"><span class="a-card__t">' + it.label + '</span><span class="pill">Scopri ' + ARROW + '</span></span></a>';
+    }).join("") + '</div>' +
+    '<div class="a-meter"><div class="a-meter__line"><span class="a-meter__thumb" id="aThumb"></span></div>' +
+    '<div class="a-nav"><button type="button" id="aPrev" aria-label="Precedente"><svg class="arrow" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button><button type="button" id="aNext" aria-label="Successiva"><svg class="arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div></div>';
+
+  /* B */
+  var b = document.getElementById("v-b");
+  b.innerHTML = head("Sfoglia per tipo.") +
+    '<div class="b-deck" id="bDeck">' + ITEMS.map(function (it, i) {
+      return '<a class="b-card" style="--i:' + i + '" href="' + href(it) + '">' + photo(it) + '<span class="scrim"></span><span class="b-card__body"><span class="b-card__t">' + it.label + '</span><span class="pill">Scopri ' + ARROW + '</span></span></a>';
+    }).join("") + '</div>';
+
+  /* C */
+  var c = document.getElementById("v-c");
+  c.innerHTML = head("Sfoglia per tipo.") +
+    '<div class="c-list" id="cList">' + ITEMS.map(function (it, i) {
+      return '<a class="c-row" href="' + href(it) + '" data-i="' + i + '" data-on="' + (i === 0) + '"><span class="c-row__top"><span class="c-word">' + it.label + '</span><span class="c-go">' + ARROW + '</span></span>' +
+        '<span class="c-media"><span class="c-media__in"><span class="c-media__img">' + photo(it) + '</span></span></span></a>';
+    }).join("") + '</div>';
+  var cFloat = document.getElementById("cFloat");
+  cFloat.innerHTML = ITEMS.map(function (it) { return '<img src="' + IMG[it.id] + '" alt="" data-id="' + it.id + '">'; }).join("");
+
+  /* D */
+  var offs = [
+    { m: 0, d: 0, s: 0.6 },
+    { m: 54, d: 0, s: 1.4 },
+    { m: -8, d: 0, s: 1.0 },
+    { m: 34, d: 0, s: 1.7 }
+  ];
+  var dm = ["0px", "54px", "10px", "34px"], dd = ["0px", "70px", "26px", "110px"];
+  var d = document.getElementById("v-d");
+  d.innerHTML = head("Sfoglia per tipo.") +
+    '<div class="d-grid" id="dGrid">' + ITEMS.map(function (it, i) {
+      return '<a class="d-tile" data-i="' + i + '" href="' + href(it) + '" style="--ar:' + it.ar + ';--sp:' + offs[i].s + '"><span class="d-tile__photo">' + photo(it) + '</span><span class="d-tile__label">' + it.label + ' ' + ARROW + '</span></a>';
+    }).join("") + '</div>';
+
+  function setOffsets() {
+    var wide = stage.clientWidth >= 760;
+    document.querySelectorAll(".d-tile").forEach(function (t, i) { t.style.setProperty("--off", (wide ? dd[i] : dm[i])); });
+  }
+
+  /* Variant + device switching */
+  var cur = "a";
+  function show(v) {
+    cur = v;
+    document.querySelectorAll(".v").forEach(function (el) { el.hidden = el.id !== "v-" + v; });
+    document.querySelectorAll(".bar [data-v]").forEach(function (bt) { bt.setAttribute("aria-pressed", String(bt.dataset.v === v)); });
+    window.scrollTo(0, 0);
+    cFloat.dataset.show = "false";
+    update();
+  }
+  document.querySelectorAll(".bar [data-v]").forEach(function (bt) { bt.addEventListener("click", function () { show(bt.dataset.v); }); });
+  document.querySelectorAll(".bar [data-d]").forEach(function (bt) {
+    bt.addEventListener("click", function () {
+      stage.dataset.device = bt.dataset.d;
+      document.querySelectorAll(".bar [data-d]").forEach(function (x) { x.setAttribute("aria-pressed", String(x === bt)); });
+      setTimeout(function () { setOffsets(); update(); observeC(); }, 560);
+    });
+  });
+
+  /* A behaviour */
+  var track = document.getElementById("aTrack"), thumb = document.getElementById("aThumb");
+  function updA() {
+    var tr = track.getBoundingClientRect(), cx = tr.left + tr.width / 2;
+    track.querySelectorAll(".a-card").forEach(function (card) {
+      var r = card.getBoundingClientRect();
+      var rel = ((r.left + r.width / 2) - cx) / tr.width;
+      card.style.setProperty("--px", reduce ? "0px" : (-rel * 44).toFixed(1) + "px");
+    });
+    var max = track.scrollWidth - track.clientWidth;
+    var p = max > 0 ? track.scrollLeft / max : 0;
+    thumb.style.width = (100 / ITEMS.length * 1.0) + "%";
+    thumb.style.setProperty("--tx", (p * (ITEMS.length - 1) * 100).toFixed(1) + "%");
+  }
+  track.addEventListener("scroll", function () { requestAnimationFrame(updA); }, { passive: true });
+  document.getElementById("aNext").addEventListener("click", function () { track.scrollBy({ left: track.querySelector(".a-card").offsetWidth + 18, behavior: "smooth" }); });
+  document.getElementById("aPrev").addEventListener("click", function () { track.scrollBy({ left: -(track.querySelector(".a-card").offsetWidth + 18), behavior: "smooth" }); });
+
+  /* B behaviour */
+  function updB() {
+    var cards = document.querySelectorAll(".b-card");
+    cards.forEach(function (card, i) {
+      var next = cards[i + 1];
+      var t = 0;
+      if (next) {
+        var r = card.getBoundingClientRect(), n = next.getBoundingClientRect();
+        t = Math.min(1, Math.max(0, 1 - (n.top - r.top) / r.height));
+      }
+      card.style.setProperty("--s", reduce ? 1 : (1 - t * 0.06).toFixed(4));
+      card.style.setProperty("--b", (1 - t * 0.3).toFixed(3));
+    });
+  }
+
+  /* C behaviour */
+  var rows = Array.prototype.slice.call(document.querySelectorAll(".c-row"));
+  function setC(i) {
+    rows.forEach(function (r, k) { r.dataset.on = String(k === i); });
+    cFloat.querySelectorAll("img").forEach(function (im, k) { im.dataset.on = String(k === i); });
+  }
+  var io = null;
+  function observeC() {
+    if (io) io.disconnect();
+    var wide = stage.clientWidth >= 760;
+    cFloat.style.display = wide ? "block" : "none";
+    if (wide) return;
+    io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting && cur === "c") setC(+e.target.dataset.i); });
+    }, { rootMargin: "-40% 0px -40% 0px", threshold: 0 });
+    rows.forEach(function (r) { io.observe(r); });
+  }
+  var fx = 0, fy = 0, tx = 0, ty = 0, raf = 0;
+  function loop() {
+    fx += (tx - fx) * 0.14; fy += (ty - fy) * 0.14;
+    cFloat.style.transform = "translate(" + (fx + 28).toFixed(1) + "px," + (fy - 130).toFixed(1) + "px)";
+    raf = (Math.abs(tx - fx) > 0.3 || Math.abs(ty - fy) > 0.3) ? requestAnimationFrame(loop) : 0;
+  }
+  rows.forEach(function (r, i) {
+    r.addEventListener("mouseenter", function () { if (stage.clientWidth >= 760) { setC(i); cFloat.dataset.show = "true"; } });
+    r.addEventListener("mouseleave", function () { cFloat.dataset.show = "false"; });
+    r.addEventListener("focus", function () { setC(i); });
+  });
+  document.getElementById("cList").addEventListener("mousemove", function (e) {
+    tx = e.clientX; ty = e.clientY;
+    if (!raf) raf = requestAnimationFrame(loop);
+  });
+
+  /* D behaviour */
+  function updD() {
+    var r = document.getElementById("dGrid").getBoundingClientRect();
+    var dy = reduce ? 0 : (r.top + r.height / 2 - window.innerHeight / 2) * -0.07;
+    document.getElementById("dGrid").style.setProperty("--dy", dy.toFixed(1) + "px");
+    document.querySelectorAll(".d-tile").forEach(function (t) { t.style.setProperty("--dy", dy.toFixed(1) + "px"); });
+  }
+
+  function update() {
+    if (cur === "a") updA();
+    if (cur === "b") updB();
+    if (cur === "d") updD();
+  }
+  window.addEventListener("scroll", function () { requestAnimationFrame(update); }, { passive: true });
+  window.addEventListener("resize", function () { setOffsets(); observeC(); update(); });
+  document.querySelectorAll("a.a-card, a.b-card, a.c-row, a.d-tile").forEach(function (el) { el.addEventListener("click", function (e) { e.preventDefault(); }); });
+  setOffsets(); observeC(); show("a");
+})();
+</script>

@@ -1,0 +1,268 @@
+<title>Pietra della settimana</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Jost:wght@400;500&display=swap">
+<style>
+/* Layout: one pinned screen, as the section would sit in the home. The piece turns with the scroll;
+   name, price and the WhatsApp button never move, only one descriptive line changes with the turn.
+   Then a dark sheet with how to shoot the clip. Single look, like the site. */
+:root {
+  color-scheme: light;
+  --crema: #f2eadc;
+  --carta: #e9dfce;        /* lines and soft fills on cream */
+  --inchiostro: #2a211b;
+  --velo: #6f6257;
+  --terracotta: #b5533c;
+  --notte: #17120f;
+  --oro: #c9a24a;
+  --display: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+  --testo: "Jost", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --gl: max(20px, env(safe-area-inset-left, 0px));
+  --gr: max(20px, env(safe-area-inset-right, 0px));
+}
+* { box-sizing: border-box; }
+body { background: var(--crema); color: var(--inchiostro); font-family: var(--testo); font-size: 16px; line-height: 1.5; }
+
+.stage { height: 230vh; height: 230svh; }
+.pin {
+  position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden;
+  display: flex; flex-direction: column; background: var(--crema);
+  padding-left: var(--gl); padding-right: var(--gr);
+  padding-block: calc(14px + env(safe-area-inset-top, 0px)) calc(22px + env(safe-area-inset-bottom, 0px));
+}
+.bar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex: none; }
+.brand { font-family: var(--display); font-style: italic; font-size: 26px; line-height: 1; }
+.brand small { font-family: var(--testo); font-style: normal; font-size: 10px; letter-spacing: .28em; margin-left: 8px; }
+.tag { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--velo); text-align: right; }
+
+.body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.visual { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
+.disc {
+  height: min(100%, 92vw); aspect-ratio: 1; max-width: 100%; position: relative;
+  perspective: 900px;
+}
+.turn {
+  position: absolute; inset: 0; transform-style: preserve-3d;
+  -webkit-mask-image: radial-gradient(closest-side, #000 66%, transparent 98%);
+          mask-image: radial-gradient(closest-side, #000 66%, transparent 98%);
+}
+.turn img, .turn canvas { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; display: block; }
+.glint {
+  position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light;
+  background: linear-gradient(105deg, rgba(255,255,255,0) 35%, rgba(255,255,255,.75) 50%, rgba(255,255,255,0) 65%);
+  background-size: 300% 100%;
+}
+.ombra {
+  position: absolute; left: 18%; right: 18%; bottom: 7%; height: 9%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(42,33,27,.26), rgba(42,33,27,0)); pointer-events: none;
+}
+.segnaposto {
+  position: absolute; left: 0; right: 0; bottom: 0; margin: 0; text-align: center;
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--velo);
+}
+
+.testo { flex: none; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.eyebrow { margin: 0; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--terracotta); }
+h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(32px, 5.2vw, 58px); line-height: 1.04; letter-spacing: -.01em; text-wrap: balance; }
+.battute { display: grid; }
+.battute p {
+  grid-area: 1 / 1; margin: 0; font-family: var(--display); font-style: italic; font-size: clamp(18px, 2.2vw, 23px); line-height: 1.3;
+  opacity: 0; transform: translateY(8px); transition: opacity .35s ease, transform .35s ease; max-width: 30em;
+}
+.pin[data-b="0"] .battute p:nth-child(1),
+.pin[data-b="1"] .battute p:nth-child(2),
+.pin[data-b="2"] .battute p:nth-child(3) { opacity: 1; transform: none; }
+
+.giro { display: flex; align-items: center; gap: 12px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--velo); font-variant-numeric: tabular-nums; }
+.giro .linea { flex: 1; max-width: 220px; height: 1px; background: var(--carta); position: relative; }
+.giro .linea i { position: absolute; inset: -0.5px 0; background: var(--inchiostro); transform-origin: left; transform: scaleX(var(--p, 0)); }
+.giro b { font-weight: 500; min-width: 3.2em; }
+
+.compra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.prezzo { margin: 0; font-family: var(--display); font-size: 28px; line-height: 1; }
+.prezzo small { display: block; font-family: var(--testo); font-size: 12px; color: var(--velo); margin-top: 6px; letter-spacing: .02em; }
+.cta {
+  font: 500 14px/1.2 var(--testo); color: var(--crema); background: var(--inchiostro); text-decoration: none;
+  border-radius: 999px; padding: 14px 20px; display: inline-block;
+}
+.cta:focus-visible, .seg button:focus-visible, .again:focus-visible { outline: 2px solid var(--terracotta); outline-offset: 3px; }
+
+.brand, .tag { white-space: nowrap; }
+.visual { min-height: 38vh; }
+@media (max-height: 700px) and (max-width: 859px) {
+  .testo { gap: 8px; }
+  h1 { font-size: 30px; }
+  .battute p { font-size: 17px; }
+  .prezzo { font-size: 24px; }
+  .cta { padding: 12px 18px; }
+}
+@media (min-width: 860px) {
+  .body { flex-direction: row; align-items: center; gap: 5vw; max-width: 1180px; width: 100%; margin: 0 auto; }
+  .visual { flex: 1.15; height: 100%; }
+  .disc { height: min(78%, 46vw); }
+  .testo { flex: .85; gap: 18px; }
+}
+
+/* ---------- notes ---------- */
+.sheet { background: var(--notte); color: var(--crema); }
+.sheet-in {
+  max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 34px;
+  padding-block: 56px 72px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+.sheet h2 { font-family: var(--display); font-weight: 500; font-size: clamp(28px, 4.5vw, 38px); line-height: 1.1; margin: 0 0 10px; text-wrap: balance; }
+.sheet p { margin: 0; max-width: 60ch; }
+.lead { font-size: 17px; }
+.label { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--oro); margin: 0 0 10px; }
+.lista { list-style: none; margin: 0; padding: 0; }
+.lista li { padding: 14px 0; border-top: 1px solid rgba(242,234,220,.2); }
+.lista li:last-child { border-bottom: 1px solid rgba(242,234,220,.2); }
+.lista strong { font-family: var(--display); font-size: 21px; font-weight: 500; display: block; line-height: 1.2; }
+.lista span { opacity: .75; }
+.again { align-self: flex-start; font: 500 14px/1 var(--testo); color: var(--inchiostro); background: var(--crema); border: 0; border-radius: 999px; padding: 15px 22px; cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stage { height: auto; }
+  .pin { position: static; height: auto; min-height: 100vh; min-height: 100svh; overflow: visible; }
+  .visual { min-height: 46vh; }
+  .battute { gap: 8px; }
+  .battute p { grid-area: auto; opacity: 1; transform: none; transition: none; }
+  .giro { display: none; }
+}
+</style>
+
+<section class="stage" id="stage" aria-label="Prova della sezione Pietra della settimana">
+  <div class="pin" id="pin" data-b="0">
+    <div class="bar">
+      <span class="brand">i Monili<small>RAVENNA</small></span>
+      <span class="tag">Prova, non è il sito</span>
+    </div>
+
+    <div class="body">
+      <div class="visual">
+        <div class="disc">
+          <div class="ombra" id="ombra"></div>
+          <div class="turn" id="turn">
+            <img id="still" alt="Anello regolabile in acciaio con tre pietre color ambra: una ovale, una a cuore, una tonda più scura">
+            <canvas id="film" hidden></canvas>
+            <div class="glint" id="glint"></div>
+          </div>
+          <p class="segnaposto" id="segnaposto">Qui va la tua ripresa che gira</p>
+        </div>
+      </div>
+
+      <div class="testo">
+        <p class="eyebrow">Pietra della settimana</p>
+        <h1>Anello regolabile color ambra</h1>
+        <div class="battute">
+          <p>Tre pietre, una diversa dall'altra: ovale, a cuore e tonda.</p>
+          <p>Giralo: la luce passa dall'ambra chiaro al bruno.</p>
+          <p>È regolabile, si adatta al dito.</p>
+        </div>
+        <div class="giro" aria-hidden="true"><span>Giro</span><span class="linea"><i></i></span><b id="gradi">0°</b></div>
+        <div class="compra">
+          <p class="prezzo">14 €<small>Gioielli · Via Cavour 21</small></p>
+          <a class="cta" id="cta" href="https://wa.me/393757713966" target="_blank" rel="noopener">Scrivici, ti diciamo se è disponibile</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-in">
+    <div>
+      <h2>Come verrebbe in home</h2>
+      <p class="lead" id="stato">Un solo pezzo a settimana, a tutto schermo, che gira mentre scorri. Nome, prezzo e pulsante restano sempre fermi e visibili. Per ora c'è la foto vera dell'anello che si inclina soltanto: il giro completo arriva con la tua ripresa.</p>
+    </div>
+
+    <button class="again" type="button" id="again">Rivedi dall'inizio</button>
+
+    <div>
+      <p class="label">Come girare la ripresa</p>
+      <ul class="lista">
+        <li><strong>Telefono fermo, appoggiato</strong><span>Si muove solo il pezzo. Niente zoom, niente mano che trema.</span></li>
+        <li><strong>Un giro completo in 3-4 secondi</strong><span>Sul piattello girevole, a velocità costante. Parti e finisci nella stessa posizione.</span></li>
+        <li><strong>Sfondo chiaro e uniforme</strong><span>Un cartoncino crema sotto e dietro: così si fonde con la pagina.</span></li>
+        <li><strong>Luce naturale di lato</strong><span>Vicino alla vetrina. Le pietre si accendono mentre girano.</span></li>
+        <li><strong>Pezzo al centro, con aria intorno</strong><span>Deve restare tutto dentro l'inquadratura per l'intero giro.</span></li>
+      </ul>
+    </div>
+
+    <div>
+      <p class="label">Da controllare sul telefono</p>
+      <ul class="lista">
+        <li><strong>Il pezzo segue il dito?</strong><span>Deve girare avanti e indietro senza scatti, anche aprendo da Instagram.</span></li>
+        <li><strong>Prezzo e pulsante si vedono subito?</strong><span>Senza dover finire il giro.</span></li>
+        <li><strong>Dura il giusto?</strong><span>Poco più di una schermata di scorrimento. Se sembra lungo, si accorcia.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  var STILL = "__STILL__";
+  var FRAMES = __FRAMES__;   // real clip, one picture per step of the turn; empty until the clip exists
+
+  var stage = document.getElementById("stage"), pin = document.getElementById("pin"),
+      turn = document.getElementById("turn"), glint = document.getElementById("glint"),
+      ombra = document.getElementById("ombra"), gradi = document.getElementById("gradi"),
+      still = document.getElementById("still"), film = document.getElementById("film");
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var real = FRAMES.length > 1, imgs = [], shown = -1;
+
+  still.src = real ? FRAMES[0] : STILL;
+  if (real) {
+    document.getElementById("segnaposto").hidden = true;
+    glint.hidden = true;
+    document.getElementById("stato").textContent = "Un solo pezzo a settimana, a tutto schermo, che gira mentre scorri. Nome, prezzo e pulsante restano sempre fermi e visibili. Quella che vedi è la ripresa vera.";
+    FRAMES.forEach(function (u, i) { var im = new Image(); im.onload = function () { if (i === 0) size(); draw(cur); }; im.src = u; imgs.push(im); });
+  }
+
+  function size() {
+    var im = imgs[0]; if (!im || !im.naturalWidth) return;
+    film.width = im.naturalWidth; film.height = im.naturalHeight;
+    film.hidden = false; still.hidden = true; shown = -1;
+  }
+  function draw(p) {
+    if (!real || film.hidden) return;
+    var i = Math.round(p * (imgs.length - 1)), im = imgs[i];
+    if (i === shown || !im || !im.complete || !im.naturalWidth) return;
+    film.getContext("2d").drawImage(im, 0, 0, film.width, film.height);
+    shown = i;
+  }
+
+  function clamp(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+  var cur = 0, raf = 0;
+  function target() {
+    if (reduce) return 0;
+    var travel = stage.offsetHeight - pin.offsetHeight;
+    return travel > 0 ? clamp(-stage.getBoundingClientRect().top / travel) : 0;
+  }
+  function paint(p) {
+    pin.style.setProperty("--p", p.toFixed(4));
+    pin.dataset.b = Math.min(2, Math.floor(p * 3));
+    gradi.textContent = Math.round(p * 360) + "°";
+    if (real) { draw(p); return; }
+    // stand-in until the clip exists: the photo leans one way and the other, with a light passing over it
+    var a = Math.sin(p * Math.PI * 2);
+    turn.style.transform = "rotateY(" + (a * 24).toFixed(2) + "deg) rotateX(" + (Math.cos(p * Math.PI * 2) * 4 - 4).toFixed(2) + "deg)";
+    glint.style.backgroundPosition = (100 - p * 100).toFixed(1) + "% 0";
+    ombra.style.transform = "translateX(" + (a * -7).toFixed(1) + "%) scaleX(" + (1 - Math.abs(a) * 0.12).toFixed(3) + ")";
+  }
+  function tick() {
+    var t = target();
+    cur += (t - cur) * 0.22;
+    if (Math.abs(t - cur) < 0.0006) cur = t;
+    paint(cur);
+    raf = cur === t ? 0 : requestAnimationFrame(tick);
+  }
+  function wake() { if (!raf) raf = requestAnimationFrame(tick); }
+
+  paint(0); wake();
+  window.addEventListener("scroll", wake, { passive: true });
+  window.addEventListener("resize", wake);
+  document.getElementById("again").addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  });
+})();
+</script>
