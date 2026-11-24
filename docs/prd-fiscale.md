@@ -74,3 +74,23 @@ Il commercialista manda i riepiloghi in ritardo e Matteo ha ogni mese **solo l'i
 - Chi entra: solo Matteo, dai dispositivi autorizzati su Tailscale. Postgres con utente di sola lettura per la dashboard e utente di scrittura solo per n8n.
 - Se un servizio esterno vede le foto dei documenti (OCR a pagamento), va dichiarato e deciso da Matteo caso per caso.
 - Fornitori e trattamento vanno rivisti dal consulente insieme a privacy e condizioni (voce 6 e 11 di `docs/interventi-richiesti-matteo.md`).
+
+## 10. Esito del controllo della VPS (24/11/2026, sola lettura, lanciato da Matteo)
+Macchina `hermes-matteo-assistant` (Tailscale 100.124.146.32). Script: `back-office/vps/controllo-sola-lettura.sh`. Non è stato modificato nulla.
+
+**Risorse e cosa gira**
+- Ubuntu 24.04.4, 4 CPU, **7,8 GiB di RAM (circa 3,5 liberi)**, disco 145 GB con 87 GB liberi, acceso da oltre 5 settimane.
+- **n8n 2.48.6** in Docker (`n8n-lab`), in ascolto **solo su 127.0.0.1:5678**, in salute.
+- Un altro progetto, **niche-finder**, con un proprio Postgres (pgvector, 127.0.0.1:5436) e un'interfaccia sulla 8086. C'è anche un **altro Postgres** direttamente sul sistema (127.0.0.1:54329), di cui non so a cosa serva. **Non vanno usati per i dati fiscali.**
+- Sulla stessa macchina girano **Hermes** (127.0.0.1:9119, 8642, 33123), vari servizi Node e Python e Tailscale (che serve le porte 443 e 8443 sulla rete privata). **Metabase non c'è**.
+
+**Rete e sicurezza: problemi da risolvere prima di mettere dati fiscali**
+1. **Il firewall è inattivo** e non c'è fail2ban.
+2. **SSH è aperto a internet** (0.0.0.0:22) con **`PermitRootLogin yes`** e **si entra con la password** di root (Matteo l'ha digitata per lanciare lo script). È il punto più debole: chi indovina o ruba quella password prende tutta la macchina, compresi n8n, Hermes e i dati.
+3. Tutti gli altri servizi ascoltano solo in locale o sull'indirizzo Tailscale: bene.
+
+**Valutazione**
+- **Risorse:** bastano per la Fase 1 (n8n già presente, un nuovo Postgres, Metabase che da solo usa circa 1 GB); Paperless-ngx in Fase 2 va ricontrollato con la memoria rimasta.
+- **Isolamento:** il database fiscale deve essere un **contenitore nuovo e separato** (rete Docker propria, in ascolto solo su 127.0.0.1, utente e password nuovi), non quelli di niche-finder né il Postgres di sistema.
+- **Hermes sulla stessa macchina:** è un agente con accesso alla macchina. Va verificato **a quali file e porte può arrivare** prima di mettere lì dati bancari; se può leggere tutto come `root`, i dati fiscali non sono isolati da lui. In quel caso: cartella e database leggibili solo da un utente dedicato, oppure una macchina separata per i dati fiscali.
+- **Mettere in sicurezza SSH** (chiavi al posto della password, niente accesso diretto di root, firewall che lascia entrare solo Tailscale, fail2ban) è un **passo obbligatorio prima di qualsiasi dato reale** (voce 35 di `docs/interventi-richiesti-matteo.md`). Va fatto con attenzione per non chiudere fuori Matteo: chiavi provate prima di spegnere la password, una seconda sessione aperta durante la modifica.

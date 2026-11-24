@@ -50,11 +50,13 @@ Riferimento: `docs/prd-fiscale.md`. Solo progettato; nulla installato né toccat
 
 - [ ] **28. Domande al commercialista:** termine esatto («entro tot giorni») per inviare le fatture estere e indirizzo/formato preferito; regime IVA (liquidazione mensile o trimestrale); elenco delle scadenze dell'anno; cosa serve rispondere per le comunicazioni IVA; percentuale di accantonamento consigliata; **riepiloghi IVA e corrispettivi del 2025** per calcolare il rapporto di partenza.
 - [ ] **29. Conti e report:** quali conti (Mirca, negozio 21, altri), formato CSV esportabile dalla banca, ogni quanto li scarichi. Non incollare estratti conto in chat o nel repository.
-- [ ] **30. Controllo della VPS in sola lettura** (con tuo ok esplicito): sistema, RAM e disco, Postgres e Docker presenti o no, come si comanda n8n, backup, configurazione Tailscale. Poi la prova di Metabase e del modulo n8n **con dati finti**.
+- [x] **30. FATTO 24/11 — Controllo della VPS in sola lettura** (lanciato da Matteo; esito in `docs/prd-fiscale.md` §10): risorse sufficienti per la Fase 1, n8n 2.48.6 solo in locale, **ma firewall spento, SSH aperto a internet con accesso di root a password**. Resta la prova di Metabase e del modulo n8n con dati finti, dopo la voce 35.
 - [ ] **31. Casella per l'invio al commercialista:** `info@imoniliravenna.it` su Aruba (voce 19) o un altro SMTP; destinatari fissi.
 - [ ] **32. Corrispettivi mensili:** ogni mese i totali lordi dei negozi 17 e 21 (modulo n8n con foto del documento); promemoria mensile con la data da scegliere.
 - [ ] **33. Decisione sugli strumenti** dopo la prova con dati finti: Metabase o Grafana per la dashboard, Paperless-ngx per l'archivio documentale (Fase 2).
 - [ ] **34. Backup fuori dalla VPS:** dove salvare le copie cifrate e chi controlla la prova di ripristino.
+- [ ] **35. Mettere in sicurezza la VPS prima dei dati reali (bloccante):** chiavi SSH al posto della password, niente accesso diretto di root, firewall che lascia entrare solo Tailscale, fail2ban, backup. Con tuo ok esplicito, l'AI prepara i comandi e li lancia con te a fianco, tenendo una seconda sessione aperta per non chiuderti fuori.
+- [ ] **36. Verificare cosa può leggere Hermes sulla stessa macchina** (file, porte, permessi) e decidere se i dati fiscali stanno qui con un utente dedicato o su una macchina separata.
 
 ## Cosa fa l'AI quando sblocchi
 
