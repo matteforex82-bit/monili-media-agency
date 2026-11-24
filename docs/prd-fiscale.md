@@ -1,6 +1,6 @@
 # PRD — Back-office fiscale privato del negozio (bozza 24/11/2026)
 
-Stato: **solo progettazione, nulla installato né costruito.** Non è stato toccato niente sulla VPS, né DashFinance, né dati reali o file bancari. Il PRD delle consulenze e dei buoni è a parte: `docs/prd-back-office.md`.
+Stato: **solo progettazione, nulla installato né costruito.** Non è stato toccato niente sulla VPS, né DashFinance, né dati reali o file bancari. Il PRD delle consulenze e dei buoni è a parte: `docs/prd-back-office.md`. **I task per più agenti, con corsie, ondate e criteri di accettazione, sono in `docs/prd-fiscale-task.md`.** Sicurezza della macchina: `docs/piano-sicurezza-vps.md`.
 
 ## 1. Decisione
 Una soluzione **autonoma sulla VPS privata di Matteo**, che continua a funzionare anche senza l'abbonamento a Claude. Claude serve per **costruirla e mantenerla** (script, query, flussi n8n) e, se Matteo vuole, per analizzare dati ripuliti. **Nessun flusso quotidiano dipende da Claude.**
