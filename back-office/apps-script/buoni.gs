@@ -286,6 +286,38 @@ function controllaCoerenza() {
   return problemi;
 }
 
+
+/* ---------- Web App: riceve le richieste dal sito ---------- */
+
+/**
+ * Il sito (server, mai il browser) invia qui la richiesta. Crea SOLO una richiesta «in attesa»:
+ * niente codice e niente credito. La chiave segreta sta nelle Proprietà dello script (CHIAVE),
+ * non nel codice. Pubblicazione: Distribuisci → Nuova distribuzione → App web, esegui come «Me»,
+ * accesso «Chiunque» (la chiave protegge). Se si cambia il codice serve una nuova versione.
+ */
+function doPost(e) {
+  var uscita = function (o) {
+    return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+  };
+  try {
+    var d = JSON.parse(e.postData.contents);
+    var chiave = PropertiesService.getScriptProperties().getProperty('CHIAVE');
+    if (!chiave || chiave.length < 24 || d.chiave !== chiave) return uscita({ ok: false, messaggio: 'Non autorizzato.' });
+    delete d.chiave;
+    var r = creaRichiesta(d);
+    return uscita(r.ok ? { ok: true, riferimento: r.riferimento } : { ok: false, messaggio: r.messaggio });
+  } catch (err) {
+    return uscita({ ok: false, messaggio: 'Richiesta non valida.' });
+  }
+}
+
+/** Esegui una volta da Apps Script: crea la chiave segreta e la scrive nel log (da copiare su Vercel). */
+function creaChiave() {
+  var chiave = nuovoGrezzo_(40);
+  PropertiesService.getScriptProperties().setProperty('CHIAVE', chiave);
+  Logger.log('CHIAVE (copiala in GIFT_VOUCHER_WEBAPP_KEY, non condividerla): ' + chiave);
+}
+
 /* ---------- preparazione del foglio, trigger e menu ---------- */
 
 function preparaFoglio() {
