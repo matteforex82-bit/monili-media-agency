@@ -243,6 +243,8 @@ Sono requisiti da realizzare o configurare: questo PRD non indica che il registr
 
 ### 10.1 Regole commerciali
 
+> **Decisione 24/11/2026 (Matteo e Mirca):** due circuiti separati. I **buoni cartacei** in negozio restano gestiti a mano dalle commesse, fuori dal registro. I **buoni digitali** si vendono sul sito, si registrano in un database privato nostro e si inviano con codice univoco. Le regole sotto e il registro di §10.2 valgono per i **digitali**. Progetto: `docs/prd-back-office.md` §5.
+
 - Importo **libero**.
 - Buono acquistabile anche tramite assistenza a distanza e consegnabile in formato digitale.
 - Spendibile fisicamente **solo nel negozio emittente**: indicare chiaramente 17 oppure 21 prima del pagamento, sul buono e nel registro.

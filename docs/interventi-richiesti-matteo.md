@@ -42,7 +42,7 @@ Riferimento: `docs/prd-back-office.md` e `back-office/README.md`. Il modulo cons
 - [ ] **24. Due prove che mancano:** una prenotazione **senza commento** (la nota deve restare vuota) e la **cancellazione degli eventi vecchi** (serve un evento di più di un mese, oppure si abbassa per un attimo `RETENTION_DAYS` su un evento di prova; l'AI ti guida).
 - [ ] **25. Sicurezza dell'account `moniliravenna@gmail.com`:** verifica in due passaggi attiva, foglio condiviso solo con lo staff e mai con «chiunque abbia il link». Dai un nome al progetto Apps Script (oggi «Untitled project») e tieni allineata la copia in `back-office/apps-script/consulenze.gs` (la copia viva è su Google).
 - [ ] **26. Avvisi WhatsApp automatici allo staff:** non attivi (API Business, a pagamento). Per ora basta la notifica del Calendario; decidi dopo un paio di settimane se serve di più.
-- [ ] **27. Buoni con scadenza e promemoria** (J11): dopo il parere fiscale della voce 13. Poi l'AI costruisce fogli «Buoni» e «Movimenti» e il promemoria WhatsApp semi-manuale (link `wa.me` già compilato, invio da una persona). Non annunciare i buoni prima.
+- [ ] **27. Buoni digitali sul sito** (J11). **Decisione 24/11 con Mirca:** i buoni cartacei restano manuali in negozio (fuori dal sistema); i buoni digitali si vendono sul sito, si registrano in un database nostro e si inviano con codice univoco (`docs/prd-back-office.md` §5). Da decidere: foglio privato o database separato, e metodo di pagamento. L'AI costruisce prima con dati finti; uso reale e annuncio solo dopo il parere fiscale (voce 13) e la prova al banco.
 
 ## Back-office fiscale (aperto il 24/11/2026)
 
