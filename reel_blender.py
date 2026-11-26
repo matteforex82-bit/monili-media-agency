@@ -43,11 +43,13 @@ class Handoff(BaseModel):
     shots: list[Shot] = Field(min_length=3, max_length=6)
 
 
-def _ask(draft: dict, api_key: str, instructions: str, image: Path | None, max_tokens: int) -> dict:
+def _ask(draft: dict, api_key: str, instructions: str, images: list[Path], max_tokens: int) -> dict:
     brief = {key: draft[key] for key in ("product", "brief", "target_seconds")}
+    if draft.get("photos"):
+        brief["foto_in_ordine"] = [photo["filename"] for photo in draft["photos"]]
     source = (
-        "Usa la foto reale allegata per controllare i dettagli visibili."
-        if image else "Pianifica da testo: indica cosa confermare sulle foto, senza inventare caratteristiche del pezzo."
+        "Usa tutte le foto reali allegate per controllare i dettagli visibili. Se serve, fai riferimento al numero della foto nell’ordine degli allegati."
+        if images else "Pianifica da testo: indica cosa confermare sulle foto, senza inventare caratteristiche del pezzo."
     )
     prompt = f"""Sei il regista Reel Blender di I Monili Ravenna. Scrivi in italiano; eventuali prompt per generatori video vanno in inglese.
 Progetta riprese originali 9:16. Preferisci una modella già in posa, gesti brevi e un cambio di scala o camera motivato.
@@ -66,18 +68,18 @@ BRIEF
 
 Rispondi con un solo oggetto JSON."""
     return extract_json_object(generate_text_with_openrouter(
-        api_key, select_openrouter_text_model(), prompt, image_path=image, max_tokens=max_tokens,
+        api_key, select_openrouter_text_model(), prompt, image_path=images or None, max_tokens=max_tokens, all_images=True,
     ))
 
 
-def generate_concepts(draft: dict, api_key: str, image: Path | None) -> dict:
+def generate_concepts(draft: dict, api_key: str, images: list[Path]) -> dict:
     result = _ask(draft, api_key, """Proponi tre concept con strategie di apertura distinte. Per ciascuno spiega idea, sequenza e rischio.
 Schema: {"concepts":[{"title":"...", "hook":"...", "sequence":"...", "risk":"..."}], "recommended":0}
-recommended è l'indice 0, 1 o 2 della proposta consigliata.""", image, 3000)
+recommended è l'indice 0, 1 o 2 della proposta consigliata.""", images, 3000)
     return Concepts.model_validate(result).model_dump()
 
 
-def generate_handoff(draft: dict, api_key: str, image: Path | None, index: int) -> dict:
+def generate_handoff(draft: dict, api_key: str, images: list[Path], index: int) -> dict:
     selected = draft["concepts"][index]
     duration_ms = draft["target_seconds"] * 1000
     result = _ask(draft, api_key, f"""Sviluppa solo il concept scelto: {json.dumps(selected, ensure_ascii=False)}
@@ -86,7 +88,7 @@ Per Blender indica formato, camera per shot, pose e segnaposto. Per Higgsfield d
 Schema: {{"storyboard":"...", "assets":"...", "audio":"...", "blender":"...", "higgsfield":"...",
 "shots":[{{"end_ms":1200, "framing":"...", "camera":"...", "lighting":"...", "action":"...", "cut":"..."}}]}}
 Servono 3-6 shot. end_ms è il tempo assoluto di fine in millisecondi, strettamente crescente, a partire da 0.
-L'ultimo end_ms è esattamente {duration_ms}.""", image, 5200)
+L'ultimo end_ms è esattamente {duration_ms}.""", images, 5200)
     package = Handoff.model_validate(result).model_dump()
     ends = [shot["end_ms"] for shot in package["shots"]]
     if ends != sorted(set(ends)) or ends[-1] != duration_ms:

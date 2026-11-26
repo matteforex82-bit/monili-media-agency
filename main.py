@@ -188,6 +188,8 @@ def generate_text_with_openrouter(
     prompt: str,
     image_path: Path | list[Path] | None = None,
     max_tokens: int = 2048,
+    *,
+    all_images: bool = False,
 ) -> str:
     images = [image_path] if isinstance(image_path, Path) else list(image_path or [])
     if str(model).startswith(CODEX_PREFIX):
@@ -196,7 +198,7 @@ def generate_text_with_openrouter(
         import fucina_codex
 
         return fucina_codex.run(prompt, images, str(model)[len(CODEX_PREFIX):])
-    image_path = images[0] if images else None  # OpenRouter: only the first photo
+    image_path = images if all_images else (images[0] if images else None)
     try:
         payload = openrouter_chat_completion(
             api_key=api_key,

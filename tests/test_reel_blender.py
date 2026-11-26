@@ -66,7 +66,7 @@ def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp
     }
     responses = iter([concepts, {**package, "shots": package["shots"][:-1]}, package])
 
-    def generate(_key, _model, prompt, *, image_path, max_tokens):
+    def generate(_key, _model, prompt, *, image_path, max_tokens, all_images):
         assert image_path is None
         assert "Giacca" in prompt
         return json.dumps(next(responses))
@@ -147,3 +147,55 @@ def test_blender_previsualization_preserves_audio_and_keeps_reviews_with_each_ve
     assert edited["previews"] == approve.json()["previews"]
     assert client.put(review_url, json={"status": "approved"}).status_code == 409
     assert client.get(media_url).content == source
+
+
+def test_blender_brief_saves_reopens_and_sends_all_reference_photos(monkeypatch, tmp_path, product_photo):
+    import json
+    from PIL import Image
+    import main
+
+    monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    client = TestClient(server.app)
+    photo_bytes = product_photo.read_bytes()
+    base = "/reel-blender/drafts"
+    result = client.post(base + "/with-photos", data={"product": "Anello", "target_seconds": 12},
+                         files=[("photos", ("fronte.jpg", photo_bytes)), ("photos", ("dettaglio.jpg", photo_bytes))])
+    assert result.status_code == 200
+    draft = result.json()
+    url = f"{base}/{draft['id']}"
+    first, second = draft["photos"]
+    assert [item["filename"] for item in draft["photos"]] == ["fronte.jpg", "dettaglio.jpg"]
+    assert client.get(base).json()["items"] == [draft]
+    assert client.get(f"{url}/photos/{second['id']}").headers["content-type"] == "image/jpeg"
+
+    def generate(**kwargs):
+        images = kwargs["image_path"]
+        assert len(images) == 2
+        for photo in images:
+            with Image.open(photo) as image:
+                assert image.size == (900, 1200)
+        response = {
+            "concepts": [
+                {"title": title, "hook": title, "sequence": "Tre quarti", "risk": "Luce"}
+                for title in ("A", "B", "C")
+            ],
+            "recommended": 0,
+        }
+        return {"choices": [{"message": {"content": json.dumps(response)}}]}
+
+    monkeypatch.setattr(main, "openrouter_chat_completion", generate)
+    planned = client.post(url + "/concepts")
+    assert planned.status_code == 200
+    stored = planned.json()
+    common = {"draft_id": draft["id"], "product": "Anello", "keep_photo_ids": second["id"]}
+    assert client.post(base + "/with-photos", data={**common, "expected_updated_at": draft["updated_at"]}).status_code == 409
+    bad = client.post(base + "/with-photos", data=common, files={"photos": ("errore.jpg", b"not a photo")})
+    assert bad.status_code == 400
+    assert client.get(base).json()["items"] == [stored]
+    edited = client.post(base + "/with-photos", data={**common, "expected_updated_at": stored["updated_at"]})
+    assert edited.status_code == 200
+    assert edited.json()["photos"] == [second]
+    assert "concepts" not in edited.json()
+    assert client.get(f"{url}/photos/{first['id']}").status_code == 404
+    assert client.put(url, json={"product": "Anello nuovo"}).json()["photos"] == [second]
