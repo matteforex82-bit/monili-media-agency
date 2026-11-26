@@ -38,3 +38,56 @@ def test_blender_brief_rejects_invalid_input_and_unknown_draft(monkeypatch, tmp_
     assert client.post("/reel-blender/drafts", json={"product": "Giacca", "target_seconds": 9}).status_code == 422
     assert client.put(f"/reel-blender/drafts/{uuid4()}", json={"product": "Giacca"}).status_code == 404
     assert client.get("/reel-blender/drafts").json() == {"items": []}
+
+
+def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp_path):
+    import json
+
+    monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    concepts = {
+        "concepts": [
+            {"title": title, "hook": title, "sequence": "Dettaglio e forma", "risk": "Controlla la luce"}
+            for title in ("Ricamo", "Silhouette", "Gesto")
+        ],
+        "recommended": 0,
+    }
+    package = {
+        "storyboard": "Dettaglio, tre quarti, chiusura.",
+        "assets": "Scatta un tre quarti.",
+        "audio": "Accento sul taglio.",
+        "blender": "Camera e marker.",
+        "higgsfield": "Prova una clip.",
+        "shots": [
+            {"end_ms": end, "framing": "Tre quarti", "camera": "Ferma",
+             "lighting": "Laterale", "action": "Posa", "cut": "Secco"}
+            for end in (1200, 5500, 12000)
+        ],
+    }
+    responses = iter([concepts, {**package, "shots": package["shots"][:-1]}, package])
+
+    def generate(_key, _model, prompt, *, image_path, max_tokens):
+        assert image_path is None
+        assert "Giacca" in prompt
+        return json.dumps(next(responses))
+
+    monkeypatch.setattr(server.reel_blender, "generate_text_with_openrouter", generate)
+    client = TestClient(server.app)
+    payload = {"product": "Giacca", "brief": "Mostra il ricamo"}
+    draft = client.post("/reel-blender/drafts", json=payload).json()
+    url = f"/reel-blender/drafts/{draft['id']}"
+    assert client.post(url + "/package", json={"index": 0}).status_code == 409
+    assert client.post(url + "/concepts").json()["concepts"] == concepts["concepts"]
+    assert client.post(url + "/package", json={"index": 1}).status_code == 502
+    assert client.get(url + "/package.md").status_code == 404
+    response = client.post(url + "/package", json={"index": 1})
+    assert response.status_code == 200
+    assert response.json()["selected"] == 1
+    assert client.get("/reel-blender/drafts").json()["items"] == [response.json()]
+    export = client.get(url + "/package.md")
+    assert "**Silhouette**" in export.text
+    assert "00:05.500–00:12.000" in export.text
+    assert "Scheda per Claude e Blender" in export.text
+    assert client.put(url, json=payload).json()["package"] == package
+    assert client.post(url + "/package", json={"index": 1}).json()["package"] == package
+    assert "package" not in client.put(url, json={**payload, "target_seconds": 15}).json()

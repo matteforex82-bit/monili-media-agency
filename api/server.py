@@ -11,7 +11,9 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 import sys
+import tempfile
 import uuid
 import zipfile
 from pathlib import Path
@@ -24,7 +26,7 @@ from PIL import Image, ImageFilter, ImageOps, ImageStat
 
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -1424,7 +1426,6 @@ async def draft_make_piece(draft_id: str, body: dict | None = None):
 # ---------------------------------------------------------------------------------------------------------------
 import fucina_codex  # noqa: E402
 import prompt_lab  # noqa: E402
-import tempfile  # noqa: E402
 
 
 def _lab_public(draft_id: str, lab: dict | None) -> dict:
@@ -2349,6 +2350,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 import higgsfield_client  # noqa: E402
 import reel_kit  # noqa: E402
+import reel_blender  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import remotion_graphics  # noqa: E402
@@ -2745,23 +2747,21 @@ def blender_drafts():
     return {"items": sorted(drafts, key=lambda draft: draft["updated_at"], reverse=True)}
 
 
-def _save_blender_brief(body: BlenderBrief, draft_id: uuid.UUID, updating: bool = False):
-    product = body.product.strip()
-    if not product:
-        return JSONResponse({"error": "Scrivi il nome del prodotto."}, status_code=400)
+_blender_lock = threading.Lock()
+
+
+def _read_blender_draft(draft_id: uuid.UUID) -> dict | None:
+    try:
+        return json.loads((_blender_drafts_dir() / f"{draft_id}.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+
+
+def _write_blender_draft(draft_id: uuid.UUID, draft: dict) -> dict:
     root = _blender_drafts_dir()
-    target = root / f"{draft_id}.json"
-    if updating and not target.is_file():
-        return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
     root.mkdir(parents=True, exist_ok=True)
-    draft = {
-        "id": str(draft_id),
-        "version": 1,
-        **body.model_dump(),
-        "product": product,
-        "brief": body.brief.strip(),
-        "updated_at": datetime.now().isoformat(),
-    }
+    target = root / f"{draft_id}.json"
+    draft["updated_at"] = datetime.now().isoformat()
     temporary = root / f"{draft_id}.{uuid.uuid4().hex}.tmp"
     try:
         temporary.write_text(json.dumps(draft, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -2769,6 +2769,20 @@ def _save_blender_brief(body: BlenderBrief, draft_id: uuid.UUID, updating: bool 
     finally:
         temporary.unlink(missing_ok=True)
     return draft
+
+
+def _save_blender_brief(body: BlenderBrief, draft_id: uuid.UUID, updating: bool = False):
+    product = body.product.strip()
+    if not product:
+        return JSONResponse({"error": "Scrivi il nome del prodotto."}, status_code=400)
+    fields = {**body.model_dump(), "product": product, "brief": body.brief.strip()}
+    with _blender_lock:
+        existing = _read_blender_draft(draft_id) if updating else None
+        if updating and existing is None:
+            return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
+        if existing and all(existing.get(key) == value for key, value in fields.items()):
+            return existing
+        return _write_blender_draft(draft_id, {"id": str(draft_id), "version": 1, **fields})
 
 
 @app.post("/reel-blender/drafts", status_code=201)
@@ -2779,6 +2793,55 @@ def blender_create_draft(body: BlenderBrief):
 @app.put("/reel-blender/drafts/{draft_id}")
 def blender_update_draft(draft_id: uuid.UUID, body: BlenderBrief):
     return _save_blender_brief(body, draft_id, updating=True)
+
+
+class BlenderConceptChoice(BaseModel):
+    index: int = Field(ge=0, le=2)
+
+
+def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None = None):
+    draft = _read_blender_draft(draft_id)
+    if draft is None:
+        return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
+    if choice and not draft.get("concepts"):
+        return JSONResponse({"error": "Genera prima i tre concept."}, status_code=409)
+    if choice and draft.get("selected") == choice.index and draft.get("package"):
+        return draft
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse({"error": "Configura OpenRouter nelle impostazioni del server."}, status_code=503)
+    try:
+        with tempfile.TemporaryDirectory(prefix="monili-blender-") as directory:
+            photo = _scheda_source_photo(draft["scheda_run_id"], Path(directory))
+            if choice:
+                package = reel_blender.generate_handoff(draft, api_key, photo, choice.index)
+                changes = {"selected": choice.index, "package": package}
+            else:
+                changes = {**reel_blender.generate_concepts(draft, api_key, photo), "selected": None, "package": None}
+    except (ValueError, OSError, RuntimeError, requests.RequestException):
+        return JSONResponse({"error": "La generazione non è riuscita. Riprova o controlla OpenRouter."}, status_code=502)
+    with _blender_lock:
+        if _read_blender_draft(draft_id) != draft:
+            return JSONResponse({"error": "La bozza è cambiata. Riaprila e riprova."}, status_code=409)
+        return _write_blender_draft(draft_id, {**draft, **changes})
+
+
+@app.post("/reel-blender/drafts/{draft_id}/concepts")
+def blender_concepts(draft_id: uuid.UUID):
+    return _generate_blender(draft_id)
+
+
+@app.post("/reel-blender/drafts/{draft_id}/package")
+def blender_package(draft_id: uuid.UUID, choice: BlenderConceptChoice):
+    return _generate_blender(draft_id, choice)
+
+
+@app.get("/reel-blender/drafts/{draft_id}/package.md")
+def blender_markdown(draft_id: uuid.UUID):
+    draft = _read_blender_draft(draft_id)
+    if not draft or not draft.get("package"):
+        return JSONResponse({"error": "Pacchetto di regia non trovato."}, status_code=404)
+    return PlainTextResponse(reel_blender.markdown(draft), media_type="text/markdown")
 
 
 @app.post("/reel/create")
