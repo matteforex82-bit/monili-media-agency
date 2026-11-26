@@ -484,10 +484,11 @@ export default function PieceView({ results, apiUrl, runId, summary, onChanged }
       {stage === 'video' && (
         <section className="step" aria-labelledby="step-reel">
           <h2 className="step-title" id="step-reel">Il video di questo pezzo</h2>
-          <p className="step-hint">Due strade: lo Studio lo crea dalle foto con la stessa donna della foto indossata, oppure carichi un video già pronto.</p>
+          <p className="step-hint">Crea un video dalle foto, importa un video pronto o prepara la regia per Blender.</p>
           <div className="reel-links">
             <Link href={`/reel?pezzo=${encodeURIComponent(runId)}`} className="btn-mission">Crea il video dalle foto</Link>
             <Link href={`/reel?pezzo=${encodeURIComponent(runId)}&modo=video`} className="btn-secondary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Ho già un video</Link>
+            <Link href={`/reel?pezzo=${encodeURIComponent(runId)}&modo=blender`} className="btn-secondary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Reel Blender</Link>
             {reels.map((reel) => (
               <Link key={reel.id} href={`/reel?reel=${encodeURIComponent(reel.id)}`} className="reel-row">
                 <span>{reel.title || 'Video senza titolo'}</span>

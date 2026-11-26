@@ -26,6 +26,7 @@ from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 # The project root holds the Studio's own modules (also added again further down).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -2720,6 +2721,64 @@ def _scheda_source_photo(run_id: str, input_dir: Path) -> Path | None:
     except Exception:
         return None
     return target
+
+
+class BlenderBrief(BaseModel):
+    product: str = Field(max_length=120)
+    brief: str = Field(default="", max_length=1500)
+    target_seconds: int = Field(default=12, ge=10, le=20)
+    scheda_run_id: str = Field(default="", max_length=120)
+
+
+def _blender_drafts_dir() -> Path:
+    return STORAGE_ROOT / "reel-blender"
+
+
+@app.get("/reel-blender/drafts")
+def blender_drafts():
+    drafts = []
+    for path in _blender_drafts_dir().glob("*.json"):
+        try:
+            drafts.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            continue
+    return {"items": sorted(drafts, key=lambda draft: draft["updated_at"], reverse=True)}
+
+
+def _save_blender_brief(body: BlenderBrief, draft_id: uuid.UUID, updating: bool = False):
+    product = body.product.strip()
+    if not product:
+        return JSONResponse({"error": "Scrivi il nome del prodotto."}, status_code=400)
+    root = _blender_drafts_dir()
+    target = root / f"{draft_id}.json"
+    if updating and not target.is_file():
+        return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
+    root.mkdir(parents=True, exist_ok=True)
+    draft = {
+        "id": str(draft_id),
+        "version": 1,
+        **body.model_dump(),
+        "product": product,
+        "brief": body.brief.strip(),
+        "updated_at": datetime.now().isoformat(),
+    }
+    temporary = root / f"{draft_id}.{uuid.uuid4().hex}.tmp"
+    try:
+        temporary.write_text(json.dumps(draft, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.replace(target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return draft
+
+
+@app.post("/reel-blender/drafts", status_code=201)
+def blender_create_draft(body: BlenderBrief):
+    return _save_blender_brief(body, uuid.uuid4())
+
+
+@app.put("/reel-blender/drafts/{draft_id}")
+def blender_update_draft(draft_id: uuid.UUID, body: BlenderBrief):
+    return _save_blender_brief(body, draft_id, updating=True)
 
 
 @app.post("/reel/create")
