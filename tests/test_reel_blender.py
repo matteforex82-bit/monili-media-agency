@@ -91,3 +91,59 @@ def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp
     assert client.put(url, json=payload).json()["package"] == package
     assert client.post(url + "/package", json={"index": 1}).json()["package"] == package
     assert "package" not in client.put(url, json={**payload, "target_seconds": 15}).json()
+
+
+def test_blender_previsualization_preserves_audio_and_keeps_reviews_with_each_version(monkeypatch, tmp_path):
+    import json
+
+    monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
+    client = TestClient(server.app)
+    draft = client.post("/reel-blender/drafts", json={"product": "Giacca"}).json()
+    url = f"/reel-blender/drafts/{draft['id']}"
+    assert client.post(url + "/previews", files={"video": ("shot.mp4", b"test")}).status_code == 409
+
+    # A package already approved in the previous step, without a revision from an older draft.
+    draft_path = tmp_path / "reel-blender" / f"{draft['id']}.json"
+    draft["package"] = {"storyboard": "Tre quarti"}
+    draft_path.write_text(json.dumps(draft), encoding="utf-8")
+
+    assert client.post(url + "/previews", files={"video": ("shot.mov", b"test")}).status_code == 400
+    assert client.post(url + "/previews", files={"video": ("shot.mp4", b"test")}).status_code == 400
+
+    path = tmp_path / "blender.mp4"
+    server.reel_studio._run_ffmpeg([
+        "-f", "lavfi", "-i", "color=c=red:s=180x320:r=24",
+        "-f", "lavfi", "-i", "sine=frequency=440", "-t", "1",
+        "-c:v", "libx264", "-c:a", "aac", str(path),
+    ])
+    source = path.read_bytes()
+    first = client.post(url + "/previews", files={"video": ("shot.mp4", source)}, data={"kind": "shot"})
+    assert first.status_code == 201
+    preview = first.json()["previews"][0]
+    assert preview["duration_ms"] == 1000
+    assert preview["status"] == "to_review"
+    review_url = url + f"/previews/{preview['id']}/review"
+
+    assert client.put(review_url, json={"status": "changes_requested"}).status_code == 400
+    assert client.put(review_url, json={"note": {"time_ms": 2000, "text": "Fuori durata"}}).status_code == 400
+    note = {"time_ms": 500, "text": "Rallenta la rotazione"}
+    assert client.put(review_url, json={"status": "changes_requested", "note": note}).status_code == 200
+    retry = client.put(review_url, json={"note": note}).json()["previews"][0]
+    assert retry["notes"] == [note]
+    assert retry["status"] == "changes_requested"
+
+    second = client.post(url + "/previews", files={"video": ("shot-v2.mp4", source)})
+    latest, previous = second.json()["previews"]
+    assert previous["id"] == preview["id"] and previous["notes"] == [note]
+    assert latest["notes"] == [] and latest["status"] == "to_review"
+    media_url = url + f"/previews/{latest['id']}/video"
+    assert client.get(media_url).content == source
+    assert client.get(media_url, headers={"Range": "bytes=0-9"}).status_code == 206
+    assert "attachment" in client.get(media_url + "?download=true").headers["content-disposition"]
+    approve = client.put(url + f"/previews/{latest['id']}/review", json={"status": "approved"})
+    assert approve.json()["previews"][0]["status"] == "approved"
+    assert client.get("/reel-blender/drafts").json()["items"] == [approve.json()]
+    edited = client.put(url, json={"product": "Giacca", "brief": "Nuova scena"}).json()
+    assert edited["previews"] == approve.json()["previews"]
+    assert client.put(review_url, json={"status": "approved"}).status_code == 409
+    assert client.get(media_url).content == source

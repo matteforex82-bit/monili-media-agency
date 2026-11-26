@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { API_URL } from '@/lib/apiUrl';
+import ReelBlenderReview, { type BlenderPreview } from '@/components/ReelBlenderReview';
 
 interface Brief {
   product: string;
@@ -32,6 +33,8 @@ interface Draft extends Brief {
   recommended?: number;
   selected?: number | null;
   package?: Package | null;
+  package_revision?: string;
+  previews?: BlenderPreview[];
 }
 
 interface Props {
@@ -238,6 +241,19 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
             <button className="btn-secondary" type="button" disabled={busy} onClick={() => void download('json')}>Scarica JSON</button>
           </div>
         </div>
+      )}
+      {isSaved && active.package && (
+        <ReelBlenderReview
+          key={active.id}
+          draftId={active.id}
+          revision={active.package_revision}
+          previews={active.previews ?? []}
+          disabled={busy}
+          onUpdate={(value) => {
+            const draft = value as Draft;
+            setDrafts((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
+          }}
+        />
       )}
     </section>
   );
