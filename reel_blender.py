@@ -23,6 +23,7 @@ class Concept(BaseModel):
 class Concepts(BaseModel):
     concepts: list[Concept] = Field(min_length=3, max_length=3)
     recommended: int = Field(ge=0, le=2)
+    recommendation_reason: ShortText | None = None
 
 
 class Shot(BaseModel):
@@ -73,17 +74,25 @@ Rispondi con un solo oggetto JSON."""
 
 
 def generate_concepts(draft: dict, api_key: str, images: list[Path]) -> dict:
-    result = _ask(draft, api_key, """Proponi tre concept con strategie di apertura distinte. Per ciascuno spiega idea, sequenza e rischio.
-Schema: {"concepts":[{"title":"...", "hook":"...", "sequence":"...", "risk":"..."}], "recommended":0}
-recommended è l'indice 0, 1 o 2 della proposta consigliata.""", images, 3000)
-    return Concepts.model_validate(result).model_dump()
+    result = _ask(draft, api_key, """Valuta tre concept con aperture distinte e scegli tu quello con il miglior potenziale per questo pezzo.
+Dai priorità a un dettaglio reale che cattura lo sguardo nel primo secondo, a una rivelazione leggibile subito dopo
+e a una ripresa fattibile che conservi il prodotto. Il Reel deve avere senso anche senza musica.
+Spiega la scelta in una frase concreta legata alle foto e alla tenuta dell'attenzione. Evita promesse di viralità.
+Schema: {"concepts":[{"title":"...", "hook":"...", "sequence":"...", "risk":"..."}], "recommended":0,
+"recommendation_reason":"..."}
+recommended è l'indice 0, 1 o 2 del concept che hai scelto.""", images, 3000)
+    return Concepts.model_validate(result).model_dump(exclude_none=True)
 
 
 def generate_handoff(draft: dict, api_key: str, images: list[Path], index: int) -> dict:
     selected = draft["concepts"][index]
     duration_ms = draft["target_seconds"] * 1000
     result = _ask(draft, api_key, f"""Sviluppa solo il concept scelto: {json.dumps(selected, ensure_ascii=False)}
+Rendi leggibile il gancio visivo nel primo secondo. Nel montaggio, punta a 0,8–1,5 secondi per l'apertura
+e mostra il pezzo in contesto entro circa 3 secondi. Se la proposta di concept indica un'apertura più lunga,
+accorciala e ridistribuisci il tempo per far leggere il prodotto. Puoi generare una clip sorgente più lunga e rifilarla.
 Indica quali foto usare, scattare o generare e quando girare una clip reale. Includi ritmo, marker audio e musica guida.
+Non dare per certi materiali o caratteristiche che dalle foto e dal brief non si possono verificare.
 Per Blender indica formato, camera per shot, pose e segnaposto. Per Higgsfield descrivi il test su un solo shot e i controlli di fedeltà.
 Schema: {{"storyboard":"...", "assets":"...", "audio":"...", "blender":"...", "higgsfield":"...",
 "shots":[{{"end_ms":1200, "framing":"...", "camera":"...", "lighting":"...", "action":"...", "cut":"..."}}]}}

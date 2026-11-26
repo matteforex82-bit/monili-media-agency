@@ -41,6 +41,7 @@ interface Draft extends Brief {
   photos?: ReferencePhoto[];
   concepts?: Concept[];
   recommended?: number;
+  recommendation_reason?: string;
   selected?: number | null;
   package?: Package | null;
   package_revision?: string;
@@ -150,20 +151,28 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
     }
   }
 
-  async function generate(stage: 'concepts' | 'package', index?: number) {
-    if (busy || !isSaved) return;
+  async function requestPlan(id: string, stage: 'concepts' | 'package', index?: number): Promise<Draft> {
+    const response = await fetch(`${API_URL}/reel-blender/drafts/${encodeURIComponent(id)}/${stage}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: index === undefined ? undefined : JSON.stringify({ index }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'La generazione non è riuscita.');
+    setDrafts((items) => [data, ...items.filter((item) => item.id !== data.id)]);
+    return data;
+  }
+
+  async function prepare() {
+    if (busy || !isSaved || !active) return;
     setError('');
     setSaved(false);
     setBusy(true);
     try {
-      const response = await fetch(`${API_URL}/reel-blender/drafts/${encodeURIComponent(selected)}/${stage}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: index === undefined ? undefined : JSON.stringify({ index }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'La generazione non è riuscita.');
-      setDrafts((items) => [data, ...items.filter((item) => item.id !== data.id)]);
+      const draft = active.concepts?.length ? active : await requestPlan(active.id, 'concepts');
+      const index = draft.recommended;
+      if (index === undefined || !draft.concepts?.[index]) throw new Error('Non riesco a trovare la regia consigliata.');
+      await requestPlan(draft.id, 'package', index);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La generazione non è riuscita.');
     } finally {
@@ -199,7 +208,7 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
   return (
     <section className="card rs-card" aria-labelledby="reel-blender-title">
       <h2 className="rs-h1" id="reel-blender-title">Reel Blender</h2>
-      <p className="rs-muted">Prepara il brief, scegli un concept e scarica la scheda per Claude e Blender. Puoi iniziare anche senza foto.</p>
+      <p className="rs-muted">Salva il brief. Reel Blender sceglie la regia per il tuo pezzo e prepara la scheda per Claude e Blender.</p>
       {drafts.length > 0 && (
         <label className="rs-field">
           <span className="rs-field-label">Bozze Reel Blender</span>
@@ -268,29 +277,20 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
       </form>
       {busy && <p className="rs-muted" role="status">Operazione in corso…</p>}
       {active && !isSaved && <p className="rs-muted">Salva le modifiche al brief per continuare.</p>}
-      {isSaved && !active.concepts && (
-        <button className="btn-secondary rs-small-btn" type="button" disabled={busy} onClick={() => void generate('concepts')}>Genera tre concept</button>
-      )}
-      {isSaved && active.concepts && (
-        <div className="rs-card">
-          <h3 className="rs-h1">Scegli il concept</h3>
-          {active.concepts.map((concept, index) => (
-            <article key={index} className="rs-card">
-              <strong>{concept.title}</strong>
-              {active.recommended === index && <p className="rs-muted">Consigliato</p>}
-              <p>{concept.hook}</p>
-              <p>{concept.sequence}</p>
-              <p className="rs-muted">Da verificare · {concept.risk}</p>
-              <button className="btn-secondary rs-small-btn" type="button" disabled={busy || active.selected === index} onClick={() => void generate('package', index)}>
-                {active.selected === index ? 'Concept selezionato' : 'Scegli e prepara il pacchetto'}
-              </button>
-            </article>
-          ))}
-        </div>
+      {isSaved && !active.package && (
+        <button className="btn-mission rs-cta" type="button" disabled={busy} onClick={() => void prepare()}>
+          Prepara la regia
+        </button>
       )}
       {isSaved && active.package && (
         <div className="rs-card">
-          <h3 className="rs-h1">Pacchetto per Blender</h3>
+          <h3 className="rs-h1">La regia del tuo Reel</h3>
+          {active.selected != null && active.concepts?.[active.selected] && (
+            <p><strong>{active.concepts[active.selected].title}</strong></p>
+          )}
+          {active.selected === active.recommended && active.recommendation_reason && (
+            <p>{active.recommendation_reason}</p>
+          )}
           <p>{active.package.storyboard}</p>
           <div className="rs-actions">
             <button className="btn-mission" type="button" disabled={busy} onClick={() => void download('md')}>Scarica Markdown</button>
