@@ -603,8 +603,8 @@ h1, h2, h3, .display { font-family: var(--bot-font-display); font-weight: 600; l
 .piece-next { margin: 8px 0 8px; font-size: 14px; font-weight: 600; color: var(--bot-accent-dk); }
 .piece-next[data-done='true'] { color: var(--bot-moss); }
 
-/* ── Reel: due strade, niente elenco di ricette ── */
-.rs-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 16px; }
+/* ── Reel: scelta del percorso ── */
+.rs-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr)); gap: 8px; margin: 0 0 16px; }
 .rs-mode {
   display: grid; gap: 2px; text-align: left; padding: 12px 14px; min-height: 64px;
   background: var(--bot-card-soft); color: var(--bot-ink);

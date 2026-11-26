@@ -1,0 +1,260 @@
+'use client';
+
+import { useEffect, useState, type FormEvent } from 'react';
+import { API_URL } from '@/lib/apiUrl';
+import ReelBlenderReview, { type BlenderPreview } from '@/components/ReelBlenderReview';
+
+interface Brief {
+  product: string;
+  brief: string;
+  target_seconds: number;
+  scheda_run_id: string;
+}
+
+interface Concept {
+  title: string;
+  hook: string;
+  sequence: string;
+  risk: string;
+}
+
+interface Package {
+  storyboard: string;
+  assets: string;
+  audio: string;
+  blender: string;
+  higgsfield: string;
+}
+
+interface Draft extends Brief {
+  id: string;
+  version: number;
+  concepts?: Concept[];
+  recommended?: number;
+  selected?: number | null;
+  package?: Package | null;
+  package_revision?: string;
+  previews?: BlenderPreview[];
+}
+
+interface Props {
+  product?: string;
+  pieceId: string;
+  initialBrief: string;
+}
+
+export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Props) {
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [selected, setSelected] = useState('');
+  const [fields, setFields] = useState<Brief | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const active = drafts.find((draft) => draft.id === selected);
+  const values = fields ?? { product: product ?? '', brief: initialBrief, target_seconds: 12, scheda_run_id: pieceId };
+
+  const isSaved = active && values.product === active.product && values.brief === active.brief &&
+    values.target_seconds === active.target_seconds && values.scheda_run_id === active.scheda_run_id;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${API_URL}/reel-blender/drafts`, { cache: 'no-store', signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error();
+        const data: { items: Draft[] } = await res.json();
+        if (!controller.signal.aborted) {
+          setDrafts((items) => [...items, ...data.items.filter((draft) => !items.some((item) => item.id === draft.id))]);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setError('Non riesco a caricare le bozze Reel Blender.');
+      });
+    return () => controller.abort();
+  }, []);
+
+  function edit(patch: Partial<Brief>) {
+    setFields({ ...values, ...patch });
+    setSaved(false);
+  }
+
+  function selectDraft(id: string) {
+    const draft = drafts.find((entry) => entry.id === id);
+    setSelected(id);
+    setFields(draft ? {
+      product: draft.product,
+      brief: draft.brief,
+      target_seconds: draft.target_seconds,
+      scheda_run_id: draft.scheda_run_id,
+    } : null);
+    setSaved(false);
+    setError('');
+  }
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
+    setSaved(false);
+    if (!values.product.trim()) {
+      setError('Scrivi il nome del prodotto.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const url = `${API_URL}/reel-blender/drafts${selected ? '/' + encodeURIComponent(selected) : ''}`;
+      const response = await fetch(url, {
+        method: selected ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Non riesco a salvare il brief.');
+      }
+      const draft: Draft = await response.json();
+      setDrafts((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
+      setSelected(draft.id);
+      setFields({
+        product: draft.product,
+        brief: draft.brief,
+        target_seconds: draft.target_seconds,
+        scheda_run_id: draft.scheda_run_id,
+      });
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Non riesco a salvare il brief.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function generate(stage: 'concepts' | 'package', index?: number) {
+    if (busy || !isSaved) return;
+    setError('');
+    setSaved(false);
+    setBusy(true);
+    try {
+      const response = await fetch(`${API_URL}/reel-blender/drafts/${encodeURIComponent(selected)}/${stage}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: index === undefined ? undefined : JSON.stringify({ index }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'La generazione non è riuscita.');
+      setDrafts((items) => [data, ...items.filter((item) => item.id !== data.id)]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'La generazione non è riuscita.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function download(format: 'md' | 'json') {
+    if (!active?.package || !isSaved) return;
+    setError('');
+    try {
+      let blob: Blob;
+      if (format === 'md') {
+        const response = await fetch(`${API_URL}/reel-blender/drafts/${encodeURIComponent(active.id)}/package.md`, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Non riesco a scaricare il pacchetto.');
+        blob = await response.blob();
+      } else {
+        blob = new Blob([JSON.stringify(active, null, 2)], { type: 'application/json' });
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `reel-blender-${active.id}.${format}`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Non riesco a scaricare il pacchetto.');
+    }
+  }
+
+  return (
+    <section className="card rs-card" aria-labelledby="reel-blender-title">
+      <h2 className="rs-h1" id="reel-blender-title">Reel Blender</h2>
+      <p className="rs-muted">Prepara il brief, scegli un concept e scarica la scheda per Claude e Blender. Puoi iniziare anche senza foto.</p>
+      {drafts.length > 0 && (
+        <label className="rs-field">
+          <span className="rs-field-label">Bozze Reel Blender</span>
+          <select className="rs-input" value={selected} disabled={busy} onChange={(event) => selectDraft(event.target.value)}>
+            <option value="">Nuovo brief</option>
+            {drafts.map((draft) => <option key={draft.id} value={draft.id}>{draft.product}</option>)}
+          </select>
+        </label>
+      )}
+      {values.scheda_run_id && (
+        <p className="rs-muted">Collegato a una Scheda pezzo.{' '}
+          <button className="btn-secondary rs-small-btn" type="button" disabled={busy} onClick={() => edit({ scheda_run_id: '' })}>Scollega</button>
+        </p>
+      )}
+      <form className="rs-card" onSubmit={save}>
+        <div className="rs-grid-2">
+          <label className="rs-field">
+            <span className="rs-field-label">Prodotto</span>
+            <input className="rs-input" value={values.product} onChange={(event) => edit({ product: event.target.value })} maxLength={120} required disabled={busy} placeholder="Es. Giacca ricamata" />
+          </label>
+          <label className="rs-field">
+            <span className="rs-field-label">Durata del Reel (secondi)</span>
+            <input className="rs-input" type="number" min={10} max={20} value={Number.isFinite(values.target_seconds) ? values.target_seconds : ''} onChange={(event) => edit({ target_seconds: event.target.valueAsNumber })} required disabled={busy} />
+          </label>
+        </div>
+        <label className="rs-field">
+          <span className="rs-field-label">Brief</span>
+          <textarea className="rs-input" value={values.brief} onChange={(event) => edit({ brief: event.target.value })} maxLength={1500} rows={4} disabled={busy} placeholder="Cosa vuoi mostrare? Es. Il ricamo e la vestibilità, con la modella già in posa." />
+        </label>
+        {error && <p className="rs-error" role="alert">{error}</p>}
+        {saved && <p className="rs-muted" role="status">Brief salvato. Puoi riaprirlo da Bozze Reel Blender.</p>}
+        <button className="btn-mission rs-cta" type="submit" disabled={busy}>Salva brief</button>
+      </form>
+      {busy && <p className="rs-muted" role="status">Operazione in corso…</p>}
+      {active && !isSaved && <p className="rs-muted">Salva le modifiche al brief per continuare.</p>}
+      {isSaved && !active.concepts && (
+        <button className="btn-secondary rs-small-btn" type="button" disabled={busy} onClick={() => void generate('concepts')}>Genera tre concept</button>
+      )}
+      {isSaved && active.concepts && (
+        <div className="rs-card">
+          <h3 className="rs-h1">Scegli il concept</h3>
+          {active.concepts.map((concept, index) => (
+            <article key={index} className="rs-card">
+              <strong>{concept.title}</strong>
+              {active.recommended === index && <p className="rs-muted">Consigliato</p>}
+              <p>{concept.hook}</p>
+              <p>{concept.sequence}</p>
+              <p className="rs-muted">Da verificare · {concept.risk}</p>
+              <button className="btn-secondary rs-small-btn" type="button" disabled={busy || active.selected === index} onClick={() => void generate('package', index)}>
+                {active.selected === index ? 'Concept selezionato' : 'Scegli e prepara il pacchetto'}
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+      {isSaved && active.package && (
+        <div className="rs-card">
+          <h3 className="rs-h1">Pacchetto per Blender</h3>
+          <p>{active.package.storyboard}</p>
+          <div className="rs-actions">
+            <button className="btn-mission" type="button" disabled={busy} onClick={() => void download('md')}>Scarica Markdown</button>
+            <button className="btn-secondary" type="button" disabled={busy} onClick={() => void download('json')}>Scarica JSON</button>
+          </div>
+        </div>
+      )}
+      {isSaved && active.package && (
+        <ReelBlenderReview
+          key={active.id}
+          draftId={active.id}
+          revision={active.package_revision}
+          previews={active.previews ?? []}
+          disabled={busy}
+          onUpdate={(value) => {
+            const draft = value as Draft;
+            setDrafts((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
+          }}
+        />
+      )}
+    </section>
+  );
+}

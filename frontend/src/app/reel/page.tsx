@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FileDropzone from '@/components/FileDropzone';
 import InstagramShare from '@/components/InstagramShare';
+import ReelBlenderBrief from '@/components/ReelBlenderBrief';
 import { API_URL } from '@/lib/apiUrl';
 
 // ── CONFIG ──────────────────────────────────────────────────────────────────
@@ -310,8 +311,7 @@ export default function ReelStudioPage() {
   const [seconds, setSeconds] = useState(12);
   const [videoModel, setVideoModel] = useState('');
   const [recipe, setRecipe] = useState('libera');
-  // Due strade verso lo stesso risultato: far fare tutto all'AI dalle foto, o partire da un video già pronto.
-  const [mode, setMode] = useState<'foto' | 'video'>('foto');
+  const [mode, setMode] = useState<'foto' | 'video' | 'blender'>('foto');
   const [keyframeModel, setKeyframeModel] = useState('');
   const [posterCover, setPosterCover] = useState(true);
   // Video già pronto (Gemini/Veo, telefono)
@@ -356,7 +356,9 @@ export default function ReelStudioPage() {
   }, []);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('modo') === 'video') setMode('video');
+    const params = new URLSearchParams(window.location.search);
+    const wanted = params.get('modo');
+    if (wanted === 'video' || wanted === 'blender') setMode(wanted);
   }, []);
 
   useEffect(() => {
@@ -399,7 +401,7 @@ export default function ReelStudioPage() {
       if (wanted) {
         saved = wanted;
         try { localStorage.setItem(ACTIVE_REEL_KEY, wanted); } catch { /* storage non disponibile */ }
-      } else if (!params.get('pezzo')) {
+      } else if (!params.get('pezzo') && params.get('modo') !== 'blender') {
         try { saved = localStorage.getItem(ACTIVE_REEL_KEY) || ''; } catch { /* storage non disponibile */ }
       }
       if (saved) {
@@ -644,7 +646,7 @@ export default function ReelStudioPage() {
       </header>
 
       <main className="rs-main">
-        {!hfReady && config && (
+        {mode !== 'blender' && !hfReady && config && (
           <div className="rs-banner">
             <strong>Higgsfield non ancora collegato.</strong> Puoi provare tutto il flusso: i video vengono creati
             animando i fotogrammi chiave (anteprima gratuita, solo costi OpenRouter). Quando inserisci la API key nel
@@ -664,10 +666,17 @@ export default function ReelStudioPage() {
               <strong>Ho già un video</strong>
               <span>Aggiungo chiusura, copertina e testi</span>
             </button>
+            <button type="button" role="tab" aria-selected={mode === 'blender'} className="rs-mode" onClick={() => setMode('blender')}>
+              <strong>Reel Blender</strong>
+              <span>Preparo la regia e le inquadrature</span>
+            </button>
           </div>
         )}
 
-        {piece && !reel && <PieceBanner piece={piece} onClear={() => setPiece(null)} />}
+        {piece && !reel && mode !== 'blender' && <PieceBanner piece={piece} onClear={() => setPiece(null)} />}
+        {!reel && mode === 'blender' && (
+          <ReelBlenderBrief product={piece?.title} pieceId={piece?.runId ?? ''} initialBrief={brief} />
+        )}
 
         {/* ── NUOVO REEL ─────────────────────────────────────────────── */}
         {!reel && mode === 'foto' && (

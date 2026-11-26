@@ -11,12 +11,14 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 import sys
+import tempfile
 import uuid
 import zipfile
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit
 import requests
 from dotenv import load_dotenv
@@ -24,8 +26,9 @@ from PIL import Image, ImageFilter, ImageOps, ImageStat
 
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 # The project root holds the Studio's own modules (also added again further down).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -1423,7 +1426,6 @@ async def draft_make_piece(draft_id: str, body: dict | None = None):
 # ---------------------------------------------------------------------------------------------------------------
 import fucina_codex  # noqa: E402
 import prompt_lab  # noqa: E402
-import tempfile  # noqa: E402
 
 
 def _lab_public(draft_id: str, lab: dict | None) -> dict:
@@ -2348,6 +2350,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 import higgsfield_client  # noqa: E402
 import reel_kit  # noqa: E402
+import reel_blender  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import remotion_graphics  # noqa: E402
@@ -2720,6 +2723,241 @@ def _scheda_source_photo(run_id: str, input_dir: Path) -> Path | None:
     except Exception:
         return None
     return target
+
+
+class BlenderBrief(BaseModel):
+    product: str = Field(max_length=120)
+    brief: str = Field(default="", max_length=1500)
+    target_seconds: int = Field(default=12, ge=10, le=20)
+    scheda_run_id: str = Field(default="", max_length=120)
+
+
+def _blender_drafts_dir() -> Path:
+    return STORAGE_ROOT / "reel-blender"
+
+
+@app.get("/reel-blender/drafts")
+def blender_drafts():
+    drafts = []
+    for path in _blender_drafts_dir().glob("*.json"):
+        try:
+            drafts.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            continue
+    return {"items": sorted(drafts, key=lambda draft: draft["updated_at"], reverse=True)}
+
+
+_blender_lock = threading.Lock()
+
+
+def _read_blender_draft(draft_id: uuid.UUID) -> dict | None:
+    try:
+        return json.loads((_blender_drafts_dir() / f"{draft_id}.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+
+
+def _write_blender_draft(draft_id: uuid.UUID, draft: dict) -> dict:
+    root = _blender_drafts_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    target = root / f"{draft_id}.json"
+    draft["updated_at"] = datetime.now().isoformat()
+    temporary = root / f"{draft_id}.{uuid.uuid4().hex}.tmp"
+    try:
+        temporary.write_text(json.dumps(draft, ensure_ascii=False, indent=2), encoding="utf-8")
+        temporary.replace(target)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return draft
+
+
+def _save_blender_brief(body: BlenderBrief, draft_id: uuid.UUID, updating: bool = False):
+    product = body.product.strip()
+    if not product:
+        return JSONResponse({"error": "Scrivi il nome del prodotto."}, status_code=400)
+    fields = {**body.model_dump(), "product": product, "brief": body.brief.strip()}
+    with _blender_lock:
+        existing = _read_blender_draft(draft_id) if updating else None
+        if updating and existing is None:
+            return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
+        if existing and all(existing.get(key) == value for key, value in fields.items()):
+            return existing
+        draft = {"id": str(draft_id), "version": 1, **fields}
+        if existing and existing.get("previews"):
+            draft["previews"] = existing["previews"]
+        return _write_blender_draft(draft_id, draft)
+
+
+@app.post("/reel-blender/drafts", status_code=201)
+def blender_create_draft(body: BlenderBrief):
+    return _save_blender_brief(body, uuid.uuid4())
+
+
+@app.put("/reel-blender/drafts/{draft_id}")
+def blender_update_draft(draft_id: uuid.UUID, body: BlenderBrief):
+    return _save_blender_brief(body, draft_id, updating=True)
+
+
+class BlenderConceptChoice(BaseModel):
+    index: int = Field(ge=0, le=2)
+
+
+def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None = None):
+    draft = _read_blender_draft(draft_id)
+    if draft is None:
+        return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
+    if choice and not draft.get("concepts"):
+        return JSONResponse({"error": "Genera prima i tre concept."}, status_code=409)
+    if choice and draft.get("selected") == choice.index and draft.get("package"):
+        return draft
+    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+    if not api_key:
+        return JSONResponse({"error": "Configura OpenRouter nelle impostazioni del server."}, status_code=503)
+    try:
+        with tempfile.TemporaryDirectory(prefix="monili-blender-") as directory:
+            photo = _scheda_source_photo(draft["scheda_run_id"], Path(directory))
+            if choice:
+                package = reel_blender.generate_handoff(draft, api_key, photo, choice.index)
+                changes = {"selected": choice.index, "package": package, "package_revision": uuid.uuid4().hex}
+            else:
+                changes = {**reel_blender.generate_concepts(draft, api_key, photo), "selected": None, "package": None, "package_revision": None}
+    except (ValueError, OSError, RuntimeError, requests.RequestException):
+        return JSONResponse({"error": "La generazione non è riuscita. Riprova o controlla OpenRouter."}, status_code=502)
+    with _blender_lock:
+        if _read_blender_draft(draft_id) != draft:
+            return JSONResponse({"error": "La bozza è cambiata. Riaprila e riprova."}, status_code=409)
+        return _write_blender_draft(draft_id, {**draft, **changes})
+
+
+@app.post("/reel-blender/drafts/{draft_id}/concepts")
+def blender_concepts(draft_id: uuid.UUID):
+    return _generate_blender(draft_id)
+
+
+@app.post("/reel-blender/drafts/{draft_id}/package")
+def blender_package(draft_id: uuid.UUID, choice: BlenderConceptChoice):
+    return _generate_blender(draft_id, choice)
+
+
+@app.get("/reel-blender/drafts/{draft_id}/package.md")
+def blender_markdown(draft_id: uuid.UUID):
+    draft = _read_blender_draft(draft_id)
+    if not draft or not draft.get("package"):
+        return JSONResponse({"error": "Pacchetto di regia non trovato."}, status_code=404)
+    return PlainTextResponse(reel_blender.markdown(draft), media_type="text/markdown")
+
+
+def _blender_preview_path(draft_id: uuid.UUID, preview_id: uuid.UUID) -> Path:
+    return _blender_drafts_dir() / str(draft_id) / f"{preview_id}.mp4"
+
+
+@app.post("/reel-blender/drafts/{draft_id}/previews", status_code=201)
+async def blender_upload_preview(
+    draft_id: uuid.UUID,
+    video: UploadFile = File(...),
+    kind: Literal["shot", "montage"] = Form(default="shot"),
+):
+    draft = _read_blender_draft(draft_id)
+    if draft is None or not draft.get("package"):
+        await video.close()
+        return JSONResponse({"error": "Prepara prima il pacchetto di regia."}, status_code=409)
+    filename = (video.filename or "").replace(chr(92), "/").split("/")[-1]
+    if Path(filename).suffix.lower() != ".mp4":
+        await video.close()
+        return JSONResponse({"error": "Carica un MP4 esportato da Blender."}, status_code=400)
+
+    preview_id = uuid.uuid4()
+    target = _blender_preview_path(draft_id, preview_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    # Il temporaneo sta nello stesso volume del video definitivo.
+    temporary = target.with_suffix(".upload.mp4")
+    try:
+        await _save_upload(video, temporary, MAX_CLIP_BYTES)
+        width, height = await asyncio.to_thread(reel_studio.probe_size, temporary)
+        if width >= height:
+            raise ValueError("Esporta la previsualizzazione in verticale 9:16.")
+        seconds = await asyncio.to_thread(reel_studio.probe_duration, temporary)
+        if not 0 < seconds <= 60:
+            raise ValueError("Carica un video di durata fino a 60 secondi.")
+        with _blender_lock:
+            latest = _read_blender_draft(draft_id)
+            if not latest or not latest.get("package") or latest.get("package_revision") != draft.get("package_revision"):
+                return JSONResponse({"error": "Il pacchetto di regia è cambiato. Riaprilo e riprova."}, status_code=409)
+            revision = latest.get("package_revision") or uuid.uuid4().hex
+            preview = {
+                "id": str(preview_id),
+                "filename": filename[:160],
+                "kind": kind,
+                "duration_ms": round(seconds * 1000),
+                "package_revision": revision,
+                "status": "to_review",
+                "notes": [],
+            }
+            temporary.replace(target)
+            try:
+                return _write_blender_draft(draft_id, {
+                    **latest,
+                    "package_revision": revision,
+                    "previews": [preview, *latest.get("previews", [])],
+                })
+            except OSError:
+                target.unlink(missing_ok=True)
+                raise
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    except RuntimeError:
+        return JSONResponse({"error": "Il video non è leggibile. Riprova con un MP4 H.264."}, status_code=400)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+@app.get("/reel-blender/drafts/{draft_id}/previews/{preview_id}/video")
+def blender_preview_video(draft_id: uuid.UUID, preview_id: uuid.UUID, download: bool = False):
+    draft = _read_blender_draft(draft_id)
+    target = _blender_preview_path(draft_id, preview_id)
+    preview = next((item for item in (draft or {}).get("previews", []) if item["id"] == str(preview_id)), None)
+    if preview is None or not target.is_file():
+        return JSONResponse({"error": "Previsualizzazione non trovata."}, status_code=404)
+    return FileResponse(
+        target,
+        media_type="video/mp4",
+        filename=preview["filename"] if download else None,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+class BlenderPreviewNote(BaseModel):
+    time_ms: int = Field(ge=0)
+    text: str = Field(max_length=1000)
+
+
+class BlenderPreviewReview(BaseModel):
+    note: BlenderPreviewNote | None = None
+    status: Literal["to_review", "changes_requested", "approved"] | None = None
+
+
+@app.put("/reel-blender/drafts/{draft_id}/previews/{preview_id}/review")
+def blender_review_preview(draft_id: uuid.UUID, preview_id: uuid.UUID, body: BlenderPreviewReview):
+    with _blender_lock:
+        draft = _read_blender_draft(draft_id)
+        previews = (draft or {}).get("previews", [])
+        preview = next((item for item in previews if item["id"] == str(preview_id)), None)
+        if not draft or preview is None:
+            return JSONResponse({"error": "Previsualizzazione non trovata."}, status_code=404)
+        if preview["package_revision"] != draft.get("package_revision"):
+            return JSONResponse({"error": "Questa versione appartiene a un pacchetto precedente."}, status_code=409)
+        if body.note:
+            note = {"time_ms": body.note.time_ms, "text": body.note.text.strip()}
+            if not note["text"] or note["time_ms"] > preview["duration_ms"]:
+                return JSONResponse({"error": "Scrivi una nota con un timecode entro la durata del video."}, status_code=400)
+            if note not in preview["notes"]:
+                preview["notes"].append(note)
+                preview["notes"].sort(key=lambda item: item["time_ms"])
+        if body.status == "changes_requested" and not preview["notes"]:
+            return JSONResponse({"error": "Aggiungi una nota per indicare cosa cambiare."}, status_code=400)
+        if body.status:
+            preview["status"] = body.status
+        return _write_blender_draft(draft_id, draft)
 
 
 @app.post("/reel/create")
