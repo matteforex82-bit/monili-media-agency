@@ -17,6 +17,7 @@ import tempfile
 import uuid
 import zipfile
 from pathlib import Path
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any, Literal
 from urllib.parse import urlsplit
@@ -2771,7 +2772,15 @@ def _write_blender_draft(draft_id: uuid.UUID, draft: dict) -> dict:
     return draft
 
 
-def _save_blender_brief(body: BlenderBrief, draft_id: uuid.UUID, updating: bool = False):
+def _blender_photo_path(draft_id: uuid.UUID, photo_id: uuid.UUID) -> Path:
+    return _blender_drafts_dir() / str(draft_id) / "photos" / f"{photo_id}.jpg"
+
+
+def _save_blender_brief(
+    body: BlenderBrief, draft_id: uuid.UUID, updating: bool = False,
+    keep: list[uuid.UUID] | None = None, staged: Sequence[tuple[dict, Path]] = (),
+    expected_updated_at: str | None = None,
+):
     product = body.product.strip()
     if not product:
         return JSONResponse({"error": "Scrivi il nome del prodotto."}, status_code=400)
@@ -2780,12 +2789,41 @@ def _save_blender_brief(body: BlenderBrief, draft_id: uuid.UUID, updating: bool 
         existing = _read_blender_draft(draft_id) if updating else None
         if updating and existing is None:
             return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
-        if existing and all(existing.get(key) == value for key, value in fields.items()):
+        if existing and expected_updated_at is not None and existing["updated_at"] != expected_updated_at:
+            return JSONResponse({"error": "La bozza è cambiata. Riaprila e riprova."}, status_code=409)
+        old_photos = {photo["id"]: photo for photo in (existing or {}).get("photos", [])}
+        retained = list(old_photos) if keep is None else [str(photo_id) for photo_id in keep]
+        if len(set(retained)) != len(retained) or any(photo_id not in old_photos for photo_id in retained):
+            return JSONResponse({"error": "Le foto della bozza sono cambiate. Riaprila e riprova."}, status_code=409)
+        if len(retained) + len(staged) > MAX_REEL_PHOTOS:
+            return JSONResponse({"error": f"Puoi salvare fino a {MAX_REEL_PHOTOS} foto."}, status_code=400)
+        photos = [old_photos[photo_id] for photo_id in retained] + [photo for photo, _ in staged]
+        if existing and photos == existing.get("photos", []) and all(existing.get(key) == value for key, value in fields.items()):
             return existing
         draft = {"id": str(draft_id), "version": 1, **fields}
+        if photos:
+            draft["photos"] = photos
         if existing and existing.get("previews"):
             draft["previews"] = existing["previews"]
-        return _write_blender_draft(draft_id, draft)
+        moved = []
+        try:
+            for photo, temporary in staged:
+                target = _blender_photo_path(draft_id, uuid.UUID(photo["id"]))
+                target.parent.mkdir(parents=True, exist_ok=True)
+                temporary.replace(target)
+                moved.append(target)
+            saved = _write_blender_draft(draft_id, draft)
+        except OSError:
+            for target in moved:
+                target.unlink(missing_ok=True)
+            raise
+        for photo_id in old_photos.keys() - set(retained):
+            try:
+                _blender_photo_path(draft_id, uuid.UUID(photo_id)).unlink(missing_ok=True)
+            except OSError:
+                # Una foto già scollegata dal brief non deve impedire il salvataggio.
+                pass
+        return saved
 
 
 @app.post("/reel-blender/drafts", status_code=201)
@@ -2796,6 +2834,64 @@ def blender_create_draft(body: BlenderBrief):
 @app.put("/reel-blender/drafts/{draft_id}")
 def blender_update_draft(draft_id: uuid.UUID, body: BlenderBrief):
     return _save_blender_brief(body, draft_id, updating=True)
+
+
+def _prepare_blender_photo(source: Path, destination: Path) -> None:
+    if source.suffix in HEIC_EXTENSIONS:
+        source = _convert_heic_to_jpeg(source)
+    with Image.open(source) as original:
+        if original.format not in ("JPEG", "PNG", "WEBP"):
+            raise ValueError("Usa foto JPG, PNG, WebP o HEIC.")
+        image = ImageOps.exif_transpose(original).convert("RGB")
+        image.thumbnail((1800, 1800), Image.Resampling.LANCZOS)
+        image.save(destination, "JPEG", quality=94, optimize=True)
+
+
+@app.post("/reel-blender/drafts/with-photos")
+async def blender_save_with_photos(
+    product: str = Form(..., max_length=120),
+    brief: str = Form(default="", max_length=1500),
+    target_seconds: int = Form(default=12, ge=10, le=20),
+    scheda_run_id: str = Form(default="", max_length=120),
+    draft_id: uuid.UUID | None = Form(default=None),
+    expected_updated_at: str | None = Form(default=None, max_length=40),
+    keep_photo_ids: list[uuid.UUID] = Form(default=[]),
+    photos: list[UploadFile] = File(default=[]),
+):
+    if len(photos) + len(keep_photo_ids) > MAX_REEL_PHOTOS:
+        return JSONResponse({"error": f"Puoi salvare fino a {MAX_REEL_PHOTOS} foto."}, status_code=400)
+    fields = BlenderBrief(
+        product=product, brief=brief, target_seconds=target_seconds, scheda_run_id=scheda_run_id,
+    )
+    root = _blender_drafts_dir()
+    root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".photos-", dir=root) as directory:
+        staged = []
+        for index, upload in enumerate(photos):
+            filename = (upload.filename or "").replace(chr(92), "/").split("/")[-1]
+            ext = Path(filename).suffix.lower()
+            if ext not in ALLOWED_IMAGE_EXTENSIONS:
+                return JSONResponse({"error": "Usa foto JPG, PNG, WebP o HEIC."}, status_code=400)
+            source = Path(directory) / f"upload-{index}{ext}"
+            destination = Path(directory) / f"photo-{index}.jpg"
+            try:
+                await _save_upload(upload, source, MAX_UPLOAD_BYTES)
+                await asyncio.to_thread(_prepare_blender_photo, source, destination)
+            except (ValueError, OSError, RuntimeError, Image.DecompressionBombError):
+                return JSONResponse({"error": f"Non riesco a caricare «{filename[:120]}». Controlla formato e dimensione."}, status_code=400)
+            staged.append(({"id": str(uuid.uuid4()), "filename": filename[:160]}, destination))
+        return await asyncio.to_thread(
+            _save_blender_brief, fields, draft_id or uuid.uuid4(), draft_id is not None, keep_photo_ids, staged, expected_updated_at,
+        )
+
+
+@app.get("/reel-blender/drafts/{draft_id}/photos/{photo_id}")
+def blender_photo(draft_id: uuid.UUID, photo_id: uuid.UUID):
+    draft = _read_blender_draft(draft_id)
+    path = _blender_photo_path(draft_id, photo_id)
+    if not any(photo["id"] == str(photo_id) for photo in (draft or {}).get("photos", [])) or not path.is_file():
+        return JSONResponse({"error": "Foto non trovata."}, status_code=404)
+    return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": "private, no-store"})
 
 
 class BlenderConceptChoice(BaseModel):
@@ -2815,12 +2911,21 @@ def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None =
         return JSONResponse({"error": "Configura OpenRouter nelle impostazioni del server."}, status_code=503)
     try:
         with tempfile.TemporaryDirectory(prefix="monili-blender-") as directory:
-            photo = _scheda_source_photo(draft["scheda_run_id"], Path(directory))
+            with _blender_lock:
+                if _read_blender_draft(draft_id) != draft:
+                    return JSONResponse({"error": "La bozza è cambiata. Riaprila e riprova."}, status_code=409)
+                photos = [
+                    Path(shutil.copyfile(_blender_photo_path(draft_id, uuid.UUID(photo["id"])), Path(directory) / f"reference-{index}.jpg"))
+                    for index, photo in enumerate(draft.get("photos", []))
+                ]
+            if not photos:
+                source = _scheda_source_photo(draft["scheda_run_id"], Path(directory))
+                photos = [source] if source else []
             if choice:
-                package = reel_blender.generate_handoff(draft, api_key, photo, choice.index)
+                package = reel_blender.generate_handoff(draft, api_key, photos, choice.index)
                 changes = {"selected": choice.index, "package": package, "package_revision": uuid.uuid4().hex}
             else:
-                changes = {**reel_blender.generate_concepts(draft, api_key, photo), "selected": None, "package": None, "package_revision": None}
+                changes = {**reel_blender.generate_concepts(draft, api_key, photos), "selected": None, "package": None, "package_revision": None}
     except (ValueError, OSError, RuntimeError, requests.RequestException):
         return JSONResponse({"error": "La generazione non è riuscita. Riprova o controlla OpenRouter."}, status_code=502)
     with _blender_lock:
