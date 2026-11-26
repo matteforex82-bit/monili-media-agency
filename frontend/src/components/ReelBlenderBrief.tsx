@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { API_URL } from '@/lib/apiUrl';
 import FileDropzone from '@/components/FileDropzone';
+import ReelBlenderScene, { type SceneFile } from '@/components/ReelBlenderScene';
 import ReelBlenderReview, { type BlenderPreview } from '@/components/ReelBlenderReview';
 
 interface Brief {
@@ -45,6 +46,7 @@ interface Draft extends Brief {
   selected?: number | null;
   package?: Package | null;
   package_revision?: string;
+  scene?: SceneFile | null;
   previews?: BlenderPreview[];
 }
 
@@ -299,8 +301,20 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
         </div>
       )}
       {isSaved && active.package && (
+        <ReelBlenderScene
+          key={`scene-${active.id}`}
+          draftId={active.id}
+          scene={active.scene}
+          disabled={busy}
+          onUpdate={(value) => {
+            const draft = value as Draft;
+            setDrafts((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
+          }}
+        />
+      )}
+      {isSaved && active.package && (
         <ReelBlenderReview
-          key={active.id}
+          key={`review-${active.id}`}
           draftId={active.id}
           revision={active.package_revision}
           previews={active.previews ?? []}

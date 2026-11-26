@@ -21,6 +21,14 @@ Pagina: `/reel` (link "Reel Studio" in alto nella pagina principale).
 Il video è **senza audio**: l'audio lo scegli tra quelli di tendenza nell'editor di Instagram, che premia
 gli audio trending.
 
+## Reel Blender
+
+Nella modalità **Reel Blender**, usa **Prepara la regia**, poi **Crea e apri in Blender**. AI Studio trova Blender nel PATH o nella cartella di installazione standard di Windows o macOS. In una posizione personalizzata, avvia lo Studio con `BLENDER_BIN` impostato sul percorso dell’eseguibile. La generazione è stata verificata con Blender 4.3.
+
+Il file `.blend` contiene **Set e camere**, con una camera per inquadratura, marker di cambio camera e foto incorporate come riferimenti del blockout. In **Montaggio e musica** trovi le riprese in timeline e la traccia guida. Per un primo ascolto usa la guida a 100 BPM con accenti sui tagli. Puoi allegare un brano da usare al suo posto, a partire dall’inizio. Per esportare una previsualizzazione con audio, usa la scena **Montaggio e musica**.
+
+Le foto sono riferimenti bidimensionali per provare inquadrature e ritmo. Rifinisci in Blender gli elementi 3D e le animazioni del soggetto che richiedono un modello, quindi carica l’MP4 nella sezione **Previsualizzazione Blender** se vuoi rivederlo nello Studio.
+
 ## Skill (ricette modificabili)
 
 Le ricette sono file di testo in `skills/` (guida completa in `skills/README.md`). L'app le rilegge a ogni

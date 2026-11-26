@@ -199,3 +199,74 @@ def test_blender_brief_saves_reopens_and_sends_all_reference_photos(monkeypatch,
     assert "concepts" not in edited.json()
     assert client.get(f"{url}/photos/{first['id']}").status_code == 404
     assert client.put(url, json={"product": "Anello nuovo"}).json()["photos"] == [second]
+
+
+def test_blender_scene_uses_local_cli_and_preserves_package_state(monkeypatch, tmp_path, product_photo):
+    import json
+    import wave
+
+    monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
+    client = TestClient(server.app)
+    response = client.post("/reel-blender/drafts/with-photos", data={"product": "Giacca"}, files={
+        "photos": ("giacca.jpg", product_photo.read_bytes()),
+    })
+    draft = response.json()
+    url = f"/reel-blender/drafts/{draft['id']}/scene"
+    assert client.post(url).status_code == 409
+
+    path = tmp_path / "reel-blender" / f"{draft['id']}.json"
+    draft.update({
+        "concepts": [{"title": "Ricamo", "hook": "Dettaglio", "sequence": "Da vicino"}],
+        "selected": 0,
+        "package": {
+            "storyboard": "Macrodettaglio",
+            "assets": "Foto vera",
+            "audio": "Accento al taglio",
+            "blender": "Set di prova",
+            "higgsfield": "Prova una clip",
+            "shots": [
+                {"end_ms": end, "framing": framing, "camera": "micro push-in", "lighting": "Laterale",
+                 "action": "Foto 1", "cut": "Secco"}
+                for end, framing in ((1200, "Macro"), (5000, "Tre quarti"), (12000, "Frontale"))
+            ],
+        },
+    })
+    path.write_text(json.dumps(draft), encoding="utf-8")
+    monkeypatch.setattr(server.blender_scene, "executable", lambda: None)
+    assert client.post(url).status_code == 503
+    monkeypatch.setattr(server.blender_scene, "executable", lambda: "blender-test")
+    built = []
+
+    def build(binary, destination, spec):
+        assert binary == "blender-test"
+        json.dumps(spec)
+        assert spec["shots"][0]["detail"] and spec["shots"][0]["move"]
+        assert [shot["end_ms"] for shot in spec["shots"]] == [1200, 5000, 12000]
+        assert len(spec["photos"]) == 1
+        with wave.open(spec["audio"], "rb") as audio:
+            assert audio.getnframes() == 12 * audio.getframerate()
+            assert any(audio.readframes(audio.getnframes()))
+        built.append(spec["audio_title"])
+        destination.write_bytes(b"BLENDER-test-file")
+
+    monkeypatch.setattr(server.blender_scene, "build", build)
+    launched = []
+    monkeypatch.setattr(server.blender_scene, "open_scene", lambda binary, scene: launched.append(scene))
+    assert client.post(url, files={"music": ("brano.mp3", b"non audio")}).status_code == 400
+    created = client.post(url)
+    assert created.status_code == 201
+    scene = created.json()["scene"]
+    assert scene["music"] == "Guida ritmica originale · 100 BPM"
+    assert scene["shot_count"] == 3
+    scene_url = f"{url}/{scene['id']}"
+    assert client.get(scene_url).content == b"BLENDER-test-file"
+    assert client.post(scene_url + "/open").json() == {"launched": True}
+    assert launched[0].name == f"{scene['id']}.blend"
+
+    wav = tmp_path / "musica.wav"
+    server.blender_scene.guide_track(wav, 1000, [350])
+    uploaded = client.post(url, files={"music": ("musica.wav", wav.read_bytes())})
+    assert uploaded.status_code == 201
+    assert uploaded.json()["scene"]["music"] == "musica.wav"
+    assert client.get(scene_url).status_code == 200
+    assert built == ["Guida ritmica originale · 100 BPM", "musica.wav"]
