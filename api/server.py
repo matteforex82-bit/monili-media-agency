@@ -2352,6 +2352,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import higgsfield_client  # noqa: E402
 import reel_kit  # noqa: E402
 import reel_blender  # noqa: E402
+import blender_scene  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import remotion_graphics  # noqa: E402
@@ -2923,9 +2924,9 @@ def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None =
                 photos = [source] if source else []
             if choice:
                 package = reel_blender.generate_handoff(draft, api_key, photos, choice.index)
-                changes = {"selected": choice.index, "package": package, "package_revision": uuid.uuid4().hex}
+                changes = {"selected": choice.index, "package": package, "package_revision": uuid.uuid4().hex, "scene": None}
             else:
-                changes = {**reel_blender.generate_concepts(draft, api_key, photos), "selected": None, "package": None, "package_revision": None}
+                changes = {**reel_blender.generate_concepts(draft, api_key, photos), "selected": None, "package": None, "package_revision": None, "scene": None}
     except (ValueError, OSError, RuntimeError, requests.RequestException):
         return JSONResponse({"error": "La generazione non è riuscita. Riprova o controlla OpenRouter."}, status_code=502)
     with _blender_lock:
@@ -2950,6 +2951,109 @@ def blender_markdown(draft_id: uuid.UUID):
     if not draft or not draft.get("package"):
         return JSONResponse({"error": "Pacchetto di regia non trovato."}, status_code=404)
     return PlainTextResponse(reel_blender.markdown(draft), media_type="text/markdown")
+
+
+def _blender_scene_path(draft_id: uuid.UUID, scene_id: uuid.UUID) -> Path:
+    return _blender_drafts_dir() / str(draft_id) / "scenes" / f"{scene_id}.blend"
+
+
+@app.post("/reel-blender/drafts/{draft_id}/scene", status_code=201)
+async def blender_create_scene(draft_id: uuid.UUID, music: UploadFile | None = File(default=None)):
+    draft = _read_blender_draft(draft_id)
+    if not draft or not draft.get("package"):
+        return JSONResponse({"error": "Prepara prima il pacchetto di regia."}, status_code=409)
+    binary = blender_scene.executable()
+    if not binary:
+        return JSONResponse({
+            "error": "Blender non trovato sul PC. Installa Blender o imposta BLENDER_BIN con il percorso di blender.exe."
+        }, status_code=503)
+
+    scene_id = uuid.uuid4()
+    target = _blender_scene_path(draft_id, scene_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        shots = blender_scene.shot_settings(draft["package"]["shots"])
+        duration_ms = shots[-1]["end_ms"]
+        with tempfile.TemporaryDirectory(prefix=".blender-", dir=target.parent) as directory:
+            working = Path(directory)
+            with _blender_lock:
+                if _read_blender_draft(draft_id) != draft:
+                    return JSONResponse({"error": "La bozza è cambiata. Riaprila e riprova."}, status_code=409)
+                photos = [
+                    str(shutil.copyfile(_blender_photo_path(draft_id, uuid.UUID(photo["id"])), working / f"foto-{index}.jpg"))
+                    for index, photo in enumerate(draft.get("photos", []), 1)
+                ]
+            if not photos:
+                source = _scheda_source_photo(draft["scheda_run_id"], working)
+                photos = [str(source)] if source else []
+            audio = working / "musica.wav"
+            title = "Guida ritmica originale · 100 BPM"
+            if music and music.filename:
+                title = music.filename.replace(chr(92), "/").split("/")[-1][:160]
+                if Path(title).suffix.lower() not in {".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac"}:
+                    return JSONResponse({"error": "Carica un brano MP3, WAV, M4A, OGG, AAC o FLAC."}, status_code=400)
+                source = working / "brano-upload"
+                await _save_upload(music, source, MAX_UPLOAD_BYTES)
+                try:
+                    await asyncio.to_thread(reel_studio._run_ffmpeg, [
+                        "-i", str(source), "-map", "0:a:0", "-af", "apad",
+                        "-t", str(duration_ms / 1000), "-ar", "48000", str(audio),
+                    ])
+                except RuntimeError:
+                    return JSONResponse({"error": "Il file musicale non è leggibile."}, status_code=400)
+            else:
+                await asyncio.to_thread(blender_scene.guide_track, audio, duration_ms, [shot["end_ms"] for shot in shots[:-1]])
+            temporary = working / "scena.blend"
+            await asyncio.to_thread(blender_scene.build, binary, temporary, {
+                "shots": shots,
+                "fps": blender_scene.FPS,
+                "photos": photos,
+                "audio": str(audio),
+                "audio_title": title,
+                "notes": reel_blender.markdown(draft),
+            })
+            with _blender_lock:
+                latest = _read_blender_draft(draft_id)
+                if not latest or latest.get("package") != draft["package"] or latest.get("package_revision") != draft.get("package_revision"):
+                    return JSONResponse({"error": "La regia è cambiata. Prepara la scena dal pacchetto aggiornato."}, status_code=409)
+                temporary.replace(target)
+                try:
+                    return _write_blender_draft(draft_id, {
+                        **latest, "scene": {"id": str(scene_id), "music": title, "shot_count": len(shots)},
+                    })
+                except OSError:
+                    target.unlink(missing_ok=True)
+                    raise
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"error": "Blender ha impiegato troppo tempo. Riprova dopo averlo chiuso."}, status_code=504)
+    except (OSError, RuntimeError):
+        return JSONResponse({"error": "Blender non ha completato la scena. Controlla che Blender 4.3 o successivo si avvii sul PC."}, status_code=502)
+
+
+@app.get("/reel-blender/drafts/{draft_id}/scene/{scene_id}")
+def blender_download_scene(draft_id: uuid.UUID, scene_id: uuid.UUID):
+    path = _blender_scene_path(draft_id, scene_id)
+    if not path.is_file():
+        return JSONResponse({"error": "Scena Blender non trovata."}, status_code=404)
+    return FileResponse(path, filename="reel-blender.blend", media_type="application/octet-stream",
+                        headers={"Cache-Control": "private, no-store"})
+
+
+@app.post("/reel-blender/drafts/{draft_id}/scene/{scene_id}/open")
+def blender_open_scene(draft_id: uuid.UUID, scene_id: uuid.UUID):
+    path = _blender_scene_path(draft_id, scene_id)
+    if not path.is_file():
+        return JSONResponse({"error": "Scena Blender non trovata."}, status_code=404)
+    binary = blender_scene.executable()
+    if not binary:
+        return JSONResponse({"error": "Blender non trovato. Puoi scaricare il file .blend."}, status_code=503)
+    try:
+        blender_scene.open_scene(binary, path)
+    except OSError:
+        return JSONResponse({"error": "Non riesco ad avviare Blender. Puoi scaricare il file .blend."}, status_code=502)
+    return {"launched": True}
 
 
 def _blender_preview_path(draft_id: uuid.UUID, preview_id: uuid.UUID) -> Path:
