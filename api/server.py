@@ -30,6 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 
 # The project root holds the Studio's own modules (also added again further down).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -2352,6 +2353,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import higgsfield_client  # noqa: E402
 import reel_kit  # noqa: E402
 import reel_blender  # noqa: E402
+import reel_higgsfield_handoff  # noqa: E402
 import blender_scene  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
@@ -3075,11 +3077,15 @@ async def blender_upload_preview(
     draft_id: uuid.UUID,
     video: UploadFile = File(...),
     kind: Literal["shot", "montage"] = Form(default="shot"),
+    shot_index: int | None = Form(default=None, ge=0),
 ):
     draft = _read_blender_draft(draft_id)
     if draft is None or not draft.get("package"):
         await video.close()
         return JSONResponse({"error": "Prepara prima il pacchetto di regia."}, status_code=409)
+    if kind == "shot" and shot_index is not None and shot_index >= len(draft["package"].get("shots", [])):
+        await video.close()
+        return JSONResponse({"error": "Inquadratura non trovata nel copione."}, status_code=400)
     filename = (video.filename or "").replace(chr(92), "/").split("/")[-1]
     if Path(filename).suffix.lower() != ".mp4":
         await video.close()
@@ -3107,6 +3113,7 @@ async def blender_upload_preview(
                 "id": str(preview_id),
                 "filename": filename[:160],
                 "kind": kind,
+                **({"shot_index": shot_index} if kind == "shot" and shot_index is not None else {}),
                 "duration_ms": round(seconds * 1000),
                 "package_revision": revision,
                 "status": "to_review",
@@ -3177,6 +3184,132 @@ def blender_review_preview(draft_id: uuid.UUID, preview_id: uuid.UUID, body: Ble
         if body.status:
             preview["status"] = body.status
         return _write_blender_draft(draft_id, draft)
+
+
+class BlenderHiggsfieldShot(BaseModel):
+    shot_index: int = Field(ge=0)
+
+
+def _higgsfield_preview(draft_id: uuid.UUID, preview_id: uuid.UUID) -> tuple[dict, dict]:
+    draft = _read_blender_draft(draft_id)
+    preview = next((item for item in (draft or {}).get("previews", []) if item["id"] == str(preview_id)), None)
+    if not draft or not preview or not draft.get("package"):
+        raise ValueError("Ripresa o regia non trovata.")
+    if preview["kind"] != "shot" or preview["status"] != "approved" or preview["package_revision"] != draft.get("package_revision"):
+        raise ValueError("Approva una singola ripresa del pacchetto attuale.")
+    return draft, preview
+
+
+def _higgsfield_shot_index(draft: dict, preview: dict, requested: int) -> int:
+    index = preview.get("shot_index", requested)
+    if index != requested or not 0 <= index < len(draft["package"].get("shots", [])):
+        raise ValueError("Abbina la clip all’inquadratura del copione.")
+    return index
+
+
+@app.post("/reel-blender/drafts/{draft_id}/previews/{preview_id}/higgsfield/package")
+def blender_higgsfield_package(draft_id: uuid.UUID, preview_id: uuid.UUID, body: BlenderHiggsfieldShot):
+    folder = Path(tempfile.mkdtemp(prefix="monili-higgsfield-"))
+    keep = False
+    try:
+        with _blender_lock:
+            draft, preview = _higgsfield_preview(draft_id, preview_id)
+            index = _higgsfield_shot_index(draft, preview, body.shot_index)
+            photos = [
+                Path(shutil.copyfile(_blender_photo_path(draft_id, uuid.UUID(photo["id"])), folder / f"foto-{number}.jpg"))
+                for number, photo in enumerate(draft.get("photos", []), 1)
+            ]
+        if not photos:
+            photo = _scheda_source_photo(draft["scheda_run_id"], folder)
+            photos = [photo] if photo else []
+        archive = reel_higgsfield_handoff.package(
+            folder, _blender_preview_path(draft_id, preview_id), draft, preview, index, photos,
+        )
+        with _blender_lock:
+            _, current_preview = _higgsfield_preview(draft_id, preview_id)
+            if current_preview["package_revision"] != preview["package_revision"]:
+                raise ValueError("La regia è cambiata. Riapri la ripresa da approvare.")
+        keep = True
+        return FileResponse(
+            archive, filename=f"monili-higgsfield-shot-{index + 1:02d}.zip",
+            media_type="application/zip", headers={"Cache-Control": "private, no-store"},
+            background=BackgroundTask(shutil.rmtree, folder, ignore_errors=True),
+        )
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=409)
+    except (RuntimeError, OSError):
+        return JSONResponse({"error": "Non riesco a preparare la clip per Higgsfield. Riprova con un MP4 H.264 valido."}, status_code=400)
+    finally:
+        if not keep:
+            shutil.rmtree(folder, ignore_errors=True)
+
+
+def _higgsfield_result_path(draft_id: uuid.UUID, result_id: uuid.UUID) -> Path:
+    return _blender_drafts_dir() / str(draft_id) / "higgsfield" / f"{result_id}.mp4"
+
+
+@app.post("/reel-blender/drafts/{draft_id}/previews/{preview_id}/higgsfield/results", status_code=201)
+async def blender_higgsfield_result(
+    draft_id: uuid.UUID, preview_id: uuid.UUID,
+    video: UploadFile = File(...), shot_index: int = Form(..., ge=0),
+):
+    filename = (video.filename or "").replace(chr(92), "/").split("/")[-1]
+    if Path(filename).suffix.lower() != ".mp4":
+        await video.close()
+        return JSONResponse({"error": "Carica il risultato Higgsfield in formato MP4."}, status_code=400)
+    try:
+        draft, preview = _higgsfield_preview(draft_id, preview_id)
+        index = _higgsfield_shot_index(draft, preview, shot_index)
+    except ValueError as error:
+        await video.close()
+        return JSONResponse({"error": str(error)}, status_code=409)
+
+    result_id = uuid.uuid4()
+    target = _higgsfield_result_path(draft_id, result_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_suffix(".upload.mp4")
+    try:
+        await _save_upload(video, temporary, MAX_CLIP_BYTES)
+        width, height = await asyncio.to_thread(reel_studio.probe_size, temporary)
+        seconds = await asyncio.to_thread(reel_studio.probe_duration, temporary)
+        if width >= height or not 0 < seconds <= 60:
+            return JSONResponse({"error": "Carica una clip verticale MP4 fino a 60 secondi."}, status_code=400)
+        with _blender_lock:
+            try:
+                latest, latest_preview = _higgsfield_preview(draft_id, preview_id)
+                index = _higgsfield_shot_index(latest, latest_preview, index)
+                if latest_preview["package_revision"] != preview["package_revision"]:
+                    raise ValueError("La regia è cambiata. Riapri la ripresa da approvare.")
+            except ValueError as error:
+                return JSONResponse({"error": str(error)}, status_code=409)
+            result = {
+                "id": str(result_id), "filename": filename[:160],
+                "duration_ms": round(seconds * 1000), "shot_index": index,
+            }
+            latest_preview["shot_index"] = index
+            latest_preview["higgsfield_results"] = [result, *latest_preview.get("higgsfield_results", [])]
+            temporary.replace(target)
+            try:
+                return _write_blender_draft(draft_id, latest)
+            except OSError:
+                target.unlink(missing_ok=True)
+                raise
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=400)
+    except RuntimeError:
+        return JSONResponse({"error": "Il risultato Higgsfield non è leggibile."}, status_code=400)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+@app.get("/reel-blender/drafts/{draft_id}/previews/{preview_id}/higgsfield/results/{result_id}")
+def blender_higgsfield_result_video(draft_id: uuid.UUID, preview_id: uuid.UUID, result_id: uuid.UUID):
+    draft = _read_blender_draft(draft_id)
+    preview = next((item for item in (draft or {}).get("previews", []) if item["id"] == str(preview_id)), None)
+    target = _higgsfield_result_path(draft_id, result_id)
+    if not target.is_file() or not any(result["id"] == str(result_id) for result in (preview or {}).get("higgsfield_results", [])):
+        return JSONResponse({"error": "Risultato Higgsfield non trovato."}, status_code=404)
+    return FileResponse(target, media_type="video/mp4", headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"})
 
 
 @app.post("/reel/create")

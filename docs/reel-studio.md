@@ -31,6 +31,15 @@ Il file `.blend` contiene **Set e camere**, con una camera per inquadratura, mar
 
 Le foto sono riferimenti bidimensionali per provare inquadrature e ritmo. Rifinisci in Blender gli elementi 3D e le animazioni del soggetto che richiedono un modello, quindi carica l’MP4 nella sezione **Previsualizzazione Blender** se vuoi rivederlo nello Studio.
 
+### Primo test su una ripresa
+
+1. Riprendi la bozza del capo, aggiornane la regia se serve e apri il file Blender. Rivedi **Set e camere** e **Montaggio e musica**. Per una giacca ricamata, prova prima il tre quarti con la modella già ferma e un gesto minimo. Controlla che si leggano forma, orlo e ricamo.
+2. Esporta quella ripresa continua da **Set e camere** in MP4, scegliendo il suo intervallo tra i marker. In **Previsualizzazione Blender** caricala come **Una singola ripresa**, abbinala all’inquadratura e approvala dopo averla guardata.
+3. Scarica il **Pacchetto Higgsfield**. Contiene la copia muta in 9:16, le foto della bozza, il prompt e le istruzioni. La modalità di generazione dipende da ciò che si vede nella clip. Per Motion Control serve un soggetto con un movimento leggibile. Per una camera che si muove su riferimenti 2D, verifica una modalità con video di riferimento. [Guida Higgsfield](https://higgsfield.ai/creator-hub/help-center/ai-models/how-do-i-use-kling)
+4. Carica il risultato MP4 sotto la stessa ripresa. Usa **Inizio**, **Metà** e **Finale** per confrontare i due video e controlla i dettagli del prodotto sulle foto reali. Verifica camera, posa e timing prima di provare altre inquadrature. La musica resta nella timeline del Reel.
+
+AI Studio prepara e conserva i file in locale. La prova sul servizio Higgsfield si avvia manualmente dopo aver scelto la modalità e controllato costo e durata.
+
 ## Skill (ricette modificabili)
 
 Le ricette sono file di testo in `skills/` (guida completa in `skills/README.md`). L'app le rilegge a ogni
