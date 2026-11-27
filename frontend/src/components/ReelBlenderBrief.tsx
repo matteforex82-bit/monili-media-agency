@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { API_URL } from '@/lib/apiUrl';
 import FileDropzone from '@/components/FileDropzone';
+import ReelSeedancePrompts from '@/components/ReelSeedancePrompts';
 import ReelBlenderScene, { type SceneFile } from '@/components/ReelBlenderScene';
 import ReelBlenderReview, { type BlenderPreview } from '@/components/ReelBlenderReview';
 
@@ -305,6 +306,7 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
             <p>{active.recommendation_reason}</p>
           )}
           <p>{active.package.storyboard}</p>
+          <ReelSeedancePrompts draftId={active.id} revision={active.package_revision} />
           {active.package.direction ? (
             <details className="rs-details">
               <summary>Inquadrature, luce e musica</summary>

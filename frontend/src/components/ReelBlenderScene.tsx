@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { API_URL } from '@/lib/apiUrl';
+import ReelBlenderRender from '@/components/ReelBlenderRender';
 
 export interface SceneFile {
   id: string;
@@ -92,6 +93,7 @@ export default function ReelBlenderScene({ draftId, scene, musicBpm, disabled, o
             <button className="btn-secondary" type="button" disabled={busy || disabled} onClick={() => void reopen()}>Apri in Blender</button>
             <a className="btn-secondary" href={`${base}/${encodeURIComponent(scene.id)}`}>Scarica .blend</a>
           </div>
+          <ReelBlenderRender key={scene.id} base={`${base}/${encodeURIComponent(scene.id)}/render`} disabled={busy || disabled} />
         </>
       )}
     </section>

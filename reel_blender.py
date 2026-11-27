@@ -59,6 +59,8 @@ class Shot(BaseModel):
     action: ShortText
     cut: ShortText
     design: ShotDesign
+    photo_prompt_en: LongText | None = None
+    video_prompt_en: LongText | None = None
 
 
 class Handoff(BaseModel):
@@ -130,14 +132,16 @@ Usa scale look/medium/detail/macro; motion fixed/push/slide/orbit; luce soft/tex
 lens_mm 28–120, yaw_deg -35–35, pitch_deg -20–20. Se hai solo foto piatte scegli movimenti e angoli moderati.
 Usa set_mood warm_cream/deep_charcoal/neutral, BPM 72–130. accent fa risuonare none/soft/strong all'inizio dello shot.
 Specifica il perché di ogni inquadratura, il punto d'interesse e il raccordo col prossimo taglio. Scegli pochi accenti, anche solo quello della rivelazione.
+Scrivi due prompt specifici in inglese per ogni ripresa. photo_prompt_en prepara il primo fotogramma, con posa, crop e luce.
+video_prompt_en descrive una sola azione e il movimento, con indicazioni di fedeltà al pezzo e senza audio generato.
 Schema: {{"storyboard":"...", "assets":"...", "audio":"...", "blender":"...", "higgsfield":"...",
 "direction":{{"set_mood":"warm_cream","set_design":"...","continuity":"...","music_bpm":96,"music_feel":"..."}},
 "shots":[{{"end_ms":1200, "framing":"...", "camera":"...", "lighting":"...", "action":"...", "cut":"...",
 "design":{{"purpose":"...", "scale":"macro", "reference_photo":1, "focus_x":0.5, "focus_y":0.5,
 "lens_mm":85, "yaw_deg":0, "pitch_deg":0, "motion":"push", "light":"texture",
-"key_side":"left", "sound":"...", "accent":"none"}}}}]}}
+"key_side":"left", "sound":"...", "accent":"none"}}, "photo_prompt_en":"...", "video_prompt_en":"..."}}]}}
 Servono 3-6 shot. end_ms è il tempo assoluto di fine in millisecondi, strettamente crescente, a partire da 0.
-L'ultimo end_ms è esattamente {duration_ms}.""", images, 6500)
+L'ultimo end_ms è esattamente {duration_ms}.""", images, 7600)
     package = Handoff.model_validate(result).model_dump(exclude_none=True)
     ends = [shot["end_ms"] for shot in package["shots"]]
     if ends != sorted(set(ends)) or ends[-1] != duration_ms:

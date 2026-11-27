@@ -31,14 +31,16 @@ Il file `.blend` contiene **Set e camere**, con una camera per inquadratura, mar
 
 Le foto sono riferimenti bidimensionali per provare inquadrature e ritmo. Rifinisci in Blender gli elementi 3D e le animazioni del soggetto che richiedono un modello, quindi carica l’MP4 nella sezione **Previsualizzazione Blender** se vuoi rivederlo nello Studio.
 
-### Primo test su una ripresa
+### Render e prova manuale Seedance
 
-1. Riprendi la bozza del capo, aggiornane la regia se serve e apri il file Blender. Rivedi **Set e camere** e **Montaggio e musica**. Per una giacca ricamata, prova prima il tre quarti con la modella già ferma e un gesto minimo. Controlla che si leggano forma, orlo e ricamo.
-2. Esporta quella ripresa continua da **Set e camere** in MP4, scegliendo il suo intervallo tra i marker. In **Previsualizzazione Blender** caricala come **Una singola ripresa**, abbinala all’inquadratura e approvala dopo averla guardata.
-3. Scarica il **Pacchetto Higgsfield**. Contiene la copia muta in 9:16, le foto della bozza, il prompt e le istruzioni. La modalità di generazione dipende da ciò che si vede nella clip. Per Motion Control serve un soggetto con un movimento leggibile. Per una camera che si muove su riferimenti 2D, verifica una modalità con video di riferimento. [Guida Higgsfield](https://higgsfield.ai/creator-hub/help-center/ai-models/how-do-i-use-kling)
-4. Carica il risultato MP4 sotto la stessa ripresa. Usa **Inizio**, **Metà** e **Finale** per confrontare i due video e controlla i dettagli del prodotto sulle foto reali. Verifica camera, posa e timing prima di provare altre inquadrature. La musica resta nella timeline del Reel.
+1. Riapri il progetto e premi **Prepara la regia** (oppure **Aggiorna la regia** se compare). Apri **Prompt per foto e Seedance**. Per ogni inquadratura puoi copiare un prompt foto e un prompt video. La foto di riferimento viene indicata vicino ai prompt.
+2. Usa **Crea e apri in Blender**. Rivedi **Set e camere** e **Montaggio e musica**. Salva eventuali modifiche nel file aperto dallo Studio.
+3. Premi **Renderizza e prepara il kit**. Lo Studio renderizza quel file in locale e mostra l'avanzamento. Quando è pronto trovi il master MP4 con l'audio della timeline e lo ZIP Seedance. Il render riparte dalla scena salvata quando usi **Rifai il render**.
+4. Nello ZIP, ogni cartella `inquadrature/NN` contiene il prompt foto, il prompt video, il fotogramma guida e la clip Blender muta. Trovi anche le foto reali disponibili, la traccia della timeline e il manifest con i timecode ricavati dai marker del file renderizzato. La composizione Blender serve per preparare l'immagine. La foto del prodotto guida il controllo di fedeltà.
+5. Per il primo test della giacca, prepara l'immagine del tre quarti con la modella già in posa. In Higgsfield scegli Seedance nella modalità che accetta riferimenti, allega l'immagine preparata e la clip della stessa inquadratura. Usa il prompt video e controlla la durata minima della modalità prima di generare. [Guida Seedance su Higgsfield](https://higgsfield.ai/creator-hub/help-center/ai-models/how-do-i-use-seedance)
+6. Per rivedere il risultato in Studio, usa **Previsualizzazione Blender** con la clip singola estratta dallo ZIP, abbinala al copione e approvala. Sotto quella ripresa puoi caricare il risultato Higgsfield e confrontare **Inizio**, **Metà** e **Finale**. Confronta ricamo, proporzioni, colore e movimento prima di passare alle altre riprese.
 
-AI Studio prepara e conserva i file in locale. La prova sul servizio Higgsfield si avvia manualmente dopo aver scelto la modalità e controllato costo e durata.
+La fase manuale prepara gli stessi file che potrà consumare un’integrazione MCP. `manifest.json` separa per shot i riferimenti reali, la clip Blender, i due prompt, i timecode e l’immagine sorgente da preparare (`source_image`). L’integrazione di foto e video va collaudata sul risultato reale prima di attivare la generazione automatica.
 
 ## Skill (ricette modificabili)
 
