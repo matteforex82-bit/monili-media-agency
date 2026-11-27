@@ -2913,9 +2913,6 @@ def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None =
         return JSONResponse({"error": draft.get("clarification") or "Prepara prima le idee della regia."}, status_code=409)
     if choice and not choice.refresh_direction and draft.get("selected") == choice.index and draft.get("package"):
         return draft
-    api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
-    if not api_key:
-        return JSONResponse({"error": "Configura OpenRouter nelle impostazioni del server."}, status_code=503)
     try:
         with tempfile.TemporaryDirectory(prefix="monili-blender-") as directory:
             with _blender_lock:
@@ -2929,16 +2926,20 @@ def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None =
                 source = _scheda_source_photo(draft["scheda_run_id"], Path(directory))
                 photos = [source] if source else []
             if choice:
-                package = reel_blender.generate_handoff(draft, api_key, photos, choice.index)
+                package = reel_blender.generate_handoff(draft, photos, choice.index)
                 changes = {"selected": choice.index, "package": package, "package_revision": uuid.uuid4().hex, "scene": None}
             else:
                 changes = {
                     "recognition": None, "clarification": None, "recommended": None, "recommendation_reason": None,
-                    **reel_blender.generate_concepts(draft, api_key, photos),
+                    **reel_blender.generate_concepts(draft, photos),
                     "selected": None, "package": None, "package_revision": None, "scene": None,
                 }
-    except (ValueError, OSError, RuntimeError, requests.RequestException):
-        return JSONResponse({"error": "La generazione non è riuscita. Riprova o controlla OpenRouter."}, status_code=502)
+    except fucina_codex.CodexError as error:
+        return JSONResponse({"error": str(error)}, status_code=502)
+    except ValueError:
+        return JSONResponse({"error": "La regia proposta da Codex è incompleta. Riprova a generarla."}, status_code=502)
+    except OSError:
+        return JSONResponse({"error": "Non riesco ad avviare Codex o a leggere le foto della bozza. Riprova."}, status_code=502)
     with _blender_lock:
         if _read_blender_draft(draft_id) != draft:
             return JSONResponse({"error": "La bozza è cambiata. Riaprila e riprova."}, status_code=409)

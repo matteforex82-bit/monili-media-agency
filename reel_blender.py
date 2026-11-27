@@ -6,8 +6,9 @@ from pathlib import Path
 from pydantic import BaseModel, Field, StringConstraints
 from typing import Annotated, Literal
 
+import fucina_codex
 import prompt_lab
-from main import BRAND, extract_json_object, generate_text_with_openrouter, select_openrouter_text_model
+from main import BRAND, extract_json_object
 
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
 LongText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=3500)]
@@ -105,7 +106,7 @@ def _templates_for(template: str | None) -> str:
     return "\n## ".join((intro, common, selected)) if selected else catalog
 
 
-def _ask(draft: dict, api_key: str, instructions: str, images: list[Path], max_tokens: int, recognition: dict | None = None) -> dict:
+def _ask(draft: dict, instructions: str, images: list[Path], recognition: dict | None = None) -> dict:
     brief = {key: draft[key] for key in ("product", "brief", "target_seconds")}
     if recognition:
         brief["product"] = product_title(draft)
@@ -143,13 +144,11 @@ BRIEF
 {instructions}
 
 Rispondi con un solo oggetto JSON."""
-    return extract_json_object(generate_text_with_openrouter(
-        api_key, select_openrouter_text_model(), prompt, image_path=images or None, max_tokens=max_tokens, all_images=True,
-    ))
+    return extract_json_object(fucina_codex.run(prompt, images))
 
 
-def generate_concepts(draft: dict, api_key: str, images: list[Path]) -> dict:
-    result = _ask(draft, api_key, """Se ci sono foto, identifica il protagonista e il dettaglio visibile che dà un motivo all'apertura.
+def generate_concepts(draft: dict, images: list[Path]) -> dict:
+    result = _ask(draft, """Se ci sono foto, identifica il protagonista e il dettaglio visibile che dà un motivo all'apertura.
 Se il nome è dichiarato, usalo per distinguere il protagonista dagli accessori. Se il nome è vuoto e due prodotti sono
 ugualmente protagonisti, o il pezzo non è riconoscibile, restituisci solo {"clarification":"una domanda breve con le alternative visibili, se ci sono"}.
 Se il protagonista è chiaro, compila recognition con un nome breve, il titolo esatto di una scheda del catalogo (oppure Regia libera)
@@ -161,7 +160,7 @@ leggibile subito dopo e a una ripresa fattibile che conservi il pezzo. Il Reel d
 Spiega la scelta in una frase concreta legata alle foto e alla tenuta dell'attenzione. Evita promesse di viralità.
 Schema: {"concepts":[{"title":"...", "hook":"...", "sequence":"...", "risk":"..."}], "recommended":0,
 "recommendation_reason":"...", "recognition":{"product":"Giacca ricamata", "template":"Giacca o gilet", "detail":"Motivo ricamato sulle maniche"}}
-recommended è l'indice 0, 1 o 2 del concept che hai scelto. Ometti recognition se lavori senza foto.""", images, 3000)
+recommended è l'indice 0, 1 o 2 del concept che hai scelto. Ometti recognition se lavori senza foto.""", images)
     if not images:
         result.pop("recognition", None)
     if not draft["product"] and result.get("clarification"):
@@ -173,10 +172,10 @@ recommended è l'indice 0, 1 o 2 del concept che hai scelto. Ometti recognition 
     return concepts.model_dump(exclude_none=True)
 
 
-def generate_handoff(draft: dict, api_key: str, images: list[Path], index: int) -> dict:
+def generate_handoff(draft: dict, images: list[Path], index: int) -> dict:
     selected = draft["concepts"][index]
     duration_ms = draft["target_seconds"] * 1000
-    result = _ask(draft, api_key, f"""Sviluppa solo il concept scelto: {json.dumps(selected, ensure_ascii=False)}
+    result = _ask(draft, f"""Sviluppa solo il concept scelto: {json.dumps(selected, ensure_ascii=False)}
 Rendi leggibile il gancio visivo nel primo secondo. Nel montaggio, punta a 0,8–1,5 secondi per l'apertura
 e mostra il pezzo in contesto entro circa 3 secondi. Se la proposta di concept indica un'apertura più lunga,
 accorciala e ridistribuisci il tempo per far leggere il prodotto. Puoi generare una clip sorgente più lunga e rifilarla.
@@ -202,7 +201,7 @@ Schema: {{"storyboard":"...", "assets":"...", "audio":"...", "blender":"...", "h
 "lens_mm":85, "yaw_deg":0, "pitch_deg":0, "motion":"push", "light":"texture",
 "key_side":"left", "sound":"...", "accent":"none"}}, "photo_prompt_en":"...", "video_prompt_en":"..."}}]}}
 Servono 3-6 shot. end_ms è il tempo assoluto di fine in millisecondi, strettamente crescente, a partire da 0.
-L'ultimo end_ms è esattamente {duration_ms}.""", images, 7600, recognition=draft.get("recognition"))
+L'ultimo end_ms è esattamente {duration_ms}.""", images, recognition=draft.get("recognition"))
     package = Handoff.model_validate(result).model_dump(exclude_none=True)
     ends = [shot["end_ms"] for shot in package["shots"]]
     if ends != sorted(set(ends)) or ends[-1] != duration_ms:
