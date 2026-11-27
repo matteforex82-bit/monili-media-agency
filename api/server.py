@@ -915,6 +915,7 @@ async def startup_event() -> None:
 @app.on_event("shutdown")
 async def shutdown_event() -> None:
     global cleanup_task
+    reel_blender_render.stop()
     if cleanup_task:
         cleanup_task.cancel()
         try:
@@ -2354,6 +2355,8 @@ import higgsfield_client  # noqa: E402
 import reel_kit  # noqa: E402
 import reel_blender  # noqa: E402
 import reel_higgsfield_handoff  # noqa: E402
+import reel_blender_render  # noqa: E402
+import reel_seedance_kit  # noqa: E402
 import blender_scene  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
@@ -3066,6 +3069,73 @@ def blender_open_scene(draft_id: uuid.UUID, scene_id: uuid.UUID):
     except OSError:
         return JSONResponse({"error": "Non riesco ad avviare Blender. Puoi scaricare il file .blend."}, status_code=502)
     return {"launched": True}
+
+
+def _blender_render_root(draft_id: uuid.UUID, scene_id: uuid.UUID) -> Path:
+    return _blender_scene_path(draft_id, scene_id).parent / str(scene_id)
+
+
+@app.get("/reel-blender/drafts/{draft_id}/seedance-prompts")
+def blender_seedance_prompts(draft_id: uuid.UUID):
+    draft = _read_blender_draft(draft_id)
+    if not draft or not draft.get("package"):
+        return JSONResponse({"error": "Prepara prima il pacchetto di regia."}, status_code=409)
+    count = len(draft.get("photos", []))
+    if not count and draft["scheda_run_id"]:
+        manifest = _find_mission_payload(draft["scheda_run_id"]) or {}
+        source = str(manifest.get("source_photo") or "").strip()
+        count = int(bool(source) and Path(source).is_file())
+    return {"items": reel_seedance_kit.prompts(draft["package"]["shots"], count)}
+
+
+@app.get("/reel-blender/drafts/{draft_id}/scene/{scene_id}/render")
+def blender_render_status(draft_id: uuid.UUID, scene_id: uuid.UUID):
+    return reel_blender_render.status(_blender_render_root(draft_id, scene_id))
+
+
+@app.post("/reel-blender/drafts/{draft_id}/scene/{scene_id}/render", status_code=202)
+def blender_render_start(draft_id: uuid.UUID, scene_id: uuid.UUID):
+    binary = blender_scene.executable()
+    if not binary:
+        return JSONResponse({"error": "Blender non trovato sul PC. Imposta BLENDER_BIN o installa Blender."}, status_code=503)
+    source = _blender_scene_path(draft_id, scene_id)
+    try:
+        with _blender_lock:
+            draft = _read_blender_draft(draft_id)
+            scene = (draft or {}).get("scene") or {}
+            if not draft or not draft.get("package") or scene.get("id") != str(scene_id) or not source.is_file():
+                return JSONResponse({"error": "Apri o crea la scena Blender del copione attuale."}, status_code=409)
+            photos = [
+                (".jpg", _blender_photo_path(draft_id, uuid.UUID(photo["id"])).read_bytes())
+                for photo in draft.get("photos", [])
+            ]
+        if not photos:
+            with tempfile.TemporaryDirectory(prefix="monili-render-foto-") as folder:
+                photo = _scheda_source_photo(draft["scheda_run_id"], Path(folder))
+                if photo:
+                    photos = [(photo.suffix, photo.read_bytes())]
+        return reel_blender_render.start(_blender_render_root(draft_id, scene_id), binary, source, draft, photos)
+    except reel_blender_render.RenderBusy as error:
+        return JSONResponse({"error": str(error)}, status_code=409)
+    except OSError:
+        return JSONResponse({"error": "Non riesco ad aprire i file della scena."}, status_code=400)
+
+
+@app.get("/reel-blender/drafts/{draft_id}/scene/{scene_id}/render/{render_id}/{artifact}")
+def blender_render_file(
+    draft_id: uuid.UUID, scene_id: uuid.UUID, render_id: uuid.UUID,
+    artifact: Literal["video", "kit"], download: bool = False,
+):
+    root = _blender_render_root(draft_id, scene_id) / str(render_id)
+    filename, media_type = ("reel-blender.mp4", "video/mp4") if artifact == "video" else ("kit-seedance.zip", "application/zip")
+    file = root / filename
+    if not (root / "ready").is_file() or not file.is_file():
+        return JSONResponse({"error": "Questo render non è ancora disponibile."}, status_code=404)
+    return FileResponse(
+        file, media_type=media_type,
+        filename=filename if download or artifact == "kit" else None,
+        headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 def _blender_preview_path(draft_id: uuid.UUID, preview_id: uuid.UUID) -> Path:

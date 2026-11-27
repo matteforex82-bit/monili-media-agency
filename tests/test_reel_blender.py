@@ -67,7 +67,7 @@ def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp
             for end in (1200, 5500, 12000)
         ],
     }
-    package = server.reel_blender.Handoff.model_validate(package).model_dump()
+    package = server.reel_blender.Handoff.model_validate(package).model_dump(exclude_none=True)
     responses = iter([concepts, {**package, "shots": package["shots"][:-1]}, package, package])
 
     def generate(_key, _model, prompt, *, image_path, max_tokens, all_images):
@@ -369,3 +369,110 @@ def test_higgsfield_handoff_exports_a_muted_shot_and_keeps_results_with_it(monke
     changed = client.put(url, json={"product": "Giacca nuova"})
     assert changed.status_code == 200
     assert client.post(base + "/higgsfield/package", json={"shot_index": 1}).status_code == 409
+
+
+def test_blender_render_packages_music_and_individual_seedance_shots(monkeypatch, tmp_path, product_photo):
+    import io
+    import json
+    import shutil
+    import subprocess
+    import threading
+    import time
+    import uuid
+    import zipfile
+
+    monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
+    monkeypatch.setattr(server.blender_scene, "executable", lambda: "blender-test")
+    client = TestClient(server.app)
+    draft = client.post("/reel-blender/drafts/with-photos", data={"product": "Giacca"}, files={
+        "photos": ("ricamo.jpg", product_photo.read_bytes()),
+    }).json()
+    draft_id = uuid.UUID(draft["id"])
+    scene_id = uuid.uuid4()
+    blend = server._blender_scene_path(draft_id, scene_id)
+    blend.parent.mkdir(parents=True)
+    blend.write_bytes(b"scene")
+    draft.update({
+        "scene": {"id": str(scene_id)},
+        "package": {"shots": [
+            {"framing": "Ricamo", "design": {"scale": "macro"}, "photo_prompt_en": "Frame the blue embroidery."},
+            {"framing": "Tre quarti", "design": {"scale": "look", "motion": "fixed"}},
+        ]},
+    })
+    meta = tmp_path / "reel-blender" / f"{draft_id}.json"
+    meta.write_text(json.dumps(draft), encoding="utf-8")
+    base = f"/reel-blender/drafts/{draft_id}"
+    render = f"{base}/scene/{scene_id}/render"
+    prompt_plan = client.get(base + "/seedance-prompts").json()["items"]
+    assert prompt_plan[0]["photo_en"].startswith("Frame the blue embroidery.")
+    assert prompt_plan[1]["video_en"].startswith("Keep the camera locked off")
+    assert prompt_plan[0]["product_reference"] == 1
+
+    video = tmp_path / "fake-render.mp4"
+    server.reel_studio._run_ffmpeg([
+        "-f", "lavfi", "-i", "color=c=blue:s=180x320:r=30", "-t", "0.6",
+        "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video),
+    ])
+    gate = threading.Event()
+    entered = threading.Event()
+
+    def fake_render(binary, source, folder, log):
+        assert binary == "blender-test" and source == blend
+        log.write_text("MONILI_TOTAL 18\nMONILI_FRAME 8\n", encoding="utf-8")
+        entered.set()
+        assert gate.wait(5)
+        shutil.copyfile(video, folder / "video-0001-0018.mp4")
+        server.blender_scene.guide_track(folder / "musica.wav", 600, [300])
+        (folder / "timeline.json").write_text(json.dumps({
+            "fps": 30, "frames": 18,
+            "shots": [
+                {"camera": "02 Tre quarti", "start_frame": 0, "end_frame": 9},
+                {"camera": "01 Ricamo", "start_frame": 9, "end_frame": 18},
+            ],
+        }), encoding="utf-8")
+
+    monkeypatch.setattr(server.reel_blender_render, "_render_source", fake_render)
+    assert client.get(render).json() == {"status": "idle"}
+    queued = client.post(render)
+    assert queued.status_code == 202
+    render_id = queued.json()["id"]
+    assert entered.wait(5)
+    try:
+        assert client.post(render).json()["id"] == render_id
+        progress = client.get(render).json()
+        assert progress["frame"] == 8 and progress["frames"] == 18
+        assert client.get(f"{render}/{render_id}/video").status_code == 404
+    finally:
+        gate.set()
+
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        state = client.get(render).json()
+        if state["status"] in {"ready", "error"}:
+            break
+        time.sleep(0.03)
+    assert state["status"] == "ready", state
+    assert state["duration_ms"] == 600
+    video_response = client.get(f"{render}/{render_id}/video")
+    assert video_response.status_code == 200
+    master = tmp_path / "master.mp4"
+    master.write_bytes(video_response.content)
+    kit = client.get(f"{render}/{render_id}/kit")
+    assert kit.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(kit.content)) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        first, second = manifest["shots"]
+        assert manifest["model_family"] == "seedance" and manifest["workflow"] == "manual"
+        assert first["title"] == "Tre quarti" and first["end_ms"] == 300
+        assert second["title"] == "Ricamo" and second["start_ms"] == 300
+        assert second["source_image"] is None
+        assert archive.read(second["photo_prompt"]).startswith(b"Frame the blue embroidery.")
+        assert all(path in archive.namelist() for path in (first["composition_image"], first["product_reference"], manifest["soundtrack"]))
+        shot = tmp_path / "shot.mp4"
+        shot.write_bytes(archive.read(first["video_reference"]))
+    ffmpeg = server.reel_studio.ffmpeg_exe()
+    master_probe = subprocess.run([ffmpeg, "-i", str(master)], capture_output=True, text=True)
+    shot_probe = subprocess.run([ffmpeg, "-i", str(shot)], capture_output=True, text=True)
+    assert "Audio: aac" in master_probe.stderr
+    assert "Audio:" not in shot_probe.stderr
+    assert server.reel_studio.probe_duration(shot) == 0.3
