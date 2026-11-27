@@ -3142,6 +3142,79 @@ def _blender_preview_path(draft_id: uuid.UUID, preview_id: uuid.UUID) -> Path:
     return _blender_drafts_dir() / str(draft_id) / f"{preview_id}.mp4"
 
 
+def _record_blender_preview(
+    draft_id: uuid.UUID, expected_revision: str | None, preview: dict, temporary: Path,
+    scene_id: uuid.UUID | None = None,
+) -> tuple[dict, str] | JSONResponse:
+    with _blender_lock:
+        latest = _read_blender_draft(draft_id)
+        if not latest or not latest.get("package") or latest.get("package_revision") != expected_revision:
+            return JSONResponse({"error": "Il pacchetto di regia è cambiato. Riaprilo e riprova."}, status_code=409)
+        if scene_id is not None:
+            if (latest.get("scene") or {}).get("id") != str(scene_id):
+                return JSONResponse({"error": "Usa il render della scena attuale."}, status_code=409)
+            for item in latest.get("previews", []):
+                if (item.get("render_id") == preview["render_id"] and item.get("shot_index") == preview["shot_index"]
+                        and item["package_revision"] == expected_revision
+                        and _blender_preview_path(draft_id, uuid.UUID(item["id"])).is_file()):
+                    return latest, item["id"]
+
+        revision = expected_revision or uuid.uuid4().hex
+        preview.update(package_revision=revision, status="to_review", notes=[])
+        target = _blender_preview_path(draft_id, uuid.UUID(preview["id"]))
+        temporary.replace(target)
+        try:
+            saved = _write_blender_draft(draft_id, {
+                **latest, "package_revision": revision, "previews": [preview, *latest.get("previews", [])],
+            })
+            return saved, preview["id"]
+        except OSError:
+            target.unlink(missing_ok=True)
+            raise
+
+
+class BlenderShotChoice(BaseModel):
+    shot_index: int = Field(ge=0)
+
+
+@app.post("/reel-blender/drafts/{draft_id}/scene/{scene_id}/render/{render_id}/review")
+def blender_review_render_shot(
+    draft_id: uuid.UUID, scene_id: uuid.UUID, render_id: uuid.UUID, body: BlenderShotChoice,
+):
+    render = _blender_render_root(draft_id, scene_id) / str(render_id)
+    archive_path = render / "kit-seedance.zip"
+    if not (render / "ready").is_file() or not archive_path.is_file():
+        return JSONResponse({"error": "Questo render non è ancora disponibile."}, status_code=404)
+    preview_id = uuid.uuid4()
+    target = _blender_preview_path(draft_id, preview_id)
+    temporary = target.with_suffix(".render.mp4")
+    try:
+        with zipfile.ZipFile(archive_path) as archive:
+            manifest = json.loads(archive.read("manifest.json"))
+            if not manifest.get("package_revision"):
+                return JSONResponse({"error": "Aggiorna la regia e rifai il render per aprire le riprese nello Studio."}, status_code=409)
+            shot = next((item for item in manifest["shots"] if item.get("script_index") == body.shot_index), None)
+            if shot is None:
+                return JSONResponse({"error": "Inquadratura non trovata in questo render."}, status_code=404)
+            with archive.open(shot["video_reference"]) as source, temporary.open("wb") as destination:
+                shutil.copyfileobj(source, destination)
+        preview = {
+            "id": str(preview_id), "filename": f"Render Blender · {shot['title']}"[:156] + ".mp4",
+            "kind": "shot", "shot_index": body.shot_index, "render_id": str(render_id),
+            "duration_ms": shot["end_ms"] - shot["start_ms"],
+            "timeline_start_ms": shot["start_ms"], "timeline_end_ms": shot["end_ms"],
+        }
+        result = _record_blender_preview(draft_id, manifest["package_revision"], preview, temporary, scene_id)
+        if isinstance(result, JSONResponse):
+            return result
+        draft, saved_id = result
+        return {"draft": draft, "preview_id": saved_id}
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+        return JSONResponse({"error": "Non riesco ad aprire la ripresa. Riprova o scarica il kit Seedance."}, status_code=400)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 @app.post("/reel-blender/drafts/{draft_id}/previews", status_code=201)
 async def blender_upload_preview(
     draft_id: uuid.UUID,
@@ -3174,31 +3247,13 @@ async def blender_upload_preview(
         seconds = await asyncio.to_thread(reel_studio.probe_duration, temporary)
         if not 0 < seconds <= 60:
             raise ValueError("Carica un video di durata fino a 60 secondi.")
-        with _blender_lock:
-            latest = _read_blender_draft(draft_id)
-            if not latest or not latest.get("package") or latest.get("package_revision") != draft.get("package_revision"):
-                return JSONResponse({"error": "Il pacchetto di regia è cambiato. Riaprilo e riprova."}, status_code=409)
-            revision = latest.get("package_revision") or uuid.uuid4().hex
-            preview = {
-                "id": str(preview_id),
-                "filename": filename[:160],
-                "kind": kind,
-                **({"shot_index": shot_index} if kind == "shot" and shot_index is not None else {}),
-                "duration_ms": round(seconds * 1000),
-                "package_revision": revision,
-                "status": "to_review",
-                "notes": [],
-            }
-            temporary.replace(target)
-            try:
-                return _write_blender_draft(draft_id, {
-                    **latest,
-                    "package_revision": revision,
-                    "previews": [preview, *latest.get("previews", [])],
-                })
-            except OSError:
-                target.unlink(missing_ok=True)
-                raise
+        preview = {
+            "id": str(preview_id), "filename": filename[:160], "kind": kind,
+            **({"shot_index": shot_index} if kind == "shot" and shot_index is not None else {}),
+            "duration_ms": round(seconds * 1000),
+        }
+        result = _record_blender_preview(draft_id, draft.get("package_revision"), preview, temporary)
+        return result if isinstance(result, JSONResponse) else result[0]
     except ValueError as error:
         return JSONResponse({"error": str(error)}, status_code=400)
     except RuntimeError:
@@ -3256,10 +3311,6 @@ def blender_review_preview(draft_id: uuid.UUID, preview_id: uuid.UUID, body: Ble
         return _write_blender_draft(draft_id, draft)
 
 
-class BlenderHiggsfieldShot(BaseModel):
-    shot_index: int = Field(ge=0)
-
-
 def _higgsfield_preview(draft_id: uuid.UUID, preview_id: uuid.UUID) -> tuple[dict, dict]:
     draft = _read_blender_draft(draft_id)
     preview = next((item for item in (draft or {}).get("previews", []) if item["id"] == str(preview_id)), None)
@@ -3278,7 +3329,7 @@ def _higgsfield_shot_index(draft: dict, preview: dict, requested: int) -> int:
 
 
 @app.post("/reel-blender/drafts/{draft_id}/previews/{preview_id}/higgsfield/package")
-def blender_higgsfield_package(draft_id: uuid.UUID, preview_id: uuid.UUID, body: BlenderHiggsfieldShot):
+def blender_higgsfield_package(draft_id: uuid.UUID, preview_id: uuid.UUID, body: BlenderShotChoice):
     folder = Path(tempfile.mkdtemp(prefix="monili-higgsfield-"))
     keep = False
     try:

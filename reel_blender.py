@@ -70,6 +70,7 @@ class Handoff(BaseModel):
     audio: LongText
     blender: LongText
     higgsfield: LongText
+    pilot_shot_index: int | None = Field(default=None, ge=0, lt=6)
     direction: Direction
     shots: list[Shot] = Field(min_length=3, max_length=6)
 
@@ -137,7 +138,9 @@ Indica quali foto usare, scattare o generare e quando girare una clip reale. Inc
 Nel piano di montaggio indica i tagli, dove tenere lo spazio per la grafica e quando far entrare la scritta in Remotion.
 Prevedi un file sorgente per inquadratura, anche da foto reale o ripresa reale quando è la fonte più fedele.
 Non dare per certi materiali o caratteristiche che dalle foto e dal brief non si possono verificare.
-Per Blender indica camera per shot, posa e riferimenti. Per Higgsfield descrivi il test su un solo shot e i controlli di fedeltà.
+Per Blender indica camera per shot, posa e riferimenti. Per Higgsfield scegli una sola ripresa da verificare per prima.
+Indica pilot_shot_index (indice dello shot a partire da 0) e spiega in higgsfield perché questa ripresa è utile e cosa controllare.
+Preferisci uno shot che permetta di giudicare insieme fedeltà del prodotto, posa e movimento previsto. Usa Seedance con riferimenti.
 Compila direction e design per ogni shot: sono i comandi che la scena Blender legge, oltre alle note per il montatore.
 focus_x e focus_y sono il centro d'interesse sulla foto (origine in alto a sinistra, 0–1); reference_photo è l'indice 1–3.
 Usa scale look/medium/detail/macro; motion fixed/push/slide/orbit; luce soft/texture/jewelry; key_side left/front/right.
@@ -146,7 +149,7 @@ Usa set_mood warm_cream/deep_charcoal/neutral, BPM 72–130. accent fa risuonare
 Specifica il perché di ogni inquadratura, il punto d'interesse e il raccordo col prossimo taglio. Scegli pochi accenti, anche solo quello della rivelazione.
 Scrivi due prompt specifici in inglese per ogni ripresa. photo_prompt_en prepara il primo fotogramma, con posa, crop e luce.
 video_prompt_en descrive una sola azione e il movimento, con indicazioni di fedeltà al pezzo e senza audio generato.
-Schema: {{"storyboard":"...", "assets":"...", "audio":"...", "blender":"...", "higgsfield":"...",
+Schema: {{"storyboard":"...", "assets":"...", "audio":"...", "blender":"...", "higgsfield":"...", "pilot_shot_index":1,
 "direction":{{"set_mood":"warm_cream","set_design":"...","continuity":"...","music_bpm":96,"music_feel":"..."}},
 "shots":[{{"end_ms":1200, "framing":"...", "camera":"...", "lighting":"...", "action":"...", "cut":"...",
 "design":{{"purpose":"...", "scale":"macro", "reference_photo":1, "focus_x":0.5, "focus_y":0.5,
@@ -158,6 +161,8 @@ L'ultimo end_ms è esattamente {duration_ms}.""", images, 7600)
     ends = [shot["end_ms"] for shot in package["shots"]]
     if ends != sorted(set(ends)) or ends[-1] != duration_ms:
         raise ValueError("I tempi delle inquadrature non coprono la durata del Reel.")
+    if package.get("pilot_shot_index", 0) >= len(ends):
+        package.pop("pilot_shot_index")
     return package
 
 

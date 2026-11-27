@@ -27,6 +27,7 @@ interface Package {
   audio: string;
   blender: string;
   higgsfield: string;
+  pilot_shot_index?: number;
   direction?: { set_design: string; continuity: string; music_bpm: number; music_feel: string };
   shots?: {
     end_ms: number;
@@ -77,10 +78,13 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
   const [saved, setSaved] = useState(false);
   const [newPhotos, setNewPhotos] = useState<File[]>([]);
   const [removedPhotos, setRemovedPhotos] = useState<string[]>([]);
+  const [reviewTarget, setReviewTarget] = useState<{ id: string; count: number }>();
   const active = drafts.find((draft) => draft.id === selected);
   const values = fields ?? { product: product ?? '', brief: initialBrief, target_seconds: 12, scheda_run_id: pieceId };
 
   const keptPhotos = (active?.photos ?? []).filter((photo) => !removedPhotos.includes(photo.id));
+  const shotNames = active?.package?.shots?.map((shot) => shot.framing) ?? [];
+  const pilot = active?.package?.pilot_shot_index;
   const isSaved = active && !newPhotos.length && !removedPhotos.length && values.product === active.product && values.brief === active.brief &&
     values.target_seconds === active.target_seconds && values.scheda_run_id === active.scheda_run_id;
 
@@ -108,6 +112,7 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
   function selectDraft(id: string) {
     const draft = drafts.find((entry) => entry.id === id);
     setSelected(id);
+    setReviewTarget(undefined);
     setNewPhotos([]);
     setRemovedPhotos([]);
     setFields(draft ? {
@@ -219,10 +224,21 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
     }
   }
 
+  function updateDraft(value: unknown) {
+    const draft = value as Draft;
+    setDrafts((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
+  }
+
+  function reviewRenderedShot(value: unknown, previewId: string) {
+    updateDraft(value);
+    setReviewTarget((target) => ({ id: previewId, count: (target?.count ?? 0) + 1 }));
+    document.getElementById('blender-preview-heading')?.scrollIntoView({ block: 'start' });
+  }
+
   return (
     <section className="card rs-card" aria-labelledby="reel-blender-title">
       <h2 className="rs-h1" id="reel-blender-title">Reel Blender</h2>
-      <p className="rs-muted">Salva il brief. Reel Blender sceglie la regia per il tuo pezzo e prepara la scheda per Claude e Blender.</p>
+      <p className="rs-muted">Parti dalle foto del pezzo. Lo Studio sceglie la regia, prepara la scena Blender e ti guida nella prova di una ripresa con Seedance.</p>
       {drafts.length > 0 && (
         <label className="rs-field">
           <span className="rs-field-label">Bozze Reel Blender</span>
@@ -306,6 +322,13 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
             <p>{active.recommendation_reason}</p>
           )}
           <p>{active.package.storyboard}</p>
+          {pilot !== undefined && shotNames[pilot] && (
+            <p><strong>Prima prova consigliata</strong> · {pilot + 1} · {shotNames[pilot]}</p>
+          )}
+          <details className="rs-details">
+            <summary>Foto da usare o preparare</summary>
+            <p style={{ whiteSpace: 'pre-line' }}>{active.package.assets}</p>
+          </details>
           <ReelSeedancePrompts draftId={active.id} revision={active.package_revision} />
           {active.package.direction ? (
             <details className="rs-details">
@@ -313,6 +336,7 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
               <p><strong>Set</strong> · {active.package.direction.set_design}</p>
               <p><strong>Continuità</strong> · {active.package.direction.continuity}</p>
               <p><strong>Guida a {active.package.direction.music_bpm} BPM</strong> · {active.package.direction.music_feel}</p>
+              <p><strong>Prova Seedance</strong> · {active.package.higgsfield}</p>
               {active.package.shots?.map((shot, index, shots) => (
                 <article key={shot.end_ms} className="rs-card">
                   <strong>{shot.framing}</strong>
@@ -333,10 +357,17 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
               Aggiorna la regia
             </button>
           )}
-          <div className="rs-actions">
-            <button className="btn-mission" type="button" disabled={busy} onClick={() => void download('md')}>Scarica Markdown</button>
-            <button className="btn-secondary" type="button" disabled={busy} onClick={() => void download('json')}>Scarica JSON</button>
-          </div>
+          <details className="rs-details">
+            <summary>Salva una copia o aggiorna la regia</summary>
+            <div className="rs-actions">
+              <button className="btn-secondary" type="button" disabled={busy} onClick={() => void download('md')}>Scarica Markdown</button>
+              <button className="btn-secondary" type="button" disabled={busy} onClick={() => void download('json')}>Scarica JSON</button>
+              {active.package.direction && (
+                <button className="btn-secondary" type="button" disabled={busy} onClick={() => void prepare(true)}>Aggiorna la regia</button>
+              )}
+            </div>
+            {active.scene && <p className="rs-muted">Se aggiorni la regia, crea una nuova scena Blender dal copione aggiornato.</p>}
+          </details>
         </div>
       )}
       {isSaved && active.package && (
@@ -345,25 +376,23 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
           draftId={active.id}
           scene={active.scene}
           musicBpm={active.package.direction?.music_bpm ?? 100}
+          shotNames={shotNames}
+          pilotShot={pilot}
           disabled={busy}
-          onUpdate={(value) => {
-            const draft = value as Draft;
-            setDrafts((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
-          }}
+          onUpdate={updateDraft}
+          onReview={reviewRenderedShot}
         />
       )}
       {isSaved && active.package && (
         <ReelBlenderReview
-          key={`review-${active.id}`}
+          key={`review-${active.id}-${reviewTarget?.count ?? 0}`}
           draftId={active.id}
           revision={active.package_revision}
           previews={active.previews ?? []}
-          shotNames={active.package.shots?.map((shot) => shot.framing) ?? []}
+          shotNames={shotNames}
+          initialSelected={reviewTarget?.id}
           disabled={busy}
-          onUpdate={(value) => {
-            const draft = value as Draft;
-            setDrafts((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
-          }}
+          onUpdate={updateDraft}
         />
       )}
     </section>

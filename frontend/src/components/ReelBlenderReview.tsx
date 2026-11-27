@@ -23,6 +23,7 @@ interface Props {
   revision?: string;
   previews: BlenderPreview[];
   shotNames: string[];
+  initialSelected?: string;
   disabled: boolean;
   onUpdate: (draft: unknown) => void;
 }
@@ -39,8 +40,8 @@ function timecode(milliseconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds % 1000).padStart(3, '0')}`;
 }
 
-export default function ReelBlenderReview({ draftId, revision, previews, shotNames, disabled, onUpdate }: Props) {
-  const [selected, setSelected] = useState('');
+export default function ReelBlenderReview({ draftId, revision, previews, shotNames, initialSelected = '', disabled, onUpdate }: Props) {
+  const [selected, setSelected] = useState(initialSelected);
   const [kind, setKind] = useState<'shot' | 'montage'>('shot');
   const [currentTime, setCurrentTime] = useState(0);
   const [text, setText] = useState('');
@@ -97,32 +98,36 @@ export default function ReelBlenderReview({ draftId, revision, previews, shotNam
 
   return (
     <section className="rs-card" aria-labelledby="blender-preview-heading">
-      <h3 className="rs-h1" id="blender-preview-heading">Previsualizzazione Blender</h3>
-      <form className="rs-card" onSubmit={upload}>
-        <div className="rs-grid-2">
-          <label className="rs-field">
-            <span className="rs-field-label">Cosa carichi</span>
-            <select className="rs-input" name="kind" value={kind} onChange={(event) => setKind(event.target.value === 'montage' ? 'montage' : 'shot')} disabled={locked}>
-              <option value="shot">Una singola ripresa</option>
-              <option value="montage">Il montaggio di prova</option>
-            </select>
-          </label>
-          <label className="rs-field">
-            <span className="rs-field-label">Video verticale MP4 H.264</span>
-            <input className="rs-input" name="video" type="file" accept=".mp4,video/mp4" required disabled={locked} />
-          </label>
-        </div>
-        {kind === 'shot' && shotNames.length > 0 && (
-          <label className="rs-field">
-            <span className="rs-field-label">Inquadratura del copione</span>
-            <select className="rs-input" name="shot_index" disabled={locked} required defaultValue="">
-              <option value="">Scegli la ripresa che hai esportato</option>
-              {shotNames.map((name, index) => <option key={index} value={index}>{index + 1} · {name}</option>)}
-            </select>
-          </label>
-        )}
-        <button className="btn-secondary" type="submit" disabled={locked}>Carica previsualizzazione</button>
-      </form>
+      <h3 className="rs-h1" id="blender-preview-heading">Revisione e prova Seedance</h3>
+      <details className="rs-details">
+        <summary>Carica una previsualizzazione esterna</summary>
+        <form className="rs-card" onSubmit={upload}>
+          <div className="rs-grid-2">
+            <label className="rs-field">
+              <span className="rs-field-label">Cosa carichi</span>
+              <select className="rs-input" name="kind" value={kind} onChange={(event) => setKind(event.target.value === 'montage' ? 'montage' : 'shot')} disabled={locked}>
+                <option value="shot">Una singola ripresa</option>
+                <option value="montage">Il montaggio di prova</option>
+              </select>
+            </label>
+            <label className="rs-field">
+              <span className="rs-field-label">Video verticale MP4 H.264</span>
+              <input className="rs-input" name="video" type="file" accept=".mp4,video/mp4" required disabled={locked} />
+            </label>
+          </div>
+          {kind === 'shot' && shotNames.length > 0 && (
+            <label className="rs-field">
+              <span className="rs-field-label">Inquadratura del copione</span>
+              <select className="rs-input" name="shot_index" disabled={locked} required defaultValue="">
+                <option value="">Scegli la ripresa che hai esportato</option>
+                {shotNames.map((name, index) => <option key={index} value={index}>{index + 1} · {name}</option>)}
+              </select>
+            </label>
+          )}
+          <button className="btn-secondary" type="submit" disabled={locked}>Carica previsualizzazione</button>
+        </form>
+      </details>
+      {!active && <p className="rs-muted">Dopo il render, apri una ripresa con «Rivedi la ripresa». Una volta approvata puoi scaricare i file per Seedance.</p>}
       {error && <p className="rs-error" role="alert">{error}</p>}
       {busy && <p className="rs-muted" role="status">Operazione in corso…</p>}
       {active && (
@@ -179,8 +184,10 @@ export default function ReelBlenderReview({ draftId, revision, previews, shotNam
               </label>
               <div className="rs-actions">
                 <button className="btn-secondary" type="submit" disabled={locked || !text.trim()}>Salva nota</button>
-                <button className="btn-secondary" type="button" disabled={locked || (!text.trim() && !active.notes.length)} onClick={() => review('changes_requested')}>Richiedi modifiche</button>
-                <button className="btn-mission" type="button" disabled={locked || active.status === 'approved'} onClick={() => review('approved')}>Approva previsualizzazione</button>
+                <button className="btn-secondary" type="button" disabled={locked || (!text.trim() && !active.notes.length)} onClick={() => review('changes_requested')}>Segna da correggere</button>
+                <button className="btn-mission" type="button" disabled={locked || active.status === 'approved'} onClick={() => review('approved')}>
+                  {active.kind === 'shot' ? 'Approva per Seedance' : 'Approva montaggio di prova'}
+                </button>
               </div>
               {active.status === 'approved' && active.kind === 'shot' && (
                 <p className="rs-muted">Ripresa approvata per la prova manuale in Higgsfield.</p>

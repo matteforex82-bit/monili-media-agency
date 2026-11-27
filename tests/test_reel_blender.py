@@ -323,7 +323,7 @@ def test_higgsfield_handoff_exports_a_muted_shot_and_keeps_results_with_it(monke
                 {"end_ms": 1200, "framing": "Ricamo", "camera": "Macro", "lighting": "Radente",
                  "action": "Segui il filo", "cut": "Stacco netto"},
                 {"end_ms": 5000, "framing": "Tre quarti", "camera": "Ferma", "lighting": "Laterale",
-                 "action": "Posa stabile", "cut": "Secco"},
+                 "action": "Posa stabile", "cut": "Secco", "video_prompt_en": "Keep the jacket still at three quarters."},
             ],
         },
     })
@@ -347,10 +347,13 @@ def test_higgsfield_handoff_exports_a_muted_shot_and_keeps_results_with_it(monke
     assert download.status_code == 200
     assert "shot-02.zip" in download.headers["content-disposition"]
     with zipfile.ZipFile(io.BytesIO(download.content)) as archive:
-        assert archive.namelist() == ["riferimento-blender.mp4", "LEGGIMI.md", "prompt-en.txt", "foto-prodotto/foto-1.jpg"]
+        assert set(archive.namelist()) == {
+            "riferimento-blender.mp4", "LEGGIMI.md", "prompt-en.txt", "foto-en.txt", "composizione.jpg", "foto-prodotto/foto-1.jpg",
+        }
         readme = archive.read("LEGGIMI.md").decode()
         assert "Inquadratura 2 · Tre quarti" in readme and "00:01.200–00:05.000" in readme
-        assert b"single continuous shot" in archive.read("prompt-en.txt")
+        assert "Seedance" in readme and "Kling" not in readme
+        assert archive.read("prompt-en.txt").startswith(b"Keep the jacket still at three quarters.")
         exported = tmp_path / "muto.mp4"
         exported.write_bytes(archive.read("riferimento-blender.mp4"))
     probe = subprocess.run([server.reel_studio.ffmpeg_exe(), "-i", str(exported)], capture_output=True, text=True)
@@ -394,6 +397,7 @@ def test_blender_render_packages_music_and_individual_seedance_shots(monkeypatch
     blend.write_bytes(b"scene")
     draft.update({
         "scene": {"id": str(scene_id)},
+        "package_revision": "regia-renderizzata",
         "package": {"shots": [
             {"framing": "Ricamo", "design": {"scale": "macro"}, "photo_prompt_en": "Frame the blue embroidery."},
             {"framing": "Tre quarti", "design": {"scale": "look", "motion": "fixed"}},
@@ -452,7 +456,7 @@ def test_blender_render_packages_music_and_individual_seedance_shots(monkeypatch
             break
         time.sleep(0.03)
     assert state["status"] == "ready", state
-    assert state["duration_ms"] == 600
+    assert state["duration_ms"] == 600 and state["review_available"]
     video_response = client.get(f"{render}/{render_id}/video")
     assert video_response.status_code == 200
     master = tmp_path / "master.mp4"
@@ -476,3 +480,22 @@ def test_blender_render_packages_music_and_individual_seedance_shots(monkeypatch
     assert "Audio: aac" in master_probe.stderr
     assert "Audio:" not in shot_probe.stderr
     assert server.reel_studio.probe_duration(shot) == 0.3
+
+    review = f"{render}/{render_id}/review"
+    assert client.post(review, json={"shot_index": 2}).status_code == 404
+    opened = client.post(review, json={"shot_index": 1})
+    assert opened.status_code == 200
+    data = opened.json()
+    preview = data["draft"]["previews"][0]
+    assert preview["id"] == data["preview_id"] and preview["shot_index"] == 1
+    assert preview["timeline_start_ms"] == 0 and preview["timeline_end_ms"] == 300
+    preview_url = f"{base}/previews/{data['preview_id']}"
+    assert client.get(preview_url + "/video").content == shot.read_bytes()
+    assert client.put(preview_url + "/review", json={"status": "approved"}).status_code == 200
+    reopened = client.post(review, json={"shot_index": 1}).json()
+    assert reopened["preview_id"] == data["preview_id"]
+    assert [item["status"] for item in reopened["draft"]["previews"]] == ["approved"]
+
+    newer = {**reopened["draft"], "package_revision": "regia-aggiornata"}
+    meta.write_text(json.dumps(newer), encoding="utf-8")
+    assert client.post(review, json={"shot_index": 1}).status_code == 409

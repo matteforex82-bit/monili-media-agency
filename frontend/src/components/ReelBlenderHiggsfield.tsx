@@ -90,7 +90,7 @@ export default function ReelBlenderHiggsfield({ base, referenceUrl, shotNames, s
 
   return (
     <section className="rs-card" aria-labelledby="reel-blender-higgsfield">
-      <h4 className="rs-h1" id="reel-blender-higgsfield">Prova una ripresa in Higgsfield</h4>
+      <h4 className="rs-h1" id="reel-blender-higgsfield">Prova manuale con Seedance</h4>
       {shotIndex === undefined ? (
         <label className="rs-field">
           <span className="rs-field-label">Inquadratura di questa clip</span>
@@ -100,9 +100,9 @@ export default function ReelBlenderHiggsfield({ base, referenceUrl, shotNames, s
           </select>
         </label>
       ) : <p className="rs-muted">Inquadratura {shotIndex + 1} · {shotNames[shotIndex]}</p>}
-      <p className="rs-muted">Lo ZIP contiene la clip muta, le referenze disponibili, un prompt e i controlli per la prova manuale.</p>
+      <p className="rs-muted">Lo ZIP contiene la clip muta, il fotogramma guida, le foto disponibili e i prompt per preparare l’immagine e generare la ripresa.</p>
       <button type="button" className="btn-mission" disabled={locked || selected === ''} onClick={() => void download()}>
-        Scarica pacchetto Higgsfield
+        Scarica il kit della ripresa
       </button>
       <form className="rs-card" onSubmit={upload}>
         <label className="rs-field">

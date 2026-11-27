@@ -14,11 +14,14 @@ interface Props {
   draftId: string;
   scene?: SceneFile | null;
   musicBpm: number;
+  shotNames: string[];
+  pilotShot?: number;
   disabled: boolean;
   onUpdate: (data: unknown) => void;
+  onReview: (draft: unknown, previewId: string) => void;
 }
 
-export default function ReelBlenderScene({ draftId, scene, musicBpm, disabled, onUpdate }: Props) {
+export default function ReelBlenderScene({ draftId, scene, musicBpm, shotNames, pilotShot, disabled, onUpdate, onReview }: Props) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -81,7 +84,7 @@ export default function ReelBlenderScene({ draftId, scene, musicBpm, disabled, o
           <span className="rs-field-label">Il tuo brano (facoltativo)</span>
           <input className="rs-input" type="file" name="music" accept=".mp3,.wav,.m4a,.ogg,.aac,.flac" disabled={busy || disabled} />
         </label>
-        <p className="rs-muted">Senza un brano, Blender inserisce una guida ritmica originale a {musicBpm} BPM, con gli accenti previsti dalla regia. La trovi nella scena «Montaggio e musica».</p>
+        <p className="rs-muted">La guida ritmica parte a {musicBpm} BPM con gli accenti della regia. Se alleghi un brano, puoi allinearlo ai tagli nella scena «Montaggio e musica».</p>
         <button className="btn-mission" type="submit" disabled={busy || disabled}>Crea e apri in Blender</button>
       </form>
       {notice && <p className="rs-muted" role="status">{notice}</p>}
@@ -93,7 +96,8 @@ export default function ReelBlenderScene({ draftId, scene, musicBpm, disabled, o
             <button className="btn-secondary" type="button" disabled={busy || disabled} onClick={() => void reopen()}>Apri in Blender</button>
             <a className="btn-secondary" href={`${base}/${encodeURIComponent(scene.id)}`}>Scarica .blend</a>
           </div>
-          <ReelBlenderRender key={scene.id} base={`${base}/${encodeURIComponent(scene.id)}/render`} disabled={busy || disabled} />
+          <ReelBlenderRender key={scene.id} base={`${base}/${encodeURIComponent(scene.id)}/render`}
+            shotNames={shotNames} pilotShot={pilotShot} disabled={busy || disabled} onReview={onReview} />
         </>
       )}
     </section>
