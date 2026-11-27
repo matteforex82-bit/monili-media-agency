@@ -44,7 +44,6 @@ def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp
     import json
 
     monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     concepts = {
         "concepts": [
             {"title": title, "hook": title, "sequence": "Dettaglio e forma", "risk": "Controlla la luce"}
@@ -70,13 +69,13 @@ def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp
     package = server.reel_blender.Handoff.model_validate(package).model_dump(exclude_none=True)
     responses = iter([concepts, {**package, "shots": package["shots"][:-1]}, package, package])
 
-    def generate(_key, _model, prompt, *, image_path, max_tokens, all_images):
-        assert image_path is None
+    def generate(prompt, images):
+        assert images == []
         assert "Giacca" in prompt
         assert "GIA, fotografia" in prompt and "continuità" in prompt
         return json.dumps(next(responses))
 
-    monkeypatch.setattr(server.reel_blender, "generate_text_with_openrouter", generate)
+    monkeypatch.setattr(server.fucina_codex, "run", generate)
     client = TestClient(server.app)
     payload = {"product": "Giacca", "brief": "Mostra il ricamo"}
     draft = client.post("/reel-blender/drafts", json=payload).json()
@@ -105,7 +104,8 @@ def test_blender_photo_only_recognizes_routes_and_resolves_ambiguity(monkeypatch
     import json
 
     monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     jacket = {"product": "Giacca ricamata", "template": "Giacca o gilet", "detail": "Motivo sulle maniche"}
     jacket_ideas = {
         "concepts": [
@@ -129,12 +129,11 @@ def test_blender_photo_only_recognizes_routes_and_resolves_ambiguity(monkeypatch
     responses = iter([jacket_ideas, package, {"clarification": question}, jacket_ideas])
     prompts = []
 
-    def generate(_key, _model, prompt, *, image_path, max_tokens, all_images):
-        assert len(image_path) == 1 and image_path[0].is_file() and all_images
+    def generate(prompt, images):
+        assert len(images) == 1 and images[0].is_file()
         prompts.append(prompt)
         return json.dumps(next(responses))
 
-    monkeypatch.setattr(server.reel_blender, "generate_text_with_openrouter", generate)
     client = TestClient(server.app)
     base = "/reel-blender/drafts"
     upload = {"photos": ("fronte.jpg", product_photo.read_bytes(), "image/jpeg")}
@@ -142,6 +141,13 @@ def test_blender_photo_only_recognizes_routes_and_resolves_ambiguity(monkeypatch
     draft = client.post(base + "/with-photos", files=upload).raise_for_status().json()
     assert draft["product"] == ""
     url = f"{base}/{draft['id']}"
+    monkeypatch.setattr(server.fucina_codex, "executable", lambda: None)
+    unavailable = client.post(url + "/concepts")
+    assert unavailable.status_code == 502
+    assert "Codex non è installato" in unavailable.json()["error"]
+    assert client.get(base).json()["items"] == [draft]
+
+    monkeypatch.setattr(server.fucina_codex, "run", generate)
     recognized = client.post(url + "/concepts").raise_for_status().json()
     assert recognized["recognition"] == jacket and recognized["recommended"] == 1
     assert len(prompts) == 1 and '"product": ""' in prompts[0]
@@ -222,10 +228,8 @@ def test_blender_previsualization_preserves_audio_and_keeps_reviews_with_each_ve
 def test_blender_brief_saves_reopens_and_sends_all_reference_photos(monkeypatch, tmp_path, product_photo):
     import json
     from PIL import Image
-    import main
 
     monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
     client = TestClient(server.app)
     photo_bytes = product_photo.read_bytes()
     base = "/reel-blender/drafts"
@@ -239,9 +243,9 @@ def test_blender_brief_saves_reopens_and_sends_all_reference_photos(monkeypatch,
     assert client.get(base).json()["items"] == [draft]
     assert client.get(f"{url}/photos/{second['id']}").headers["content-type"] == "image/jpeg"
 
-    def generate(**kwargs):
-        images = kwargs["image_path"]
+    def generate(prompt, images):
         assert len(images) == 2
+        assert '"foto_in_ordine": ["fronte.jpg", "dettaglio.jpg"]' in prompt
         for photo in images:
             with Image.open(photo) as image:
                 assert image.size == (900, 1200)
@@ -252,9 +256,9 @@ def test_blender_brief_saves_reopens_and_sends_all_reference_photos(monkeypatch,
             ],
             "recommended": 0,
         }
-        return {"choices": [{"message": {"content": json.dumps(response)}}]}
+        return json.dumps(response)
 
-    monkeypatch.setattr(main, "openrouter_chat_completion", generate)
+    monkeypatch.setattr(server.fucina_codex, "run", generate)
     planned = client.post(url + "/concepts")
     assert planned.status_code == 200
     stored = planned.json()

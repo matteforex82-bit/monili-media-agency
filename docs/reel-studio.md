@@ -25,6 +25,8 @@ gli audio trending.
 
 Nella modalità **Reel Blender**, usa **Prepara la regia**, poi **Crea e apri in Blender**. AI Studio trova Blender nel PATH o nella cartella di installazione standard di Windows o macOS. In una posizione personalizzata, avvia lo Studio con `BLENDER_BIN` impostato sul percorso dell’eseguibile. La generazione è stata verificata con Blender 4.3.
 
+Per leggere le foto, scegliere il concept e preparare il pacchetto di regia, il Regista usa il Codex locale della Fucina, con lo stesso accesso ChatGPT e il modello impostato da `FUCINA_CODEX_MODEL`.
+
 La [guida di regia](../knowledge/reel-blender-regia.md) entra nel prompt del Regista. Il pacchetto indica funzione, campo, fuoco sulla foto, focale, movimento, luce e suono per inquadratura. La scelta del set include palette e raccordi. Le bozze precedenti si possono riaprire e aggiornare con **Aggiorna la regia**, mantenendo il concept.
 
 Il Regista consulta anche le [schede per prodotto](../knowledge/reel-blender-template-prodotti.md). Parte dalla categoria del protagonista e adatta le inquadrature alle foto del brief, dal dettaglio iniziale alla posa per la grafica. Le schede indicano le foto utili, la prima inquadratura da verificare e i dettagli da preservare nelle clip. Usa **Prepara la regia** per un nuovo concept o **Aggiorna la regia** per applicare le indicazioni alla regia di una bozza esistente.
