@@ -4,13 +4,14 @@ import json
 from pathlib import Path
 
 from pydantic import BaseModel, Field, StringConstraints
-from typing import Annotated
+from typing import Annotated, Literal
 
 import prompt_lab
 from main import BRAND, extract_json_object, generate_text_with_openrouter, select_openrouter_text_model
 
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
 LongText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=3500)]
+DIRECTION_GUIDE = Path(__file__).resolve().parent / "knowledge" / "reel-blender-regia.md"
 
 
 class Concept(BaseModel):
@@ -26,6 +27,30 @@ class Concepts(BaseModel):
     recommendation_reason: ShortText | None = None
 
 
+class ShotDesign(BaseModel):
+    purpose: ShortText
+    scale: Literal["look", "medium", "detail", "macro"]
+    reference_photo: int = Field(default=1, ge=1, le=3)
+    focus_x: float = Field(default=0.5, ge=0, le=1)
+    focus_y: float = Field(default=0.5, ge=0, le=1)
+    lens_mm: int = Field(default=50, ge=28, le=120)
+    yaw_deg: int = Field(default=0, ge=-35, le=35)
+    pitch_deg: int = Field(default=0, ge=-20, le=20)
+    motion: Literal["fixed", "push", "slide", "orbit"] = "fixed"
+    light: Literal["soft", "texture", "jewelry"] = "soft"
+    key_side: Literal["left", "front", "right"] = "left"
+    sound: ShortText
+    accent: Literal["none", "soft", "strong"] = "none"
+
+
+class Direction(BaseModel):
+    set_mood: Literal["warm_cream", "deep_charcoal", "neutral"] = "warm_cream"
+    set_design: ShortText
+    continuity: ShortText
+    music_bpm: int = Field(default=100, ge=72, le=130)
+    music_feel: ShortText
+
+
 class Shot(BaseModel):
     end_ms: int = Field(gt=0)
     framing: ShortText
@@ -33,6 +58,7 @@ class Shot(BaseModel):
     lighting: ShortText
     action: ShortText
     cut: ShortText
+    design: ShotDesign
 
 
 class Handoff(BaseModel):
@@ -41,6 +67,7 @@ class Handoff(BaseModel):
     audio: LongText
     blender: LongText
     higgsfield: LongText
+    direction: Direction
     shots: list[Shot] = Field(min_length=3, max_length=6)
 
 
@@ -61,6 +88,9 @@ BRAND
 
 REGIA VIDEO
 {prompt_lab.video_direction()}
+
+GUIDA DI REGIA FASHION, BIJOUX E MONTAGGIO
+{DIRECTION_GUIDE.read_text(encoding="utf-8")}
 
 BRIEF
 {json.dumps(brief, ensure_ascii=False)}
@@ -93,12 +123,22 @@ e mostra il pezzo in contesto entro circa 3 secondi. Se la proposta di concept i
 accorciala e ridistribuisci il tempo per far leggere il prodotto. Puoi generare una clip sorgente più lunga e rifilarla.
 Indica quali foto usare, scattare o generare e quando girare una clip reale. Includi ritmo, marker audio e musica guida.
 Non dare per certi materiali o caratteristiche che dalle foto e dal brief non si possono verificare.
-Per Blender indica formato, camera per shot, pose e segnaposto. Per Higgsfield descrivi il test su un solo shot e i controlli di fedeltà.
+Per Blender indica camera per shot, posa e riferimenti. Per Higgsfield descrivi il test su un solo shot e i controlli di fedeltà.
+Compila direction e design per ogni shot: sono i comandi che la scena Blender legge, oltre alle note per il montatore.
+focus_x e focus_y sono il centro d'interesse sulla foto (origine in alto a sinistra, 0–1); reference_photo è l'indice 1–3.
+Usa scale look/medium/detail/macro; motion fixed/push/slide/orbit; luce soft/texture/jewelry; key_side left/front/right.
+lens_mm 28–120, yaw_deg -35–35, pitch_deg -20–20. Se hai solo foto piatte scegli movimenti e angoli moderati.
+Usa set_mood warm_cream/deep_charcoal/neutral, BPM 72–130. accent fa risuonare none/soft/strong all'inizio dello shot.
+Specifica il perché di ogni inquadratura, il punto d'interesse e il raccordo col prossimo taglio. Scegli pochi accenti, anche solo quello della rivelazione.
 Schema: {{"storyboard":"...", "assets":"...", "audio":"...", "blender":"...", "higgsfield":"...",
-"shots":[{{"end_ms":1200, "framing":"...", "camera":"...", "lighting":"...", "action":"...", "cut":"..."}}]}}
+"direction":{{"set_mood":"warm_cream","set_design":"...","continuity":"...","music_bpm":96,"music_feel":"..."}},
+"shots":[{{"end_ms":1200, "framing":"...", "camera":"...", "lighting":"...", "action":"...", "cut":"...",
+"design":{{"purpose":"...", "scale":"macro", "reference_photo":1, "focus_x":0.5, "focus_y":0.5,
+"lens_mm":85, "yaw_deg":0, "pitch_deg":0, "motion":"push", "light":"texture",
+"key_side":"left", "sound":"...", "accent":"none"}}}}]}}
 Servono 3-6 shot. end_ms è il tempo assoluto di fine in millisecondi, strettamente crescente, a partire da 0.
-L'ultimo end_ms è esattamente {duration_ms}.""", images, 5200)
-    package = Handoff.model_validate(result).model_dump()
+L'ultimo end_ms è esattamente {duration_ms}.""", images, 6500)
+    package = Handoff.model_validate(result).model_dump(exclude_none=True)
     ends = [shot["end_ms"] for shot in package["shots"]]
     if ends != sorted(set(ends)) or ends[-1] != duration_ms:
         raise ValueError("I tempi delle inquadrature non coprono la durata del Reel.")
@@ -125,6 +165,10 @@ def markdown(draft: dict) -> str:
         ("blender", "Scheda per Claude e Blender"), ("higgsfield", "Prova Higgsfield"),
     ):
         sections.append(f"## {title}\n\n{package[key]}")
+    direction = package.get("direction")
+    if direction:
+        sections.append(f"## Scenografia e continuità\n\n{direction['set_design']}\n\n{direction['continuity']}")
+        sections.append(f"## Traccia guida\n\n{direction['music_bpm']} BPM · {direction['music_feel']}")
     sections.append("## Shot list")
     start = 0
     for shot in package["shots"]:
@@ -134,5 +178,11 @@ def markdown(draft: dict) -> str:
             f"- Camera — {shot['camera']}\n- Luce — {shot['lighting']}\n"
             f"- Azione — {shot['action']}\n- Taglio — {shot['cut']}"
         )
+        design = shot.get("design")
+        if design:
+            sections[-1] += (
+                f"\n- Funzione — {design['purpose']}\n- Suono — {design['sound']}"
+                f"\n- Blender — {design['lens_mm']} mm, foto {design['reference_photo']}"
+            )
         start = end
     return "\n\n".join(sections) + "\n"

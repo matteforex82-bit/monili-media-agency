@@ -2897,6 +2897,7 @@ def blender_photo(draft_id: uuid.UUID, photo_id: uuid.UUID):
 
 class BlenderConceptChoice(BaseModel):
     index: int = Field(ge=0, le=2)
+    refresh_direction: bool = False
 
 
 def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None = None):
@@ -2905,7 +2906,7 @@ def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None =
         return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
     if choice and not draft.get("concepts"):
         return JSONResponse({"error": "Genera prima i tre concept."}, status_code=409)
-    if choice and draft.get("selected") == choice.index and draft.get("package"):
+    if choice and not choice.refresh_direction and draft.get("selected") == choice.index and draft.get("package"):
         return draft
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key:
@@ -2973,6 +2974,9 @@ async def blender_create_scene(draft_id: uuid.UUID, music: UploadFile | None = F
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         shots = blender_scene.shot_settings(draft["package"]["shots"])
+        direction = draft["package"].get("direction") or {}
+        bpm = direction.get("music_bpm", 100)
+        accents = blender_scene.score_accents(shots)
         duration_ms = shots[-1]["end_ms"]
         with tempfile.TemporaryDirectory(prefix=".blender-", dir=target.parent) as directory:
             working = Path(directory)
@@ -2987,7 +2991,7 @@ async def blender_create_scene(draft_id: uuid.UUID, music: UploadFile | None = F
                 source = _scheda_source_photo(draft["scheda_run_id"], working)
                 photos = [str(source)] if source else []
             audio = working / "musica.wav"
-            title = "Guida ritmica originale · 100 BPM"
+            title = f"Guida ritmica originale · {bpm} BPM"
             if music and music.filename:
                 title = music.filename.replace(chr(92), "/").split("/")[-1][:160]
                 if Path(title).suffix.lower() not in {".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac"}:
@@ -3002,7 +3006,11 @@ async def blender_create_scene(draft_id: uuid.UUID, music: UploadFile | None = F
                 except RuntimeError:
                     return JSONResponse({"error": "Il file musicale non è leggibile."}, status_code=400)
             else:
-                await asyncio.to_thread(blender_scene.guide_track, audio, duration_ms, [shot["end_ms"] for shot in shots[:-1]])
+                await asyncio.to_thread(
+                    blender_scene.guide_track, audio, duration_ms,
+                    [time for time, weight in accents if weight == "soft"], bpm,
+                    tuple(time for time, weight in accents if weight == "strong"),
+                )
             temporary = working / "scena.blend"
             await asyncio.to_thread(blender_scene.build, binary, temporary, {
                 "shots": shots,
@@ -3010,6 +3018,8 @@ async def blender_create_scene(draft_id: uuid.UUID, music: UploadFile | None = F
                 "photos": photos,
                 "audio": str(audio),
                 "audio_title": title,
+                "audio_accents": accents,
+                "set_mood": direction.get("set_mood", "warm_cream"),
                 "notes": reel_blender.markdown(draft),
             })
             with _blender_lock:

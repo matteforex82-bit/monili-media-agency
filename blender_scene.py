@@ -34,8 +34,12 @@ def executable() -> str | None:
     return None
 
 
-def guide_track(destination: Path, duration_ms: int, cuts_ms: list[int]) -> None:
-    """Una base sintetica originale a 100 BPM, con accenti sui tagli."""
+def guide_track(
+    destination: Path, duration_ms: int, cuts_ms: list[int], bpm: int = 100,
+    strong_ms: tuple[int, ...] = (),
+) -> None:
+    """Base sintetica con pulsazione e accenti editoriali indipendenti dal battito."""
+    beat_ms = 60_000 / bpm
     rate = 24000
     samples = [0.0] * (duration_ms * rate // 1000)
 
@@ -49,11 +53,13 @@ def guide_track(destination: Path, duration_ms: int, cuts_ms: list[int]) -> None
             envelope = min(index / 80, 1) * (1 - index / length) ** 2
             samples[start + index] += gain * envelope * math.sin(2 * math.pi * frequency * t)
 
-    for beat in range(0, duration_ms, 600):
-        accent(beat, 84 if beat % 2400 else 64, 105, 0.21)
-        accent(beat + 300, 680, 35, 0.06)
+    for index in range(math.ceil(duration_ms / beat_ms)):
+        accent(round(index * beat_ms), 64 if index % 4 == 0 else 84, 105, 0.21)
+        accent(round((index + 0.5) * beat_ms), 680, 35, 0.06)
     for cut in cuts_ms:
         accent(cut, 390, 150, 0.13)
+    for cut in strong_ms:
+        accent(cut, 310, 185, 0.23)
     signal = array("h", (round(max(-1, min(1, value)) * 32767) for value in samples))
     if sys.byteorder != "little":
         signal.byteswap()
@@ -69,17 +75,32 @@ def shot_settings(shots: list[dict]) -> list[dict]:
         camera = shot["camera"].casefold()
         description = " ".join(str(shot.get(key, "")) for key in ("framing", "camera", "action"))
         reference = re.search(r"\bfoto\s*(?:n[.°]?\s*)?([1-3])\b", description, flags=re.IGNORECASE)
-        result.append({
-            "end_ms": shot["end_ms"],
-            "framing": shot["framing"],
-            "detail": any(term in framing for term in ("macro", "dettaglio", "primo piano", "close-up")),
-            "move": any(term in camera for term in ("push", "dolly", "avvicin", "carrell", "scorr")),
-            "reference": int(reference[1]) - 1 if reference else 0,
-        })
+        detail = any(term in framing for term in ("macro", "dettaglio", "primo piano", "close-up"))
+        moving = any(term in camera for term in ("push", "dolly", "avvicin", "carrell", "scorr"))
+        profile = {
+            "scale": "macro" if "macro" in framing else "detail" if detail else "look",
+            "reference_photo": int(reference[1]) if reference else 1,
+            "focus_x": 0.5,
+            "focus_y": 0.5,
+            "lens_mm": 85 if detail else 50,
+            "yaw_deg": 0,
+            "pitch_deg": 0,
+            "motion": "push" if moving else "fixed",
+            "light": "texture" if detail else "soft",
+            "key_side": "left",
+            "accent": "soft" if result else "none",
+            **(shot.get("design") or {}),
+        }
+        result.append({**profile, "end_ms": shot["end_ms"], "framing": shot["framing"]})
     frames = [round(shot["end_ms"] * FPS / 1000) for shot in result]
     if frames != sorted(set(frames)) or not frames or frames[0] < 1:
         raise ValueError("Alcuni tagli sono troppo ravvicinati per la timeline di Blender.")
     return result
+
+
+def score_accents(shots: list[dict]) -> list[tuple[int, str]]:
+    starts = [0, *(shot["end_ms"] for shot in shots[:-1])]
+    return [(start, shot["accent"]) for start, shot in zip(starts, shots) if shot["accent"] != "none"]
 
 
 def build(binary: str, destination: Path, specification: dict) -> None:

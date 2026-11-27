@@ -26,6 +26,16 @@ interface Package {
   audio: string;
   blender: string;
   higgsfield: string;
+  direction?: { set_design: string; continuity: string; music_bpm: number; music_feel: string };
+  shots?: {
+    end_ms: number;
+    framing: string;
+    camera: string;
+    lighting: string;
+    action: string;
+    cut: string;
+    design?: { purpose: string; sound: string };
+  }[];
 }
 
 interface ReferencePhoto {
@@ -34,6 +44,7 @@ interface ReferencePhoto {
 }
 
 const MAX_PHOTOS = 3;
+const elapsedSeconds = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 });
 
 interface Draft extends Brief {
   id: string;
@@ -153,11 +164,11 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
     }
   }
 
-  async function requestPlan(id: string, stage: 'concepts' | 'package', index?: number): Promise<Draft> {
+  async function requestPlan(id: string, stage: 'concepts' | 'package', index?: number, refreshDirection = false): Promise<Draft> {
     const response = await fetch(`${API_URL}/reel-blender/drafts/${encodeURIComponent(id)}/${stage}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: index === undefined ? undefined : JSON.stringify({ index }),
+      body: index === undefined ? undefined : JSON.stringify({ index, refresh_direction: refreshDirection }),
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'La generazione non è riuscita.');
@@ -165,16 +176,16 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
     return data;
   }
 
-  async function prepare() {
+  async function prepare(refreshDirection = false) {
     if (busy || !isSaved || !active) return;
     setError('');
     setSaved(false);
     setBusy(true);
     try {
       const draft = active.concepts?.length ? active : await requestPlan(active.id, 'concepts');
-      const index = draft.recommended;
+      const index = refreshDirection ? (draft.selected ?? draft.recommended) : draft.recommended;
       if (index === undefined || !draft.concepts?.[index]) throw new Error('Non riesco a trovare la regia consigliata.');
-      await requestPlan(draft.id, 'package', index);
+      await requestPlan(draft.id, 'package', index, refreshDirection);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'La generazione non è riuscita.');
     } finally {
@@ -294,6 +305,32 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
             <p>{active.recommendation_reason}</p>
           )}
           <p>{active.package.storyboard}</p>
+          {active.package.direction ? (
+            <details className="rs-details">
+              <summary>Inquadrature, luce e musica</summary>
+              <p><strong>Set</strong> · {active.package.direction.set_design}</p>
+              <p><strong>Continuità</strong> · {active.package.direction.continuity}</p>
+              <p><strong>Guida a {active.package.direction.music_bpm} BPM</strong> · {active.package.direction.music_feel}</p>
+              {active.package.shots?.map((shot, index, shots) => (
+                <article key={shot.end_ms} className="rs-card">
+                  <strong>{shot.framing}</strong>
+                  <p className="rs-muted">
+                    {elapsedSeconds.format((shots[index - 1]?.end_ms ?? 0) / 1000)}–{elapsedSeconds.format(shot.end_ms / 1000)} s
+                  </p>
+                  {shot.design && <p>{shot.design.purpose}</p>}
+                  <p>Camera · {shot.camera}</p>
+                  <p>Luce · {shot.lighting}</p>
+                  <p>Azione · {shot.action}</p>
+                  <p>Taglio · {shot.cut}</p>
+                  {shot.design && <p>Suono · {shot.design.sound}</p>}
+                </article>
+              ))}
+            </details>
+          ) : (
+            <button className="btn-mission" type="button" disabled={busy} onClick={() => void prepare(true)}>
+              Aggiorna la regia
+            </button>
+          )}
           <div className="rs-actions">
             <button className="btn-mission" type="button" disabled={busy} onClick={() => void download('md')}>Scarica Markdown</button>
             <button className="btn-secondary" type="button" disabled={busy} onClick={() => void download('json')}>Scarica JSON</button>
@@ -305,6 +342,7 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
           key={`scene-${active.id}`}
           draftId={active.id}
           scene={active.scene}
+          musicBpm={active.package.direction?.music_bpm ?? 100}
           disabled={busy}
           onUpdate={(value) => {
             const draft = value as Draft;
