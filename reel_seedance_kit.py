@@ -6,7 +6,7 @@ import re
 import zipfile
 
 import reel_studio
-from reel_blender import format_time
+from reel_blender import format_time, product_title
 
 SCALES = {
     "look": "an overall view that clearly shows the full product and its proportions",
@@ -120,6 +120,7 @@ def assemble(directory: Path, output: Path, draft: dict, photos: list[Path]) -> 
             photo = instructions["product_reference"]
             entries.append({
                 "id": f"shot-{shot_number:02d}",
+                "script_index": script_index,
                 "title": instructions["title"],
                 "start_frame": start,
                 "end_frame_exclusive": end,
@@ -134,6 +135,7 @@ def assemble(directory: Path, output: Path, draft: dict, photos: list[Path]) -> 
             })
         manifest = {
             "version": 1,
+            "package_revision": draft.get("package_revision"),
             "workflow": "manual",
             "provider": "higgsfield",
             "model_family": "seedance",
@@ -145,7 +147,7 @@ def assemble(directory: Path, output: Path, draft: dict, photos: list[Path]) -> 
         }
         archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
         lines = [
-            f"# Kit Seedance · {draft['product']}",
+            f"# Kit Seedance · {product_title(draft)}",
             "Il Reel Blender con la musica serve a controllare il montaggio. Le clip per Seedance sono mute.",
             "Per ogni ripresa, usa la foto reale e la composizione Blender con `foto-en.txt` per preparare l’immagine.",
             "In Higgsfield usa l’immagine preparata e, nella modalità che supporta video di riferimento, "
@@ -156,4 +158,5 @@ def assemble(directory: Path, output: Path, draft: dict, photos: list[Path]) -> 
         for number, shot in enumerate(entries, 1):
             lines.append(f"- {number:02d} · {shot['title']} · {format_time(shot['start_ms'])}–{format_time(shot['end_ms'])}")
         archive.writestr("LEGGIMI.md", "\n\n".join(lines) + "\n")
-    return {"shots": len(entries), "duration_ms": round(timeline["frames"] * 1000 / fps)}
+    return {"shots": len(entries), "duration_ms": round(timeline["frames"] * 1000 / fps),
+            "review_available": bool(draft.get("package_revision"))}

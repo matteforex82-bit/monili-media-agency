@@ -1,15 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import FileDropzone from '@/components/FileDropzone';
 import InstagramShare from '@/components/InstagramShare';
 import ReelBlenderBrief from '@/components/ReelBlenderBrief';
+import './reel-blender.css';
 import { API_URL } from '@/lib/apiUrl';
 
 // ── CONFIG ──────────────────────────────────────────────────────────────────
 const ACTIVE_REEL_KEY = 'monili_active_reel_id';
 const POLL_MS = 3000;
+const REEL_MODES = [
+  { id: 'foto', label: 'Parto da una foto', short: 'Da foto', hint: 'L’AI scrive la regia e crea il video' },
+  { id: 'video', label: 'Ho già un video', short: 'Da video', hint: 'Aggiungo chiusura, copertina e testi' },
+  { id: 'blender', label: 'Reel Blender', short: 'Reel Blender', hint: 'Preparo la regia e le inquadrature' },
+] as const;
+type ReelMode = typeof REEL_MODES[number]['id'];
 
 // ── TIPI ────────────────────────────────────────────────────────────────────
 type ReelStatus = 'planning' | 'storyboard_ready' | 'rendering' | 'done' | 'error';
@@ -311,7 +318,7 @@ export default function ReelStudioPage() {
   const [seconds, setSeconds] = useState(12);
   const [videoModel, setVideoModel] = useState('');
   const [recipe, setRecipe] = useState('libera');
-  const [mode, setMode] = useState<'foto' | 'video' | 'blender'>('foto');
+  const [mode, setMode] = useState<ReelMode>('foto');
   const [keyframeModel, setKeyframeModel] = useState('');
   const [posterCover, setPosterCover] = useState(true);
   // Video già pronto (Gemini/Veo, telefono)
@@ -360,6 +367,30 @@ export default function ReelStudioPage() {
     const wanted = params.get('modo');
     if (wanted === 'video' || wanted === 'blender') setMode(wanted);
   }, []);
+
+  function chooseMode(value: ReelMode) {
+    setMode(value);
+    const url = new URL(window.location.href);
+    if (value === 'foto') url.searchParams.delete('modo');
+    else url.searchParams.set('modo', value);
+    window.history.replaceState(null, '', url);
+  }
+
+  function moveModeFocus(event: KeyboardEvent<HTMLDivElement>) {
+    const index = REEL_MODES.findIndex((item) => item.id === mode);
+    const last = REEL_MODES.length - 1;
+    const nextIndex = ({
+      ArrowLeft: index === 0 ? last : index - 1,
+      ArrowRight: index === last ? 0 : index + 1,
+      Home: 0,
+      End: last,
+    } as Record<string, number>)[event.key];
+    if (nextIndex === undefined) return;
+    event.preventDefault();
+    const next = REEL_MODES[nextIndex].id;
+    chooseMode(next);
+    event.currentTarget.querySelector<HTMLButtonElement>(`#reel-mode-${next}`)?.focus();
+  }
 
   useEffect(() => {
     const runId = new URLSearchParams(window.location.search).get('pezzo');
@@ -633,9 +664,27 @@ export default function ReelStudioPage() {
   const editable =
     reel && reel.source !== 'esterno' && (reel.status === 'storyboard_ready' || reel.status === 'error' || reel.status === 'done') && draft;
 
+  const blenderMode = !reel && mode === 'blender';
+  const videoArchive = (
+    <div className="rs-history-grid">
+        {history.map((item) => (
+          <button key={item.id} type="button" className="rs-history-item" onClick={() => openReel(item.id)}>
+            {item.cover ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fileUrl(item.cover)} alt={item.title} />
+            ) : (
+              <div className="rs-history-placeholder">{item.format === 'story' ? 'Story' : 'Reel'}</div>
+            )}
+            <span className="rs-history-title">{item.title || item.id}</span>
+            <span className="rs-history-status">{STATUS_LABELS[item.status] || item.status}</span>
+          </button>
+        ))}
+    </div>
+  );
+
   return (
-    <div className="rs-page">
-      <header className="page-head">
+    <div className={blenderMode ? 'rs-page rb-route' : 'rs-page'}>
+      {!blenderMode && <header className="page-head">
         <h1 className="page-title">Reel</h1>
         <p className="page-lead">
           Video e storie dai tuoi pezzi.{' '}
@@ -643,9 +692,9 @@ export default function ReelStudioPage() {
             {hfReady ? 'Higgsfield attivo' : 'Modalità anteprima'}
           </span>
         </p>
-      </header>
+      </header>}
 
-      <main className="rs-main">
+      <div className="rs-main">
         {mode !== 'blender' && !hfReady && config && (
           <div className="rs-banner">
             <strong>Higgsfield non ancora collegato.</strong> Puoi provare tutto il flusso: i video vengono creati
@@ -657,22 +706,18 @@ export default function ReelStudioPage() {
 
         {/* ── SCELTA DELLA STRADA ───────────────────────────────────── */}
         {!reel && (
-          <div className="rs-modes" role="tablist" aria-label="Come parti">
-            <button type="button" role="tab" aria-selected={mode === 'foto'} className="rs-mode" onClick={() => setMode('foto')}>
-              <strong>Parto da una foto</strong>
-              <span>L&apos;AI scrive la regia e crea il video</span>
-            </button>
-            <button type="button" role="tab" aria-selected={mode === 'video'} className="rs-mode" onClick={() => setMode('video')}>
-              <strong>Ho già un video</strong>
-              <span>Aggiungo chiusura, copertina e testi</span>
-            </button>
-            <button type="button" role="tab" aria-selected={mode === 'blender'} className="rs-mode" onClick={() => setMode('blender')}>
-              <strong>Reel Blender</strong>
-              <span>Preparo la regia e le inquadrature</span>
-            </button>
+          <div className={blenderMode ? 'rs-modes rb-reel-modes' : 'rs-modes'} role="tablist" aria-label="Modalità Reel" onKeyDown={moveModeFocus}>
+            {REEL_MODES.map(({ id, label, short, hint }) => (
+              <button key={id} id={`reel-mode-${id}`} type="button" role="tab" aria-selected={mode === id} tabIndex={mode === id ? 0 : -1}
+                aria-controls="reel-mode-content" className="rs-mode" onClick={() => chooseMode(id)}>
+                <strong>{blenderMode ? short : label}</strong>
+                <span>{hint}</span>
+              </button>
+            ))}
           </div>
         )}
 
+        <div id="reel-mode-content" role={!reel ? 'tabpanel' : undefined} aria-labelledby={!reel ? `reel-mode-${mode}` : undefined}>
         {piece && !reel && mode !== 'blender' && <PieceBanner piece={piece} onClear={() => setPiece(null)} />}
         {!reel && mode === 'blender' && (
           <ReelBlenderBrief product={piece?.title} pieceId={piece?.runId ?? ''} initialBrief={brief} />
@@ -859,6 +904,7 @@ export default function ReelStudioPage() {
           </section>
         )}
 
+        </div>
         {/* ── REEL ATTIVO ────────────────────────────────────────────── */}
         {reel && (
           <section className="card rs-card">
@@ -962,24 +1008,16 @@ export default function ReelStudioPage() {
         {/* ── ARCHIVIO ───────────────────────────────────────────────── */}
         {history.length > 0 && (
           <section className="rs-history">
-            <div className="rs-section-title">Archivio video</div>
-            <div className="rs-history-grid">
-              {history.map((item) => (
-                <button key={item.id} type="button" className="rs-history-item" onClick={() => openReel(item.id)}>
-                  {item.cover ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={fileUrl(item.cover)} alt={item.title} />
-                  ) : (
-                    <div className="rs-history-placeholder">{item.format === 'story' ? 'Story' : 'Reel'}</div>
-                  )}
-                  <span className="rs-history-title">{item.title || item.id}</span>
-                  <span className="rs-history-status">{STATUS_LABELS[item.status] || item.status}</span>
-                </button>
-              ))}
-            </div>
+            {blenderMode ? <details className="rb-details">
+              <summary>Archivio video</summary>
+              {videoArchive}
+            </details> : <>
+              <div className="rs-section-title">Archivio video</div>
+              {videoArchive}
+            </>}
           </section>
         )}
-      </main>
+      </div>
     </div>
   );
 }

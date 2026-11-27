@@ -21,6 +21,7 @@ interface Props {
 export default function ReelBlenderHiggsfield({ base, referenceUrl, shotNames, shotIndex, results, disabled, onUpdate }: Props) {
   const [pickedShot, setPickedShot] = useState('');
   const [pickedResult, setPickedResult] = useState('');
+  const [downloaded, setDownloaded] = useState(false);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const reference = useRef<HTMLVideoElement>(null);
@@ -64,6 +65,7 @@ export default function ReelBlenderHiggsfield({ base, referenceUrl, shotNames, s
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setDownloaded(true);
     });
   }
 
@@ -88,62 +90,87 @@ export default function ReelBlenderHiggsfield({ base, referenceUrl, shotNames, s
     }
   }
 
+  const uploadForm = (primary = false) => (
+    <form className="rb-stack" onSubmit={upload}>
+      <label className="rs-field rb-field">
+        <span>Risultato Seedance (MP4)</span>
+        <input type="file" name="video" className="rs-input" accept=".mp4,video/mp4" required disabled={locked || selected === ''} />
+      </label>
+      <div className="rb-actions">
+        <button type="submit" className={primary ? 'btn-mission' : 'btn-secondary'} disabled={locked || selected === ''}>
+          Carica risultato
+        </button>
+      </div>
+    </form>
+  );
+
   return (
-    <section className="rs-card" aria-labelledby="reel-blender-higgsfield">
-      <h4 className="rs-h1" id="reel-blender-higgsfield">Prova una ripresa in Higgsfield</h4>
-      {shotIndex === undefined ? (
-        <label className="rs-field">
-          <span className="rs-field-label">Inquadratura di questa clip</span>
+    <div className="rb-stack">
+      {shotIndex === undefined && (
+        <label className="rs-field rb-field">
+          <span>Inquadratura di questa clip</span>
           <select className="rs-input" value={pickedShot} onChange={(event) => setPickedShot(event.target.value)} disabled={locked}>
             <option value="">Abbina l’inquadratura</option>
             {shotNames.map((name, index) => <option key={index} value={index}>{index + 1} · {name}</option>)}
           </select>
         </label>
-      ) : <p className="rs-muted">Inquadratura {shotIndex + 1} · {shotNames[shotIndex]}</p>}
-      <p className="rs-muted">Lo ZIP contiene la clip muta, le referenze disponibili, un prompt e i controlli per la prova manuale.</p>
-      <button type="button" className="btn-mission" disabled={locked || selected === ''} onClick={() => void download()}>
-        Scarica pacchetto Higgsfield
-      </button>
-      <form className="rs-card" onSubmit={upload}>
-        <label className="rs-field">
-          <span className="rs-field-label">Risultato Higgsfield (MP4)</span>
-          <input type="file" name="video" className="rs-input" accept=".mp4,video/mp4" required disabled={locked || selected === ''} />
-        </label>
-        <button type="submit" className="btn-secondary" disabled={locked || selected === ''}>Carica risultato</button>
-      </form>
-      {busy && <p className="rs-muted" role="status">{busy}</p>}
+      )}
+      {busy && <p className="rb-muted" role="status">{busy}</p>}
       {error && <p className="rs-error" role="alert">{error}</p>}
-      {result && (
-        <div>
-          <h5 className="rs-h1">Confronto della ripresa</h5>
+      {result ? (
+        <div className="rb-stack">
+          <h4>Confronto della ripresa</h4>
           {results.length > 1 && (
-            <label className="rs-field">
-              <span className="rs-field-label">Risultato da confrontare</span>
+            <label className="rs-field rb-field">
+              <span>Risultato da confrontare</span>
               <select className="rs-input" disabled={locked} value={result.id} onChange={(event) => setPickedResult(event.target.value)}>
                 {results.map((item) => <option key={item.id} value={item.id}>{item.filename}</option>)}
               </select>
             </label>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, maxWidth: 560 }}>
-            <div className="rs-video-wrap">
-              <strong>Blender</strong>
+          <div className="rb-comparison">
+            <figure>
+              <figcaption>Blender</figcaption>
               <video ref={reference} src={referenceUrl} aria-label="Riferimento Blender"
                 crossOrigin="use-credentials" controls playsInline muted preload="metadata" />
-            </div>
-            <div className="rs-video-wrap">
-              <strong>Higgsfield</strong>
+            </figure>
+            <figure>
+              <figcaption>Seedance</figcaption>
               <video key={result.id} ref={generated} src={`${base}/results/${encodeURIComponent(result.id)}`}
-                aria-label="Risultato Higgsfield" crossOrigin="use-credentials" controls playsInline muted preload="metadata" />
-            </div>
+                aria-label="Risultato Seedance" crossOrigin="use-credentials" controls playsInline muted preload="metadata" />
+            </figure>
           </div>
-          <div className="rs-actions">
-            <button type="button" className="btn-secondary rs-small-btn" onClick={() => compare(0)}>Inizio</button>
-            <button type="button" className="btn-secondary rs-small-btn" onClick={() => compare(0.5)}>Metà</button>
-            <button type="button" className="btn-secondary rs-small-btn" onClick={() => compare(0.95)}>Finale</button>
+          <div className="rb-actions">
+            <button type="button" className="btn-secondary" onClick={() => compare(0)}>Inizio</button>
+            <button type="button" className="btn-secondary" onClick={() => compare(0.5)}>Metà</button>
+            <button type="button" className="btn-secondary" onClick={() => compare(0.95)}>Finale</button>
           </div>
-          <p className="rs-muted">Controlla ricami o pietre, colore e proporzioni sulle foto reali. Poi confronta camera, posa e punto in cui si completa il gesto.</p>
+          <p className="rb-muted">Confronta colore, dettagli del pezzo, posa e movimento.</p>
+          <details className="rb-details">
+            <summary>Carica un’altra versione</summary>
+            {uploadForm()}
+          </details>
         </div>
+      ) : downloaded ? (
+        <>
+          <p className="rb-muted">Quando Seedance ha finito, carica qui la ripresa per confrontarla con Blender.</p>
+          {uploadForm(true)}
+          <button type="button" className="rb-text-button" disabled={locked || selected === ''} onClick={() => void download()}>Scarica di nuovo il kit</button>
+        </>
+      ) : (
+        <>
+          <p className="rb-muted">Il kit contiene la clip muta, il fotogramma guida, le foto e i prompt per la prova in Higgsfield.</p>
+          <div className="rb-actions">
+            <button type="button" className="btn-mission" disabled={locked || selected === ''} onClick={() => void download()}>
+              Scarica il kit Seedance
+            </button>
+          </div>
+          <details className="rb-details">
+            <summary>Ho già il risultato</summary>
+            {uploadForm()}
+          </details>
+        </>
       )}
-    </section>
+    </div>
   );
 }
