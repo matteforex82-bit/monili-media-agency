@@ -101,6 +101,68 @@ def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp
     assert "package" not in client.put(url, json={**payload, "target_seconds": 15}).json()
 
 
+def test_blender_photo_only_recognizes_routes_and_resolves_ambiguity(monkeypatch, tmp_path, product_photo):
+    import json
+
+    monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    jacket = {"product": "Giacca ricamata", "template": "Giacca o gilet", "detail": "Motivo sulle maniche"}
+    jacket_ideas = {
+        "concepts": [
+            {"title": title, "hook": title, "sequence": "Ricamo e silhouette", "risk": "Controlla l'orlo"}
+            for title in ("Ricamo", "Silhouette", "Profilo")
+        ],
+        "recommended": 1,
+        "recognition": jacket,
+    }
+    package = {
+        "storyboard": "Ricamo, giacca in posa, frontale", "assets": "Usa il frontale", "audio": "Accento sullo stacco",
+        "blender": "Camere controllate", "higgsfield": "Prova il tre quarti",
+        "direction": {"set_design": "Fondale avorio", "continuity": "Stessa luce", "music_feel": "Morbida"},
+        "shots": [
+            {"end_ms": end, "framing": title, "camera": "Ferma", "lighting": "Laterale",
+             "action": "In posa", "cut": "Secco", "design": {"purpose": title, "scale": "detail", "sound": "Musica"}}
+            for end, title in ((1200, "Ricamo"), (6000, "Tre quarti"), (12000, "Frontale"))
+        ],
+    }
+    question = "Vuoi mettere in evidenza la giacca o la borsa?"
+    responses = iter([jacket_ideas, package, {"clarification": question}, jacket_ideas])
+    prompts = []
+
+    def generate(_key, _model, prompt, *, image_path, max_tokens, all_images):
+        assert len(image_path) == 1 and image_path[0].is_file() and all_images
+        prompts.append(prompt)
+        return json.dumps(next(responses))
+
+    monkeypatch.setattr(server.reel_blender, "generate_text_with_openrouter", generate)
+    client = TestClient(server.app)
+    base = "/reel-blender/drafts"
+    upload = {"photos": ("fronte.jpg", product_photo.read_bytes(), "image/jpeg")}
+    assert client.post(base + "/with-photos").status_code == 400
+    draft = client.post(base + "/with-photos", files=upload).raise_for_status().json()
+    assert draft["product"] == ""
+    url = f"{base}/{draft['id']}"
+    recognized = client.post(url + "/concepts").raise_for_status().json()
+    assert recognized["recognition"] == jacket and recognized["recommended"] == 1
+    assert len(prompts) == 1 and '"product": ""' in prompts[0]
+
+    planned = client.post(url + "/package", json={"index": 1}).raise_for_status().json()
+    assert planned["selected"] == 1
+    assert '"product": "Giacca ricamata"' in prompts[1]
+    assert "\n## Giacca o gilet\n" in prompts[1] and "\n## Anello\n" not in prompts[1]
+    assert client.get(url + "/package.md").text.startswith("# Giacca ricamata · Reel Blender")
+    assert client.put(url, json={}).raise_for_status().json()["package"] == planned["package"]
+
+    unclear = client.post(base + "/with-photos", files=upload).raise_for_status().json()
+    unclear_url = f"{base}/{unclear['id']}"
+    paused = client.post(unclear_url + "/concepts").raise_for_status().json()
+    assert paused["clarification"] == question and not paused["concepts"]
+    assert client.post(unclear_url + "/package", json={"index": 0}).json()["error"] == question
+    named = client.put(unclear_url, json={"product": "Giacca"}).raise_for_status().json()
+    assert named["photos"] == unclear["photos"] and not named.get("clarification")
+    assert client.post(unclear_url + "/concepts").raise_for_status().json()["recommended"] == 1
+
+
 def test_blender_previsualization_preserves_audio_and_keeps_reviews_with_each_version(monkeypatch, tmp_path):
     import json
 

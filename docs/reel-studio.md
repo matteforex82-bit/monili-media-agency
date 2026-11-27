@@ -29,6 +29,8 @@ La [guida di regia](../knowledge/reel-blender-regia.md) entra nel prompt del Reg
 
 Il Regista consulta anche le [schede per prodotto](../knowledge/reel-blender-template-prodotti.md). Parte dalla categoria del protagonista e adatta le inquadrature alle foto del brief, dal dettaglio iniziale alla posa per la grafica. Le schede indicano le foto utili, la prima inquadratura da verificare e i dettagli da preservare nelle clip. Usa **Prepara la regia** per un nuovo concept o **Aggiorna la regia** per applicare le indicazioni alla regia di una bozza esistente.
 
+Puoi partire da una sola foto e premere **Prepara la regia**. Il Regista identifica il pezzo, seleziona la scheda e sceglie il dettaglio da valorizzare mentre valuta i concept. Il nome e il brief sono sotto **Indicazioni facoltative**. Se la foto non basta a distinguere il protagonista, lo Studio chiede quale pezzo mostrare e riprende la regia quando lo indichi.
+
 Il file `.blend` contiene **Set e camere**, con una camera per inquadratura, marker di cambio camera e foto incorporate. Blender applica la palette, le impostazioni di camera e gli schemi luce del pacchetto. In **Montaggio e musica** trovi le riprese in timeline e la guida al tempo scelto dalla regia, con accenti sui passaggi segnati. Puoi allegare un brano da usare al suo posto, a partire dall’inizio, e allinearlo ai marker in Blender. Per esportare una previsualizzazione con audio, usa la scena **Montaggio e musica**.
 
 Le foto sono riferimenti bidimensionali per provare inquadrature e ritmo. Rifinisci in Blender gli elementi 3D e le animazioni del soggetto che richiedono un modello, quindi carica l’MP4 nella sezione **Previsualizzazione Blender** se vuoi rivederlo nello Studio.

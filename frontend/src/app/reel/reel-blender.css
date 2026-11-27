@@ -197,14 +197,6 @@
   font-size: 0.9rem;
 }
 
-.rb-field small,
-.rb-photos small {
-  margin-inline-start: 4px;
-  color: var(--bot-ink-2);
-  font-size: 0.8rem;
-  font-weight: 400;
-}
-
 .rb-field textarea { font-weight: 400; resize: vertical; }
 
 .rb-brief-grid,
@@ -219,8 +211,10 @@
 }
 
 .rb-photos { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.rb-photo-entry { width: min(100%, 40rem); }
 .rb-photos legend { margin-bottom: 8px; font-size: 0.9rem; font-weight: 500; }
 .rb-photos .bot-upload-card { min-height: 112px; padding: 12px; }
+.rb-photos .file-previews { align-items: start; }
 .rb-photos .bot-upload-title { font-size: 0.9rem; font-weight: 500; }
 .rb-photos .bot-upload-sub { font-size: 0.8rem; }
 .rb-photos .bot-upload-button { min-height: 36px; padding-inline: 12px; font-size: 0.875rem; }

@@ -2733,7 +2733,7 @@ def _scheda_source_photo(run_id: str, input_dir: Path) -> Path | None:
 
 
 class BlenderBrief(BaseModel):
-    product: str = Field(max_length=120)
+    product: str = Field(default="", max_length=120)
     brief: str = Field(default="", max_length=1500)
     target_seconds: int = Field(default=12, ge=10, le=20)
     scheda_run_id: str = Field(default="", max_length=120)
@@ -2788,8 +2788,6 @@ def _save_blender_brief(
     expected_updated_at: str | None = None,
 ):
     product = body.product.strip()
-    if not product:
-        return JSONResponse({"error": "Scrivi il nome del prodotto."}, status_code=400)
     fields = {**body.model_dump(), "product": product, "brief": body.brief.strip()}
     with _blender_lock:
         existing = _read_blender_draft(draft_id) if updating else None
@@ -2804,6 +2802,8 @@ def _save_blender_brief(
         if len(retained) + len(staged) > MAX_REEL_PHOTOS:
             return JSONResponse({"error": f"Puoi salvare fino a {MAX_REEL_PHOTOS} foto."}, status_code=400)
         photos = [old_photos[photo_id] for photo_id in retained] + [photo for photo, _ in staged]
+        if not product and not photos:
+            return JSONResponse({"error": "Aggiungi una foto oppure scrivi il nome del prodotto."}, status_code=400)
         if existing and photos == existing.get("photos", []) and all(existing.get(key) == value for key, value in fields.items()):
             return existing
         draft = {"id": str(draft_id), "version": 1, **fields}
@@ -2855,7 +2855,7 @@ def _prepare_blender_photo(source: Path, destination: Path) -> None:
 
 @app.post("/reel-blender/drafts/with-photos")
 async def blender_save_with_photos(
-    product: str = Form(..., max_length=120),
+    product: str = Form(default="", max_length=120),
     brief: str = Form(default="", max_length=1500),
     target_seconds: int = Form(default=12, ge=10, le=20),
     scheda_run_id: str = Form(default="", max_length=120),
@@ -2910,7 +2910,7 @@ def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None =
     if draft is None:
         return JSONResponse({"error": "Bozza Reel Blender non trovata."}, status_code=404)
     if choice and not draft.get("concepts"):
-        return JSONResponse({"error": "Genera prima i tre concept."}, status_code=409)
+        return JSONResponse({"error": draft.get("clarification") or "Prepara prima le idee della regia."}, status_code=409)
     if choice and not choice.refresh_direction and draft.get("selected") == choice.index and draft.get("package"):
         return draft
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
@@ -2932,7 +2932,11 @@ def _generate_blender(draft_id: uuid.UUID, choice: BlenderConceptChoice | None =
                 package = reel_blender.generate_handoff(draft, api_key, photos, choice.index)
                 changes = {"selected": choice.index, "package": package, "package_revision": uuid.uuid4().hex, "scene": None}
             else:
-                changes = {**reel_blender.generate_concepts(draft, api_key, photos), "selected": None, "package": None, "package_revision": None, "scene": None}
+                changes = {
+                    "recognition": None, "clarification": None, "recommended": None, "recommendation_reason": None,
+                    **reel_blender.generate_concepts(draft, api_key, photos),
+                    "selected": None, "package": None, "package_revision": None, "scene": None,
+                }
     except (ValueError, OSError, RuntimeError, requests.RequestException):
         return JSONResponse({"error": "La generazione non è riuscita. Riprova o controlla OpenRouter."}, status_code=502)
     with _blender_lock:

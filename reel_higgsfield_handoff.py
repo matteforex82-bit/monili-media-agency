@@ -4,7 +4,7 @@ from pathlib import Path
 import zipfile
 
 import reel_studio
-from reel_blender import format_time
+from reel_blender import format_time, product_title
 from reel_seedance_kit import prompts
 
 MODEL_GUIDE = "https://higgsfield.ai/creator-hub/help-center/ai-models/how-do-i-use-seedance"
@@ -31,7 +31,7 @@ def package(
         f"La regia indica come prima referenza la foto {source_photo} in `foto-prodotto/`."
         if source_photo else "Aggiungi una foto reale del pezzo per poter verificare la fedeltà del risultato."
     )
-    guide = f"""# Prova Higgsfield · {draft['product']}
+    guide = f"""# Prova Higgsfield · {product_title(draft)}
 
 **Inquadratura {shot_index + 1} · {shot['framing']}**
 

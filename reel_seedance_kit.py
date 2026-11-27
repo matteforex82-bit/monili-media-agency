@@ -6,7 +6,7 @@ import re
 import zipfile
 
 import reel_studio
-from reel_blender import format_time
+from reel_blender import format_time, product_title
 
 SCALES = {
     "look": "an overall view that clearly shows the full product and its proportions",
@@ -147,7 +147,7 @@ def assemble(directory: Path, output: Path, draft: dict, photos: list[Path]) -> 
         }
         archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
         lines = [
-            f"# Kit Seedance · {draft['product']}",
+            f"# Kit Seedance · {product_title(draft)}",
             "Il Reel Blender con la musica serve a controllare il montaggio. Le clip per Seedance sono mute.",
             "Per ogni ripresa, usa la foto reale e la composizione Blender con `foto-en.txt` per preparare l’immagine.",
             "In Higgsfield usa l’immagine preparata e, nella modalità che supporta video di riferimento, "

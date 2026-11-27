@@ -56,13 +56,15 @@ interface Draft extends Brief {
   updated_at: string;
   photos?: ReferencePhoto[];
   concepts?: Concept[];
-  recommended?: number;
-  recommendation_reason?: string;
+  recommended?: number | null;
+  recommendation_reason?: string | null;
   selected?: number | null;
   package?: Package | null;
   package_revision?: string;
   scene?: SceneFile | null;
   previews?: BlenderPreview[];
+  recognition?: { product: string; template: string; detail: string } | null;
+  clarification?: string | null;
 }
 
 interface Props {
@@ -80,6 +82,10 @@ const STEPS = [
 
 function fieldsFor(draft: Brief): Brief {
   return { product: draft.product, brief: draft.brief, target_seconds: draft.target_seconds, scheda_run_id: draft.scheda_run_id };
+}
+
+function productFor(draft: Draft) {
+  return draft.product || draft.recognition?.product || 'Reel dalla foto';
 }
 
 function rememberDraft(id: string) {
@@ -175,9 +181,9 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
     setDrafts((items) => [draft, ...items.filter((item) => item.id !== draft.id)]);
   }
 
-  async function saveDraft() {
+  async function saveDraft(brief: Brief = values) {
     const form = new FormData();
-    for (const [key, value] of Object.entries(values)) form.append(key, String(value));
+    for (const [key, value] of Object.entries(brief)) form.append(key, String(value));
     if (active) {
       form.append('draft_id', active.id);
       form.append('expected_updated_at', active.updated_at);
@@ -209,11 +215,32 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
   }
 
   async function createPlan(draft: Draft, refreshDirection = false) {
-    setBusy('Sto preparando la regia…');
+    setBusy(draft.photos?.length && !draft.concepts?.length ? 'Il Regista guarda le foto…' : 'Sto preparando la regia…');
     const concepts = draft.concepts?.length ? draft : await requestPlan(draft.id, 'concepts');
+    if (concepts.clarification) return;
     const index = refreshDirection ? (concepts.selected ?? concepts.recommended) : concepts.recommended;
-    if (index === undefined || !concepts.concepts?.[index]) throw new Error('Manca la proposta di regia. Salva il brief e riprova.');
+    if (index == null || !concepts.concepts?.[index]) throw new Error('Manca la proposta di regia. Salva il brief e riprova.');
+    setBusy('Sto preparando la regia…');
     await requestPlan(concepts.id, 'package', index, refreshDirection);
+  }
+
+  async function confirmPiece(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    const product = String(new FormData(event.currentTarget).get('product') ?? '').trim();
+    if (!product) {
+      setError('Indica il pezzo da mettere al centro del Reel.');
+      return;
+    }
+    setError('');
+    setBusy('Salvo il pezzo scelto…');
+    try {
+      await createPlan(await saveDraft({ ...values, product }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Non riesco a preparare la regia. Riprova.');
+    } finally {
+      setBusy('');
+    }
   }
 
   async function submitBrief(event: FormEvent<HTMLFormElement>) {
@@ -222,8 +249,8 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
     const submitter = (event.nativeEvent as SubmitEvent).submitter;
     const saveOnly = submitter instanceof HTMLButtonElement && submitter.value === 'save';
     setError('');
-    if (!values.product.trim()) {
-      setError('Scrivi il nome del prodotto.');
+    if (!values.product.trim() && !keptPhotos.length && !newPhotos.length) {
+      setError('Aggiungi una foto del pezzo oppure scrivi il nome nelle indicazioni facoltative.');
       return;
     }
     if (!Number.isInteger(values.target_seconds) || values.target_seconds < 10 || values.target_seconds > 20) {
@@ -298,7 +325,7 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
             <span>Progetto</span>
             <select className="rs-input" value={selected} disabled={!!busy} onChange={(event) => selectDraft(event.target.value)}>
               <option value="">Nuovo Reel</option>
-              {drafts.map((draft) => <option key={draft.id} value={draft.id}>{draft.product}</option>)}
+              {drafts.map((draft) => <option key={draft.id} value={draft.id}>{productFor(draft)}</option>)}
             </select>
           </label>
         )}
@@ -337,47 +364,33 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
 
         {step === 0 && (
           <form onSubmit={submitBrief} className="rb-stack" noValidate>
-            <div className="rb-brief-grid">
-              <div className="rb-stack">
-                <label className="rs-field rb-field">
-                  <span>Prodotto</span>
-                  <input className="rs-input" value={values.product} onChange={(event) => setFields({ ...values, product: event.target.value })}
-                    maxLength={120} required disabled={!!busy} placeholder="Es. Giacca ricamata" />
-                </label>
-                <label className="rs-field rb-field">
-                  <span>Cosa vuoi mostrare? <small>Facoltativo</small></span>
-                  <textarea className="rs-input" value={values.brief} onChange={(event) => setFields({ ...values, brief: event.target.value })}
-                    maxLength={1500} rows={2} disabled={!!busy} placeholder="Es. Il ricamo e come veste la giacca" />
-                </label>
-              </div>
-              <fieldset disabled={!!busy} className="rb-photos">
-                <legend>Foto di riferimento <small>Facoltative</small></legend>
-                {keptPhotos.length > 0 && (
-                  <div className="rb-thumbs">
-                    {keptPhotos.map((photo) => (
-                      <div key={photo.id}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={photoUrl(photo.id)} alt={photo.filename} />
-                        <button type="button" className="rb-text-button" aria-label={`Togli ${photo.filename}`}
-                          onClick={() => setRemovedPhotos((items) => [...items, photo.id])}>Togli</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {keptPhotos.length < MAX_PHOTOS && (
-                  <FileDropzone files={newPhotos} onFiles={(files) => { if (!busy) setNewPhotos(files); }}
-                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
-                    max={MAX_PHOTOS - keptPhotos.length} kind="photo" title="Aggiungi foto"
-                    hint="Fino a 3 foto · frontale, tre quarti o dettaglio" />
-                )}
-                {values.scheda_run_id && (
-                  <p className="rb-muted">{keptPhotos.length || newPhotos.length ? 'Collegato a una Scheda pezzo.' :
-                    'Se disponibile, lo Studio usa la foto della Scheda pezzo.'}{' '}
-                    <button className="rb-text-button" type="button" onClick={() => setFields({ ...values, scheda_run_id: '' })}>Scollega</button>
-                  </p>
-                )}
-              </fieldset>
-            </div>
+            <fieldset disabled={!!busy} className="rb-photos rb-photo-entry">
+              <legend>Foto del pezzo</legend>
+              {keptPhotos.length > 0 && (
+                <div className="rb-thumbs">
+                  {keptPhotos.map((photo) => (
+                    <div key={photo.id}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={photoUrl(photo.id)} alt={photo.filename} />
+                      <button type="button" className="rb-text-button" aria-label={`Togli ${photo.filename}`}
+                        onClick={() => setRemovedPhotos((items) => [...items, photo.id])}>Togli</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {keptPhotos.length < MAX_PHOTOS && (
+                <FileDropzone files={newPhotos} onFiles={(files) => { if (!busy) setNewPhotos(files); }}
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                  max={MAX_PHOTOS - keptPhotos.length} kind="photo" title="Aggiungi foto"
+                  hint="Basta una foto. Puoi aggiungerne fino a tre." />
+              )}
+              {values.scheda_run_id && (
+                <p className="rb-muted">{keptPhotos.length || newPhotos.length ? 'Collegato a una Scheda pezzo.' :
+                  'Se disponibile, lo Studio usa la foto della Scheda pezzo.'}{' '}
+                  <button className="rb-text-button" type="button" onClick={() => setFields({ ...values, scheda_run_id: '' })}>Scollega</button>
+                </p>
+              )}
+            </fieldset>
             {!isSaved && active?.package && (
               <p className="rb-muted">Salvando le modifiche al brief dovrai preparare di nuovo la regia e la scena.</p>
             )}
@@ -387,14 +400,28 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
               </button>
               {!isSaved && <button className="rb-text-button" type="submit" value="save" disabled={!!busy}>Salva bozza</button>}
             </div>
-            <details className="rb-details rb-inline-details">
-              <summary>Durata del Reel · {Number.isFinite(values.target_seconds) ? `${values.target_seconds} s` : 'da impostare'}</summary>
-              <label className="rs-field rb-field">
-                <span>Secondi (da 10 a 20)</span>
-                <input className="rs-input rb-duration" type="number" min={10} max={20}
-                  value={Number.isFinite(values.target_seconds) ? values.target_seconds : ''}
-                  onChange={(event) => setFields({ ...values, target_seconds: event.target.valueAsNumber })} required disabled={!!busy} />
-              </label>
+            <details className="rb-details">
+              <summary>Indicazioni facoltative · {Number.isFinite(values.target_seconds) ? `${values.target_seconds} s` : 'durata da impostare'}</summary>
+              <div className="rb-brief-grid">
+                <div className="rb-stack">
+                  <label className="rs-field rb-field">
+                    <span>Nome del pezzo</span>
+                    <input className="rs-input" value={values.product} onChange={(event) => setFields({ ...values, product: event.target.value })}
+                      maxLength={120} disabled={!!busy} placeholder="Es. Giacca ricamata" />
+                  </label>
+                  <label className="rs-field rb-field">
+                    <span>Durata (da 10 a 20 secondi)</span>
+                    <input className="rs-input rb-duration" type="number" min={10} max={20}
+                      value={Number.isFinite(values.target_seconds) ? values.target_seconds : ''}
+                      onChange={(event) => setFields({ ...values, target_seconds: event.target.valueAsNumber })} disabled={!!busy} />
+                  </label>
+                </div>
+                <label className="rs-field rb-field">
+                  <span>Cosa vuoi mostrare?</span>
+                  <textarea className="rs-input" value={values.brief} onChange={(event) => setFields({ ...values, brief: event.target.value })}
+                    maxLength={1500} rows={2} disabled={!!busy} placeholder="Es. Il ricamo e come veste la giacca" />
+                </label>
+              </div>
             </details>
           </form>
         )}
@@ -404,6 +431,12 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
             <div className="rb-stack">
               <div className="rb-direction-grid">
                 <div className="rb-stack">
+                  {active.recognition && (
+                    <div>
+                      <p className="rb-meta">Dalle foto · {active.recognition.product} · {active.recognition.template}</p>
+                      <p>{active.recognition.detail}</p>
+                    </div>
+                  )}
                   {concept && <h3 className="rb-concept">{concept.title}</h3>}
                   <p>{plan.storyboard}</p>
                   {active.selected === active.recommended && active.recommendation_reason && <p className="rb-muted">{active.recommendation_reason}</p>}
@@ -416,6 +449,11 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
                     ))}
                   </div>
                 )}
+              </div>
+              <div className="rb-actions">
+                <button className="btn-mission" type="button" disabled={!!busy} onClick={() => go(2)}>
+                  Vai a Blender <ArrowRight size={17} strokeWidth={1.5} aria-hidden="true" />
+                </button>
               </div>
               <details className="rb-details">
                 <summary>Foto da usare o preparare</summary>
@@ -437,11 +475,6 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
                   ))}
                 </ol>
               </details>
-              <div className="rb-actions">
-                <button className="btn-mission" type="button" disabled={!!busy} onClick={() => go(2)}>
-                  Vai a Blender <ArrowRight size={17} strokeWidth={1.5} aria-hidden="true" />
-                </button>
-              </div>
               <details className="rb-details">
                 <summary>Prompt, download e aggiornamento della regia</summary>
                 <ReelSeedancePrompts draftId={active.id} revision={active.package_revision} />
@@ -453,9 +486,20 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
                 {scene && <p className="rb-muted">Se aggiorni la regia, dovrai creare una nuova scena Blender.</p>}
               </details>
             </div>
+          ) : active.clarification ? (
+            <form className="rb-stack rb-photo-entry" onSubmit={confirmPiece}>
+              <p>{active.clarification}</p>
+              <label className="rs-field rb-field">
+                <span>Pezzo da mettere in evidenza</span>
+                <input className="rs-input" name="product" placeholder="Es. La giacca" disabled={!!busy} maxLength={120} required />
+              </label>
+              <div className="rb-actions">
+                <button className="btn-mission" type="submit" disabled={!!busy}>{busy || 'Prepara la regia'}</button>
+              </div>
+            </form>
           ) : (
             <div className="rb-stack">
-              <p className="rb-muted">Il brief di «{active.product}» è salvato. Lo Studio sceglie le inquadrature, la luce e il ritmo.</p>
+              <p className="rb-muted">«{productFor(active)}» è salvato. Il Regista sceglie le inquadrature, la luce e il ritmo.</p>
               <div className="rb-actions">
                 <button className="btn-mission" type="button" disabled={!!busy} onClick={() => void refreshPlan()}>
                   {busy || 'Prepara la regia'}
