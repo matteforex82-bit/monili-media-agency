@@ -189,17 +189,18 @@ export function ReelBlenderPilot({ job, shotNames, pilotShot, disabled, onReview
           </div>
         </div>
       )}
-      {suggested === undefined ? shotPicker : (
-        <details className="rb-details rb-inline-details">
-          <summary>Scegli un’altra ripresa</summary>
-          {shotPicker}
-        </details>
-      )}
+      {suggested === undefined && shotPicker}
       <div className="rb-actions">
         <button className="btn-mission" type="button" disabled={disabled || busy || choice === ''} onClick={() => void reviewShot()}>
           {busy ? 'Apro la ripresa…' : 'Rivedi la ripresa'}
         </button>
       </div>
+      {suggested !== undefined && (
+        <details className="rb-details rb-inline-details">
+          <summary>Scegli un’altra ripresa</summary>
+          {shotPicker}
+        </details>
+      )}
       {error && <p role="alert" className="rs-error">{error}</p>}
     </div>
   );

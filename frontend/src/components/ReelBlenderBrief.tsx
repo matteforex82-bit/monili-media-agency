@@ -292,10 +292,7 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
   return (
     <section className="rb-workspace" aria-labelledby="reel-blender-title">
       <header className="rb-header">
-        <div>
-          <h1 id="reel-blender-title">Reel Blender</h1>
-          <p className="rb-muted">Dalle foto del pezzo alla prima ripresa da provare in Seedance.</p>
-        </div>
+        <h1 id="reel-blender-title">Reel Blender</h1>
         {drafts.length > 0 && (
           <label className="rb-project">
             <span>Progetto</span>

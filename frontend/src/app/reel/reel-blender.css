@@ -68,8 +68,6 @@
   line-height: 1.04;
 }
 
-.rb-header .rb-muted { max-width: 46ch; }
-
 .rb-project {
   display: grid;
   gap: 4px;
@@ -368,6 +366,7 @@
 .rb-workspace ::selection { color: var(--bot-ink); background: var(--bot-accent-bg); }
 
 @media (max-width: 720px) {
+  .rb-workspace { --rb-space: 12px; }
   .rb-route .rb-reel-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; margin-bottom: 16px; }
   .rb-route .rb-reel-modes .rs-mode { padding-inline: 4px; }
   .rb-header { display: grid; align-items: start; gap: 12px; margin-bottom: 12px; }
@@ -380,7 +379,8 @@
   .rb-panel > h2 { font-size: 1.875rem; }
   .rb-brief-grid, .rb-direction-grid, .rb-test-grid, .rb-review-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .rb-direction-photos { justify-content: start; }
-  .rb-photos .bot-upload-card { min-height: 96px; }
+  .rb-photos .bot-upload-card { min-height: 88px; }
+  .rb-photos .bot-upload-title { display: none; }
   .rb-actions { gap: 8px 12px; }
   .rb-progress { flex-wrap: wrap; }
   .rb-test-film, .rb-review-film { max-width: 168px; }
