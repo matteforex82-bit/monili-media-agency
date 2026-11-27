@@ -12,6 +12,7 @@ from main import BRAND, extract_json_object, generate_text_with_openrouter, sele
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
 LongText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=3500)]
 DIRECTION_GUIDE = Path(__file__).resolve().parent / "knowledge" / "reel-blender-regia.md"
+PRODUCT_TEMPLATES = DIRECTION_GUIDE.with_name("reel-blender-template-prodotti.md")
 
 
 class Concept(BaseModel):
@@ -94,6 +95,13 @@ REGIA VIDEO
 GUIDA DI REGIA FASHION, BIJOUX E MONTAGGIO
 {DIRECTION_GUIDE.read_text(encoding="utf-8")}
 
+TEMPLATE DI REGIA PER TIPO DI PRODOTTO
+Scegli una scheda per il pezzo protagonista in base al prodotto dichiarato, poi usa brief e foto per adattarla.
+Usa Outfit completo se il protagonista è l'insieme. Un accessorio di styling non cambia la scheda del protagonista.
+Applica la stessa scelta a concept e shot list. I concept devono differenziarsi per idea o apertura, non per categoria.
+I timecode delle schede sono esempi da adattare a durata, foto e accenti della musica. Spiega in assets le sole foto utili a questo Reel.
+{PRODUCT_TEMPLATES.read_text(encoding="utf-8")}
+
 BRIEF
 {json.dumps(brief, ensure_ascii=False)}
 
@@ -124,6 +132,8 @@ Rendi leggibile il gancio visivo nel primo secondo. Nel montaggio, punta a 0,8�
 e mostra il pezzo in contesto entro circa 3 secondi. Se la proposta di concept indica un'apertura più lunga,
 accorciala e ridistribuisci il tempo per far leggere il prodotto. Puoi generare una clip sorgente più lunga e rifilarla.
 Indica quali foto usare, scattare o generare e quando girare una clip reale. Includi ritmo, marker audio e musica guida.
+Nel piano di montaggio indica i tagli, dove tenere lo spazio per la grafica e quando far entrare la scritta in Remotion.
+Prevedi un file sorgente per inquadratura, anche da foto reale o ripresa reale quando è la fonte più fedele.
 Non dare per certi materiali o caratteristiche che dalle foto e dal brief non si possono verificare.
 Per Blender indica camera per shot, posa e riferimenti. Per Higgsfield descrivi il test su un solo shot e i controlli di fedeltà.
 Compila direction e design per ogni shot: sono i comandi che la scena Blender legge, oltre alle note per il montatore.
