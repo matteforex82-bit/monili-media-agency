@@ -97,9 +97,10 @@ GUIDA DI REGIA FASHION, BIJOUX E MONTAGGIO
 
 TEMPLATE DI REGIA PER TIPO DI PRODOTTO
 Scegli una scheda per il pezzo protagonista in base al prodotto dichiarato, poi usa brief e foto per adattarla.
-Usa Outfit completo se il protagonista è l'insieme. Un accessorio di styling non cambia la scheda del protagonista.
-Applica la stessa scelta a concept e shot list. I concept devono differenziarsi per idea o apertura, non per categoria.
-I timecode delle schede sono esempi da adattare a durata, foto e accenti della musica. Spiega in assets le sole foto utili a questo Reel.
+Usa Outfit completo se il protagonista è l'insieme. Mantieni la scheda del protagonista quando compaiono accessori di styling.
+Ricava dalla scheda cosa far capire del pezzo e cosa controllare. Crea la sequenza sulle caratteristiche documentate di questo pezzo.
+Tratta ordine, campi, angoli, movimenti e timecode della scheda come esempi. Adattali all'idea, alle viste disponibili e alla musica.
+Usa la stessa scheda per concept e shot list. Spiega in assets le sole foto utili a questo Reel.
 {PRODUCT_TEMPLATES.read_text(encoding="utf-8")}
 
 BRIEF
@@ -114,9 +115,10 @@ Rispondi con un solo oggetto JSON."""
 
 
 def generate_concepts(draft: dict, api_key: str, images: list[Path]) -> dict:
-    result = _ask(draft, api_key, """Valuta tre concept con aperture distinte e scegli tu quello con il miglior potenziale per questo pezzo.
-Dai priorità a un dettaglio reale che cattura lo sguardo nel primo secondo, a una rivelazione leggibile subito dopo
-e a una ripresa fattibile che conservi il prodotto. Il Reel deve avere senso anche senza musica.
+    result = _ask(draft, api_key, """Valuta tre concept con aperture distinte e una progressione visiva diversa per ciascuno.
+Per ogni concept abbina l'apertura a una caratteristica documentata o a una domanda sul pezzo, come forma, scala o texture.
+Scegli tu l'idea più forte per questo prodotto. Dai priorità a un elemento riconoscibile nel primo secondo, a una rivelazione
+leggibile subito dopo e a una ripresa fattibile che conservi il pezzo. Il Reel deve avere senso anche senza musica.
 Spiega la scelta in una frase concreta legata alle foto e alla tenuta dell'attenzione. Evita promesse di viralità.
 Schema: {"concepts":[{"title":"...", "hook":"...", "sequence":"...", "risk":"..."}], "recommended":0,
 "recommendation_reason":"..."}

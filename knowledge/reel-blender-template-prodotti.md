@@ -4,6 +4,7 @@ Ogni scheda è un punto di partenza per un Reel 9:16 da 12 secondi. Parti dal pr
 
 ## Procedura comune
 
+- **Scelta di regia.** Individua cosa rende interessante questo pezzo e scegli l'apertura e la rivelazione su quella caratteristica. Ogni tabella mostra una sequenza possibile. Adatta l'ordine dei campi, la posa, la luce e il ritmo alle viste documentate. Mantieni leggibili scala e dettagli identificativi anche quando cambia la sequenza.
 - **Foto.** Parti dal frontale pulito che il negozio ha già, anche su manichino o sul banco. Le altre viste qui elencate sono richieste possibili. Chiedi soltanto quelle che servono allo shot scelto. Distingui **Usa**, **Scatta**, **Genera** un primo fotogramma quando serve una posa, **Gira** un gesto reale quando documenta una proprietà del pezzo. Usa le foto reali per colore, forma, scala e dettagli. Per una vista indossata usa una foto in quella posa o misure confermate quando la scala è decisiva.
 - **Blender.** Previsualizza tutte le inquadrature nello stesso progetto. Imposta una camera per shot, un bersaglio sul dettaglio da leggere, una direzione luce coerente e marker per stacchi e accenti. Le focali delle schede sono riferimenti equivalenti al pieno formato. Regola distanza e fuoco sul pezzo. Con una sola foto piana, preferisci camera fissa o un piccolo movimento in piano.
 - **Prompt.** Prepara per ogni shot un prompt foto in inglese con crop, posa, direzione luce e caratteristiche reali da mantenere. Nel prompt Seedance indica il ruolo della foto prodotto e della clip Blender, un solo gesto o movimento di camera e i dettagli da preservare durante tutta la ripresa. Usa la stessa modella, direzione luce e palette negli shot della stessa scena. Una foto o ripresa reale può coprire uno shot quando è la fonte più fedele.
@@ -45,6 +46,11 @@ Ogni scheda è un punto di partenza per un Reel 9:16 da 12 secondi. Parti dal pr
 | 5,6–12 s | Macro a tre quarti dalla vista documentata, luce coerente. | Piccolo scorrimento della camera o fermo del prodotto. Grafica sul lato libero. |
 
 **Prima verifica.** Indossato. Controlla dito, dimensione, altezza della montatura, colore e numero delle pietre quando presenti. Se manca il profilo usa un secondo crop del frontale a camera ferma.
+
+**Altre sequenze per anelli.** Usa l'ordine che mette meglio in evidenza la caratteristica visibile nelle foto.
+
+- **Fascia martellata.** Apri sull'anello già indossato con la mano appoggiata per mostrare quanto è largo. Passa al macro della superficie con luce laterale diffusa. Chiudi su un tre quarti fermo sul banco, se documentato.
+- **Anello scultoreo.** Parti dal profilo per mostrare il volume, passa alla vista dall'alto per rivelare il disegno e chiudi indossato per dare la scala. Tieni camera e mano ferme se hai a disposizione angoli fotografati distinti.
 
 ## Orecchini
 
