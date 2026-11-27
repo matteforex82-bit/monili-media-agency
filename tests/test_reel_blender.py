@@ -299,3 +299,73 @@ def test_blender_scene_uses_local_cli_and_preserves_package_state(monkeypatch, t
 
     monkeypatch.setattr(server.blender_scene, "build", advanced_build)
     assert client.post(url).json()["scene"]["music"] == "Guida ritmica originale · 96 BPM"
+
+
+def test_higgsfield_handoff_exports_a_muted_shot_and_keeps_results_with_it(monkeypatch, tmp_path, product_photo):
+    import io
+    import json
+    import subprocess
+    import zipfile
+
+    monkeypatch.setattr(server, "STORAGE_ROOT", tmp_path)
+    client = TestClient(server.app)
+    response = client.post("/reel-blender/drafts/with-photos", data={"product": "Giacca"}, files={
+        "photos": ("giacca.jpg", product_photo.read_bytes()),
+    })
+    draft = response.json()
+    url = f"/reel-blender/drafts/{draft['id']}"
+    path = tmp_path / "reel-blender" / f"{draft['id']}.json"
+    draft.update({
+        "package_revision": "regia-attuale",
+        "package": {
+            "higgsfield": "Mantieni ricamo e zip.",
+            "shots": [
+                {"end_ms": 1200, "framing": "Ricamo", "camera": "Macro", "lighting": "Radente",
+                 "action": "Segui il filo", "cut": "Stacco netto"},
+                {"end_ms": 5000, "framing": "Tre quarti", "camera": "Ferma", "lighting": "Laterale",
+                 "action": "Posa stabile", "cut": "Secco"},
+            ],
+        },
+    })
+    path.write_text(json.dumps(draft), encoding="utf-8")
+    source_path = tmp_path / "blender.mp4"
+    server.reel_studio._run_ffmpeg([
+        "-f", "lavfi", "-i", "color=c=blue:s=180x320:r=24",
+        "-f", "lavfi", "-i", "sine=frequency=440", "-t", "1",
+        "-c:v", "libx264", "-c:a", "aac", str(source_path),
+    ])
+    source = source_path.read_bytes()
+    upload = client.post(url + "/previews", files={"video": ("shot.mp4", source)}, data={"shot_index": 1})
+    assert upload.status_code == 201
+    preview = upload.json()["previews"][0]
+    assert preview["shot_index"] == 1
+    base = url + f"/previews/{preview['id']}"
+    assert client.post(base + "/higgsfield/package", json={"shot_index": 1}).status_code == 409
+    assert client.put(base + "/review", json={"status": "approved"}).status_code == 200
+    assert client.post(base + "/higgsfield/package", json={"shot_index": 0}).status_code == 409
+    download = client.post(base + "/higgsfield/package", json={"shot_index": 1})
+    assert download.status_code == 200
+    assert "shot-02.zip" in download.headers["content-disposition"]
+    with zipfile.ZipFile(io.BytesIO(download.content)) as archive:
+        assert archive.namelist() == ["riferimento-blender.mp4", "LEGGIMI.md", "prompt-en.txt", "foto-prodotto/foto-1.jpg"]
+        readme = archive.read("LEGGIMI.md").decode()
+        assert "Inquadratura 2 · Tre quarti" in readme and "00:01.200–00:05.000" in readme
+        assert b"single continuous shot" in archive.read("prompt-en.txt")
+        exported = tmp_path / "muto.mp4"
+        exported.write_bytes(archive.read("riferimento-blender.mp4"))
+    probe = subprocess.run([server.reel_studio.ffmpeg_exe(), "-i", str(exported)], capture_output=True, text=True)
+    assert "Video: h264" in probe.stderr and "720x1280" in probe.stderr and "Audio:" not in probe.stderr
+    assert client.get(base + "/video").content == source
+
+    result_url = base + "/higgsfield/results"
+    assert client.post(result_url, files={"video": ("output.mp4", source)}, data={"shot_index": 0}).status_code == 409
+    comparison = client.post(result_url, files={"video": ("output.mp4", source)}, data={"shot_index": 1})
+    assert comparison.status_code == 201
+    saved = comparison.json()["previews"][0]["higgsfield_results"][0]
+    assert saved["shot_index"] == 1
+    assert client.get(result_url + f"/{saved['id']}").content == source
+    assert client.get("/reel-blender/drafts").json()["items"] == [comparison.json()]
+
+    changed = client.put(url, json={"product": "Giacca nuova"})
+    assert changed.status_code == 200
+    assert client.post(base + "/higgsfield/package", json={"shot_index": 1}).status_code == 409

@@ -356,6 +356,7 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
           draftId={active.id}
           revision={active.package_revision}
           previews={active.previews ?? []}
+          shotNames={active.package.shots?.map((shot) => shot.framing) ?? []}
           disabled={busy}
           onUpdate={(value) => {
             const draft = value as Draft;

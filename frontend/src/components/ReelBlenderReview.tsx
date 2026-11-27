@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from 'react';
 import { API_URL } from '@/lib/apiUrl';
+import ReelBlenderHiggsfield, { type HiggsfieldResult } from '@/components/ReelBlenderHiggsfield';
 
 export type PreviewStatus = 'to_review' | 'changes_requested' | 'approved';
 
@@ -13,12 +14,15 @@ export interface BlenderPreview {
   package_revision: string;
   status: PreviewStatus;
   notes: { time_ms: number; text: string }[];
+  shot_index?: number;
+  higgsfield_results?: HiggsfieldResult[];
 }
 
 interface Props {
   draftId: string;
   revision?: string;
   previews: BlenderPreview[];
+  shotNames: string[];
   disabled: boolean;
   onUpdate: (draft: unknown) => void;
 }
@@ -35,8 +39,9 @@ function timecode(milliseconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds % 1000).padStart(3, '0')}`;
 }
 
-export default function ReelBlenderReview({ draftId, revision, previews, disabled, onUpdate }: Props) {
+export default function ReelBlenderReview({ draftId, revision, previews, shotNames, disabled, onUpdate }: Props) {
   const [selected, setSelected] = useState('');
+  const [kind, setKind] = useState<'shot' | 'montage'>('shot');
   const [currentTime, setCurrentTime] = useState(0);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -72,6 +77,7 @@ export default function ReelBlenderReview({ draftId, revision, previews, disable
       setCurrentTime(0);
       setText('');
       form.reset();
+      setKind('shot');
     });
   }
 
@@ -96,7 +102,7 @@ export default function ReelBlenderReview({ draftId, revision, previews, disable
         <div className="rs-grid-2">
           <label className="rs-field">
             <span className="rs-field-label">Cosa carichi</span>
-            <select className="rs-input" name="kind" disabled={locked}>
+            <select className="rs-input" name="kind" value={kind} onChange={(event) => setKind(event.target.value === 'montage' ? 'montage' : 'shot')} disabled={locked}>
               <option value="shot">Una singola ripresa</option>
               <option value="montage">Il montaggio di prova</option>
             </select>
@@ -106,6 +112,15 @@ export default function ReelBlenderReview({ draftId, revision, previews, disable
             <input className="rs-input" name="video" type="file" accept=".mp4,video/mp4" required disabled={locked} />
           </label>
         </div>
+        {kind === 'shot' && shotNames.length > 0 && (
+          <label className="rs-field">
+            <span className="rs-field-label">Inquadratura del copione</span>
+            <select className="rs-input" name="shot_index" disabled={locked} required defaultValue="">
+              <option value="">Scegli la ripresa che hai esportato</option>
+              {shotNames.map((name, index) => <option key={index} value={index}>{index + 1} · {name}</option>)}
+            </select>
+          </label>
+        )}
         <button className="btn-secondary" type="submit" disabled={locked}>Carica previsualizzazione</button>
       </form>
       {error && <p className="rs-error" role="alert">{error}</p>}
@@ -123,6 +138,7 @@ export default function ReelBlenderReview({ draftId, revision, previews, disable
               {previews.map((preview, index) => (
                 <option key={preview.id} value={preview.id}>
                   {previews.length - index} · {preview.kind === 'shot' ? 'Ripresa' : 'Montaggio'} · {preview.filename}
+                  {preview.shot_index !== undefined ? ` · Shot ${preview.shot_index + 1}` : ''}
                   {preview.package_revision !== revision ? ' (pacchetto precedente)' : ''}
                 </option>
               ))}
@@ -171,6 +187,18 @@ export default function ReelBlenderReview({ draftId, revision, previews, disable
               )}
             </form>
           ) : <p className="rs-muted">Questa versione appartiene a un pacchetto precedente.</p>}
+          {isCurrent && active.status === 'approved' && active.kind === 'shot' && shotNames.length > 0 && (
+            <ReelBlenderHiggsfield
+              key={active.id}
+              base={`${base}/${encodeURIComponent(active.id)}/higgsfield`}
+              referenceUrl={videoUrl}
+              shotNames={shotNames}
+              shotIndex={active.shot_index}
+              results={active.higgsfield_results ?? []}
+              disabled={locked}
+              onUpdate={onUpdate}
+            />
+          )}
         </div>
       )}
     </section>
