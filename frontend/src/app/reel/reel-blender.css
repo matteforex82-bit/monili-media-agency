@@ -369,7 +369,7 @@
   .rb-workspace { --rb-space: 12px; }
   .rb-route .rb-reel-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; margin-bottom: 16px; }
   .rb-route .rb-reel-modes .rs-mode { padding-inline: 4px; }
-  .rb-header { display: grid; align-items: start; gap: 12px; margin-bottom: 12px; }
+  .rb-header { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 12px; margin-bottom: 12px; }
   .rb-header h1 { font-size: 2.25rem; }
   .rb-project { width: 100%; }
   .rb-steps ol { gap: 4px; }

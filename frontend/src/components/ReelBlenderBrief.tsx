@@ -347,17 +347,8 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
                 <label className="rs-field rb-field">
                   <span>Cosa vuoi mostrare? <small>Facoltativo</small></span>
                   <textarea className="rs-input" value={values.brief} onChange={(event) => setFields({ ...values, brief: event.target.value })}
-                    maxLength={1500} rows={3} disabled={!!busy} placeholder="Es. Il ricamo e come veste la giacca" />
+                    maxLength={1500} rows={2} disabled={!!busy} placeholder="Es. Il ricamo e come veste la giacca" />
                 </label>
-                <details className="rb-details rb-inline-details">
-                  <summary>Durata del Reel · {Number.isFinite(values.target_seconds) ? `${values.target_seconds} s` : 'da impostare'}</summary>
-                  <label className="rs-field rb-field">
-                    <span>Secondi (da 10 a 20)</span>
-                    <input className="rs-input rb-duration" type="number" min={10} max={20}
-                      value={Number.isFinite(values.target_seconds) ? values.target_seconds : ''}
-                      onChange={(event) => setFields({ ...values, target_seconds: event.target.valueAsNumber })} required disabled={!!busy} />
-                  </label>
-                </details>
               </div>
               <fieldset disabled={!!busy} className="rb-photos">
                 <legend>Foto di riferimento <small>Facoltative</small></legend>
@@ -396,6 +387,15 @@ export default function ReelBlenderBrief({ product, pieceId, initialBrief }: Pro
               </button>
               {!isSaved && <button className="rb-text-button" type="submit" value="save" disabled={!!busy}>Salva bozza</button>}
             </div>
+            <details className="rb-details rb-inline-details">
+              <summary>Durata del Reel · {Number.isFinite(values.target_seconds) ? `${values.target_seconds} s` : 'da impostare'}</summary>
+              <label className="rs-field rb-field">
+                <span>Secondi (da 10 a 20)</span>
+                <input className="rs-input rb-duration" type="number" min={10} max={20}
+                  value={Number.isFinite(values.target_seconds) ? values.target_seconds : ''}
+                  onChange={(event) => setFields({ ...values, target_seconds: event.target.valueAsNumber })} required disabled={!!busy} />
+              </label>
+            </details>
           </form>
         )}
 
