@@ -58,17 +58,22 @@ def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp
         "audio": "Accento sul taglio.",
         "blender": "Camera e marker.",
         "higgsfield": "Prova una clip.",
+        "direction": {"set_mood": "deep_charcoal", "set_design": "Fondale scuro", "continuity": "Stessa luce",
+                      "music_bpm": 96, "music_feel": "Percussione morbida"},
         "shots": [
             {"end_ms": end, "framing": "Tre quarti", "camera": "Ferma",
-             "lighting": "Laterale", "action": "Posa", "cut": "Secco"}
+             "lighting": "Laterale", "action": "Posa", "cut": "Secco",
+             "design": {"purpose": "Mostra il volume", "scale": "medium", "sound": "Fruscio"}}
             for end in (1200, 5500, 12000)
         ],
     }
-    responses = iter([concepts, {**package, "shots": package["shots"][:-1]}, package])
+    package = server.reel_blender.Handoff.model_validate(package).model_dump()
+    responses = iter([concepts, {**package, "shots": package["shots"][:-1]}, package, package])
 
     def generate(_key, _model, prompt, *, image_path, max_tokens, all_images):
         assert image_path is None
         assert "Giacca" in prompt
+        assert "GIA, fotografia" in prompt and "continuità" in prompt
         return json.dumps(next(responses))
 
     monkeypatch.setattr(server.reel_blender, "generate_text_with_openrouter", generate)
@@ -88,8 +93,11 @@ def test_blender_concepts_and_package_survive_reopen_and_export(monkeypatch, tmp
     assert "**Silhouette**" in export.text
     assert "00:05.500–00:12.000" in export.text
     assert "Scheda per Claude e Blender" in export.text
+    assert "96 BPM" in export.text and "Funzione — Mostra il volume" in export.text
     assert client.put(url, json=payload).json()["package"] == package
     assert client.post(url + "/package", json={"index": 1}).json()["package"] == package
+    refreshed = client.post(url + "/package", json={"index": 1, "refresh_direction": True}).json()
+    assert refreshed["selected"] == 1 and refreshed["package_revision"] != response.json()["package_revision"]
     assert "package" not in client.put(url, json={**payload, "target_seconds": 15}).json()
 
 
@@ -240,7 +248,7 @@ def test_blender_scene_uses_local_cli_and_preserves_package_state(monkeypatch, t
     def build(binary, destination, spec):
         assert binary == "blender-test"
         json.dumps(spec)
-        assert spec["shots"][0]["detail"] and spec["shots"][0]["move"]
+        assert spec["shots"][0]["scale"] == "macro" and spec["shots"][0]["motion"] == "push"
         assert [shot["end_ms"] for shot in spec["shots"]] == [1200, 5000, 12000]
         assert len(spec["photos"]) == 1
         with wave.open(spec["audio"], "rb") as audio:
@@ -270,3 +278,24 @@ def test_blender_scene_uses_local_cli_and_preserves_package_state(monkeypatch, t
     assert uploaded.json()["scene"]["music"] == "musica.wav"
     assert client.get(scene_url).status_code == 200
     assert built == ["Guida ritmica originale · 100 BPM", "musica.wav"]
+
+    advanced = uploaded.json()
+    advanced["package"]["direction"] = {
+        "set_mood": "deep_charcoal", "set_design": "Fondale", "continuity": "Luce coerente",
+        "music_bpm": 96, "music_feel": "Leggera",
+    }
+    advanced["package"]["shots"][1]["design"] = {
+        "motion": "slide", "light": "jewelry", "key_side": "right", "lens_mm": 85,
+        "purpose": "Mostra il volume", "sound": "Fruscio", "reference_photo": 2, "accent": "strong",
+    }
+    path.write_text(json.dumps(advanced), encoding="utf-8")
+
+    def advanced_build(binary, destination, spec):
+        assert spec["set_mood"] == "deep_charcoal"
+        assert spec["audio_accents"] == [(1200, "strong"), (5000, "soft")]
+        shot = spec["shots"][1]
+        assert (shot["motion"], shot["light"], shot["key_side"], shot["lens_mm"]) == ("slide", "jewelry", "right", 85)
+        build(binary, destination, spec)
+
+    monkeypatch.setattr(server.blender_scene, "build", advanced_build)
+    assert client.post(url).json()["scene"]["music"] == "Guida ritmica originale · 96 BPM"

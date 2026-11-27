@@ -1,6 +1,7 @@
 """Script bpy lanciato da AI Studio. Legge dati di regia, senza eseguire codice generato."""
 
 import json
+import math
 from pathlib import Path
 import sys
 
@@ -68,6 +69,57 @@ def light(collection, name, position, target, power, size, color):
     track(obj, target)
 
 
+SET_COLORS = {
+    "warm_cream": (0.65, 0.49, 0.34),
+    "deep_charcoal": (0.07, 0.065, 0.06),
+    "neutral": (0.47, 0.46, 0.44),
+}
+
+LIGHTS = {
+    "soft": (3.6, 250, 150),
+    "texture": (1.6, 330, 95),
+    "jewelry": (4.2, 230, 150),
+}
+
+
+def camera_motion(camera, shot, center_x, width, height, has_photo, start, end):
+    lens = shot["lens_mm"]
+    camera.data.lens = lens
+    camera.data.sensor_fit = "VERTICAL"
+    camera.data.sensor_height = 24
+    frame_height = {
+        "look": max(height, width * 16 / 9) * 1.13,
+        "medium": max(height * 0.78, width * 16 / 9 * 0.78),
+        "detail": height * 0.51,
+        "macro": height * 0.30,
+    }[shot["scale"]]
+    margin_x = max(0.0, (width - frame_height * 9 / 16) / 2)
+    margin_z = max(0.0, (height - frame_height) / 2)
+    focus_x = min(margin_x, max(-margin_x, (shot["focus_x"] - 0.5) * width))
+    focus_z = min(margin_z, max(-margin_z, (0.5 - shot["focus_y"]) * height))
+    target = (center_x + focus_x, 0, 1.04 + focus_z)
+    distance = frame_height * lens / 24
+    yaw_limit, pitch_limit = (8, 6) if has_photo else (45, 25)
+    yaw = min(yaw_limit, max(-yaw_limit, shot["yaw_deg"]))
+    pitch = math.radians(min(pitch_limit, max(-pitch_limit, shot["pitch_deg"])))
+
+    motion = shot["motion"]
+    for frame, phase in ((start, 0), (end, 1)):
+        angle = math.radians(yaw + (phase * (3 if has_photo else 10) if motion == "orbit" else 0))
+        radius = distance * (1 - 0.08 * phase) if motion == "push" else distance
+        slide = frame_height * 0.12 * phase if motion == "slide" else 0
+        horizontal = radius * math.cos(pitch)
+        camera.location = (
+            target[0] + math.sin(angle) * horizontal + slide,
+            -math.cos(angle) * horizontal,
+            target[2] + math.sin(pitch) * radius,
+        )
+        track(camera, target)
+        if motion != "fixed" and end > start:
+            camera.keyframe_insert("location", frame=frame)
+            camera.keyframe_insert("rotation_euler", frame=frame)
+
+
 def build(spec, output):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     studio = bpy.context.scene
@@ -86,7 +138,7 @@ def build(spec, output):
         collections[name] = bpy.data.collections.new(name)
         studio.collection.children.link(collections[name])
     images = [bpy.data.images.load(name, check_existing=True) for name in spec["photos"]]
-    backdrop = material("Crema Monili", (0.65, 0.49, 0.34))
+    backdrop = material("Palette del set", SET_COLORS[spec["set_mood"]])
     proxy = material("Segnaposto", (0.10, 0.24, 0.30))
     photo_materials = [material(f"Foto {i + 1}", (1, 1, 1), image) for i, image in enumerate(images)]
     notes = bpy.data.texts.new("Regia e audio")
@@ -104,16 +156,18 @@ def build(spec, output):
             (x - 5, -6, 0), (x + 5, -6, 0), (x + 5, 1, 0), (x - 5, 1, 0),
         ], backdrop)
         if images:
-            index = min(shot["reference"], len(images) - 1)
-            width, height = images[index].size
-            ratio = width / height
-            half_width = max(0.48, 0.78 * ratio)
+            index = min(shot["reference_photo"] - 1, len(images) - 1)
+            image_width, image_height = images[index].size
+            height = 1.56
+            width = height * image_width / image_height
+            half_width = width / 2
             surface(collections["Riferimenti"], f"Foto {index + 1} · shot {number}", [
                 (x - half_width, 0, 0.26), (x + half_width, 0, 0.26),
                 (x + half_width, 0, 1.82), (x - half_width, 0, 1.82),
             ], photo_materials[index])
         else:
-            bpy.ops.mesh.primitive_uv_sphere_add(location=(x, 0, 1.0))
+            width, height = 0.68, 1.26
+            bpy.ops.mesh.primitive_uv_sphere_add(location=(x, 0, 1.04))
             obj = bpy.context.object
             obj.name = f"Volume segnaposto {number}"
             obj.scale = (0.34, 0.23, 0.63)
@@ -122,21 +176,18 @@ def build(spec, output):
             for original in list(obj.users_collection):
                 if original != collections["Riferimenti"]:
                     original.objects.unlink(obj)
-        light(collections["Luci"], f"Chiave {number}", (x - 2, -2, 3.4), (x, 0, 1), 260, 3, (1, 0.84, 0.68))
-        light(collections["Luci"], f"Riempimento {number}", (x + 2, -1, 2.6), (x, 0, 1), 135, 3, (0.77, 0.87, 1))
+        size, power, fill = LIGHTS[shot["light"]]
+        side = {"left": -1, "front": 0, "right": 1}[shot["key_side"]]
+        key_x = x + side * (2.3 if shot["light"] == "texture" else 1.9)
+        light(collections["Luci"], f"Chiave {number} · {shot['light']}", (key_x, -2.2, 3.1),
+              (x, 0, 1.04), power, size, (1, 0.93, 0.85))
+        light(collections["Luci"], f"Riempimento {number}", (x - (side or -1) * 2, -1, 2.6),
+              (x, 0, 1.04), fill, 3.5, (0.94, 0.96, 1))
         data = bpy.data.cameras.new(name)
-        data.lens = 50
         data.show_safe_areas = True
         camera = bpy.data.objects.new(name, data)
         collections["Camere"].objects.link(camera)
-        distance = 1.0 if shot["detail"] else 2.9
-        target_z = 1.14 if shot["detail"] else 1.05
-        for frame, phase in ((start, 0), (end, 1)):
-            amount = 0.10 * phase if shot["move"] else 0
-            camera.location = (x + amount, -distance + amount, target_z + 0.08)
-            track(camera, (x, 0, target_z))
-            camera.keyframe_insert("location", frame=frame)
-            camera.keyframe_insert("rotation_euler", frame=frame)
+        camera_motion(camera, shot, x, width, height, bool(images), start, end)
         marker = studio.timeline_markers.new(name, frame=start)
         marker.camera = camera
         marks.append((name, start))
@@ -154,6 +205,9 @@ def build(spec, output):
     audio.volume = 0.8
     for name, frame in marks:
         montage.timeline_markers.new(name, frame=frame)
+    for time, weight in spec["audio_accents"]:
+        marker_name = "Accento principale" if weight == "strong" else "Accento leggero"
+        montage.timeline_markers.new(marker_name, frame=round(time * fps / 1000) + 1)
     studio.frame_set(1)
     montage.frame_set(1)
     bpy.ops.file.pack_all()

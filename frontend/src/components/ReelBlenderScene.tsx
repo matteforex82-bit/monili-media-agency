@@ -12,11 +12,12 @@ export interface SceneFile {
 interface Props {
   draftId: string;
   scene?: SceneFile | null;
+  musicBpm: number;
   disabled: boolean;
   onUpdate: (data: unknown) => void;
 }
 
-export default function ReelBlenderScene({ draftId, scene, disabled, onUpdate }: Props) {
+export default function ReelBlenderScene({ draftId, scene, musicBpm, disabled, onUpdate }: Props) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
@@ -79,7 +80,7 @@ export default function ReelBlenderScene({ draftId, scene, disabled, onUpdate }:
           <span className="rs-field-label">Il tuo brano (facoltativo)</span>
           <input className="rs-input" type="file" name="music" accept=".mp3,.wav,.m4a,.ogg,.aac,.flac" disabled={busy || disabled} />
         </label>
-        <p className="rs-muted">Senza un brano, Blender inserisce una guida ritmica originale con accenti sui tagli. La trovi nella scena «Montaggio e musica».</p>
+        <p className="rs-muted">Senza un brano, Blender inserisce una guida ritmica originale a {musicBpm} BPM, con gli accenti previsti dalla regia. La trovi nella scena «Montaggio e musica».</p>
         <button className="btn-mission" type="submit" disabled={busy || disabled}>Crea e apri in Blender</button>
       </form>
       {notice && <p className="rs-muted" role="status">{notice}</p>}
