@@ -510,6 +510,57 @@ def make_closing_card(destination: Path) -> Path:
     return destination
 
 
+REMOTION_CLOSING_SECONDS = 1.5
+QUIET_AUDIO_DB = -30.0  # sotto questa media l'audio è praticamente muto: si lascia com'è, senza amplificare il fruscio
+
+
+def audio_mean_db(path: Path) -> float | None:
+    """Volume medio in dB dell'audio del video, o None se non ha audio."""
+    proc = subprocess.run(
+        [ffmpeg_exe(), "-hide_banner", "-i", str(path), "-af", "volumedetect", "-vn", "-f", "null", "-"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    if "Audio:" not in proc.stderr:
+        return None
+    match = re.search(r"mean_volume:\s*(-?[\d.]+) dB", proc.stderr)
+    return float(match.group(1)) if match else None
+
+
+def enhance_clip(source: Path, destination: Path, seconds: float, keep_audio: bool = False) -> Path:
+    """Pre-passaggio per la grafica Remotion: 1080x1920 a 30 fps con ingrandimento lanczos, un po' di nitidezza e
+    colore, senza tagli né cambi di velocità. Con keep_audio tiene l'audio del video (ASMR), livellato a -16 LUFS
+    solo se si sente davvero; un audio quasi muto resta com'è."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    width, height = FRAME_SIZE
+    vf = (
+        f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,crop={width}:{height},"
+        f"unsharp=5:5:0.6:5:5:0.0,eq=saturation=1.05:contrast=1.03,fps={FPS},format=yuv420p,setsar=1,"
+        f"tpad=stop_mode=clone:stop_duration={seconds:.2f}"
+    )
+    args = ["-i", str(source), "-t", f"{seconds:.2f}", "-vf", vf]
+    mean_db = audio_mean_db(source) if keep_audio else None
+    if mean_db is None:
+        args += ["-an"]
+    else:
+        fade = f"afade=t=in:d=0.1,afade=t=out:st={max(0.0, seconds - 0.25):.2f}:d=0.25"
+        level = "loudnorm=I=-16:TP=-1.5:LRA=9," if mean_db > QUIET_AUDIO_DB else ""
+        args += ["-af", level + fade, "-c:a", "aac", "-b:a", "192k", "-ar", "48000"]
+    _run_ffmpeg([*args, "-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-movflags", "+faststart", str(destination)])
+    return destination
+
+
+def _graphics_options(seconds: float, layout: str) -> dict:
+    """Opzioni Remotion per un video di `seconds`: targhetta da ~2,5 s fino a poco prima della fine, zoom lento."""
+    title_from = min(2.5, max(0.0, seconds - 2.0))
+    return {
+        "titleFrom": round(title_from, 2),
+        "plateUntil": round(max(title_from + 1.0, seconds - 0.8), 2),
+        "zoom": 1.06,
+        "closingSeconds": REMOTION_CLOSING_SECONDS,
+        "layout": layout,
+    }
+
+
 def _still_clip(image: Path, destination: Path, seconds: float) -> Path:
     _run_ffmpeg(["-loop", "1", "-framerate", str(FPS), "-i", str(image), "-t", f"{seconds:.2f}", "-vf", VERTICAL_FILTER, "-an", *X264_ARGS, str(destination)])
     return destination
@@ -543,8 +594,15 @@ def import_external_video(
     graphics: bool = False,
     price: str = "",
     location: str = "",
+    detail: str = "",
+    hook: str = "",
+    story: bool = False,
+    keep_audio: bool = False,
 ) -> dict:
-    """Importa un video verticale fatto fuori dallo Studio (Gemini/Veo, telefono) come Reel finito."""
+    """Importa un video verticale fatto fuori dallo Studio (Gemini/Veo, telefono) come Reel finito.
+
+    Con la grafica: `detail` è la riga sotto il nome (materiale, pietre, misura), `hook` la frase d'apertura
+    (se vuota la scrive l'AI), `story` crea anche la versione Storia, `keep_audio` tiene l'audio del video."""
     width, height = probe_size(source)
     if width > height:
         raise ValueError("Serve un video verticale 9:16: questo è orizzontale. Rigeneralo in verticale (in Gemini: formato 9:16).")
@@ -557,14 +615,22 @@ def import_external_video(
         "id": reel_id,
         "status": "rendering",
         "source": "esterno",
-        "graphics": {"on": bool(graphics), "price": (price or "").strip()[:20], "place": remotion_graphics.place_label(location)},
+        "graphics": {
+            "on": bool(graphics),
+            "price": (price or "").strip()[:20],
+            "place": remotion_graphics.place_label(location),
+            "detail": (detail or "").strip()[:90],
+            "hook": (hook or "").strip()[:80],
+            "story": bool(story),
+            "keep_audio": bool(keep_audio),
+        },
         "scheda_run_id": (scheda_run_id or "").strip(),
         "created_at": datetime.now().isoformat(),
         "brief": note,
         "format": "reel",
         "recipe": "",
         "poster_cover": False,
-        "target_seconds": round(seconds + (CLOSING_SECONDS if add_closing else 0)),
+        "target_seconds": round(seconds + ((REMOTION_CLOSING_SECONDS if graphics else CLOSING_SECONDS) if add_closing else 0)),
         "text_model": select_openrouter_text_model(text_model),
         "higgsfield_configured": hf.is_configured(),
         "photos": [],
@@ -600,22 +666,38 @@ def _finish_external(state: dict, source: Path, seconds: float, add_closing: boo
 
     graphics = state.get("graphics") or {}
     done_with_graphics = False
+    story_video: Path | None = None
     if graphics.get("on"):
         try:
+            log(reel_id, "GRAFICA", "Preparo il video (1080x1920, nitidezza, colore)...")
+            rich = enhance_clip(source, out_dir / "shots" / "esterno_hd.mp4", seconds, bool(graphics.get("keep_audio")))
             log(reel_id, "GRAFICA", "Grafica Monili con Remotion (frase, targhetta, chiusura)...")
-            remotion_graphics.render_graphics(
-                body,
-                final_video,
-                seconds,
-                hook=str(copy.get("cover_text") or ""),
+            common = dict(
+                hook=str(graphics.get("hook") or copy.get("cover_text") or ""),
                 title=str((state.get("storyboard") or {}).get("title") or ""),
+                detail=str(graphics.get("detail") or ""),
                 price=str(graphics.get("price") or ""),
                 place=str(graphics.get("place") or remotion_graphics.DEFAULT_PLACE),
                 closing=add_closing,
             )
+            remotion_graphics.render_graphics(
+                rich, final_video, seconds, **common, extra=_graphics_options(seconds, "reel")
+            )
             done_with_graphics = True
             log(reel_id, "GRAFICA", "Grafica aggiunta", "success")
+            if graphics.get("story"):
+                try:
+                    log(reel_id, "GRAFICA", "Versione Storia (zone sicure di Instagram)...")
+                    story_video = out_dir / f"monili_story_{reel_id}.mp4"
+                    remotion_graphics.render_graphics(
+                        rich, story_video, seconds, **common, extra=_graphics_options(seconds, "story")
+                    )
+                    log(reel_id, "GRAFICA", "Storia pronta", "success")
+                except Exception as exc:
+                    story_video = None
+                    log(reel_id, "GRAFICA", f"Versione Storia non riuscita ({exc}): resta il Reel", "warn")
         except Exception as exc:
+            done_with_graphics = False
             log(reel_id, "GRAFICA", f"Grafica non riuscita ({exc}): uso il montaggio semplice", "warn")
     if not done_with_graphics:
         if add_closing:
@@ -643,6 +725,8 @@ def _finish_external(state: dict, source: Path, seconds: float, add_closing: boo
             "graphics_applied": done_with_graphics,
             "completed_at": datetime.now().isoformat(),
         }
+        if story_video and done_with_graphics:
+            s["results"]["story_video"] = rel(story_video)
 
     state = _mutate(reel_id, _done)
     log(reel_id, "IMPORT", f"Reel pronto ({probe_duration(final_video):.1f}s)", "success")

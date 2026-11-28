@@ -77,3 +77,81 @@ def test_import_endpoint(vertical_video, horizontal_video, monkeypatch):
 
     res = client.post("/reel/import", files={"video": ("foto.jpg", b"jpeg", "image/jpeg")}, data={})
     assert res.status_code == 400
+
+
+# ── Grafica Remotion: pre-passaggio, opzioni e versione Storia ───────────────
+
+def _with_audio(video, tmp_path, source: str):
+    """Aggiunge una traccia audio (sine = si sente, anullsrc = muto) al video di prova."""
+    out = tmp_path / "con_audio.mp4"
+    rs._run_ffmpeg(["-i", str(video), "-f", "lavfi", "-i", source, "-shortest", "-c:v", "copy", "-c:a", "aac", str(out)])
+    return out
+
+
+def test_enhance_clip_is_vertical_hd_and_keeps_length(vertical_video, tmp_path):
+    out = rs.enhance_clip(vertical_video, tmp_path / "hd.mp4", 3)
+    assert rs.probe_size(out) == rs.FRAME_SIZE
+    assert abs(rs.probe_duration(out) - 3) < 0.15
+    assert rs.audio_mean_db(out) is None  # di default niente audio
+
+
+def test_enhance_clip_keeps_audio_only_when_asked(vertical_video, tmp_path):
+    loud = _with_audio(vertical_video, tmp_path, "sine=frequency=440:duration=3")
+    assert rs.audio_mean_db(rs.enhance_clip(loud, tmp_path / "a.mp4", 3, keep_audio=True)) is not None
+    assert rs.audio_mean_db(rs.enhance_clip(loud, tmp_path / "b.mp4", 3, keep_audio=False)) is None
+
+
+def test_graphics_options_keep_the_plate_inside_the_video():
+    short = rs._graphics_options(3, "reel")
+    assert short["titleFrom"] <= 1.0 and short["plateUntil"] > short["titleFrom"]
+    long = rs._graphics_options(10, "story")
+    assert long["titleFrom"] == 2.5 and long["plateUntil"] == 9.2
+    assert long["layout"] == "story" and long["closingSeconds"] == rs.REMOTION_CLOSING_SECONDS
+
+
+def test_import_with_graphics_renders_reel_and_story(vertical_video, monkeypatch):
+    calls = []
+
+    def fake_render(source, output, seconds, **kwargs):
+        calls.append(kwargs)
+        import shutil
+        shutil.copyfile(source, output)
+        return output
+
+    monkeypatch.setattr(rs.remotion_graphics, "render_graphics", fake_render)
+    state = rs.import_external_video(
+        rs.new_reel_id(), vertical_video, "Anello argento 925", "anello con zaffiro",
+        graphics=True, detail="Zaffiro cabochon · Misura 17,5", hook="Un blu che non passa inosservato.",
+        location="via-cavour-17", story=True,
+    )
+    results = state["results"]
+    assert results["graphics_applied"] is True and results["story_video"]
+    assert rs._abs(results["story_video"]).exists()
+    reel_call, story_call = calls
+    assert reel_call["extra"]["layout"] == "reel" and story_call["extra"]["layout"] == "story"
+    assert reel_call["detail"] == "Zaffiro cabochon · Misura 17,5"
+    assert reel_call["hook"] == "Un blu che non passa inosservato."
+    assert reel_call["place"] == "Via Cavour 17, Ravenna"
+
+
+def test_story_failure_keeps_the_reel(vertical_video, monkeypatch):
+    def flaky(source, output, seconds, **kwargs):
+        if kwargs["extra"]["layout"] == "story":
+            raise RuntimeError("boom")
+        import shutil
+        shutil.copyfile(source, output)
+
+    monkeypatch.setattr(rs.remotion_graphics, "render_graphics", flaky)
+    state = rs.import_external_video(rs.new_reel_id(), vertical_video, "x", graphics=True, story=True)
+    assert state["status"] == "done" and state["results"]["graphics_applied"] is True
+    assert "story_video" not in state["results"]
+
+
+def test_failed_graphics_falls_back_to_simple_assembly(vertical_video, monkeypatch):
+    def broken(*args, **kwargs):
+        raise RuntimeError("Remotion non parte")
+
+    monkeypatch.setattr(rs.remotion_graphics, "render_graphics", broken)
+    state = rs.import_external_video(rs.new_reel_id(), vertical_video, "x", graphics=True, story=True)
+    assert state["status"] == "done" and state["results"]["graphics_applied"] is False
+    assert "story_video" not in state["results"]

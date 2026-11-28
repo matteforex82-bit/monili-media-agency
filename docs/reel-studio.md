@@ -100,7 +100,7 @@ fatto con Gemini (Veo) o girato col telefono, e lo trasforma in un Reel finito s
 Lo stato del Reel ha `source: "esterno"` e nessuno storyboard da rigenerare.
 
 ### Grafica Remotion sul video esterno
-Se la grafica è attiva, `remotion_graphics.render_graphics` (cartella `remotion/`, composizione `ReelGrafica`) aggiunge frase d'apertura, targhetta (nome, riga `detail` con materiale e pietre, sede, prezzo se c'è) e chiusura animata; se Remotion non c'è o fallisce si ripiega sul montaggio semplice con ffmpeg. Opzioni facoltative passate con `extra`: `plateUntil`, `closingSeconds`, `zoom`, `layout` (`reel` | `story`, zone sicure di Instagram). Oggi `_finish_external` non le passa ancora: sono usate nelle prove del 28/11/2026. Dettagli in `docs/STATO_PROGETTO.md`.
+Se la grafica è attiva, `remotion_graphics.render_graphics` (cartella `remotion/`, composizione `ReelGrafica`) aggiunge frase d'apertura, targhetta (nome, riga `detail` con materiale e pietre, sede, prezzo se c'è) e chiusura animata; se Remotion non c'è o fallisce si ripiega sul montaggio semplice con ffmpeg. Opzioni facoltative passate con `extra`: `plateUntil`, `closingSeconds`, `zoom`, `layout` (`reel` | `story`, zone sicure di Instagram). `_finish_external` le passa dal 28/11/2026 (`_graphics_options`), dopo il pre-passaggio `enhance_clip`. Campi del modulo: materiale e pietre (`detail`), frase d'apertura (`hook`), versione Storia (`story`, esce in `results.story_video`), tieni l'audio (`keep_audio`). Dettagli in `docs/STATO_PROGETTO.md`.
 
 ## Motore immagini
 

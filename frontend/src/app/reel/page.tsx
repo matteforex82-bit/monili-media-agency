@@ -121,6 +121,8 @@ interface ReelState {
   source?: string;
   results: {
     final_video?: string;
+    /** Versione Storia (zone sicure di Instagram), solo con la grafica Monili. */
+    story_video?: string;
     cover?: string;
     cover_plain?: string;
     cover_qa?: QaResult | null;
@@ -330,6 +332,10 @@ export default function ReelStudioPage() {
   const [importGraphics, setImportGraphics] = useState(true);
   const [importPrice, setImportPrice] = useState('');
   const [importPlace, setImportPlace] = useState('');
+  const [importDetail, setImportDetail] = useState('');
+  const [importHook, setImportHook] = useState('');
+  const [importStory, setImportStory] = useState(true);
+  const [importKeepAudio, setImportKeepAudio] = useState(false);
   // Il pezzo della Scheda da cui parte il Reel (/reel?pezzo=<run_id>): stessa donna della foto indossata.
   const [piece, setPiece] = useState<Piece | null>(null);
   // Il contenuto del Piano da cui si parte (/reel?piano=<settimana>:<ruolo>): a creazione avvenuta lo segna come creato.
@@ -538,6 +544,10 @@ export default function ReelStudioPage() {
       form.append('graphics', importGraphics && config?.remotion_available ? 'true' : 'false');
       form.append('price', importPrice);
       form.append('location', importPlace);
+      form.append('detail', importDetail);
+      form.append('hook', importHook);
+      form.append('story', importStory ? 'true' : 'false');
+      form.append('keep_audio', importKeepAudio ? 'true' : 'false');
       const res = await fetch(`${API_URL}/reel/import`, { method: 'POST', body: form });
       if (!res.ok) throw new Error(await readError(res));
       const data: ReelState = await res.json();
@@ -880,6 +890,12 @@ export default function ReelStudioPage() {
                 </label>
                 {importGraphics && (
                   <div className="rs-grid-2">
+                    <Field label="Materiale e pietre (riga sotto il nome)">
+                      <input className="rs-input" value={importDetail} onChange={(e) => setImportDetail(e.target.value)} placeholder="Es. Argento 925, zaffiro cabochon · Misura 17,5" />
+                    </Field>
+                    <Field label="Frase d'apertura (vuota = la scrive l'AI)">
+                      <input className="rs-input" value={importHook} onChange={(e) => setImportHook(e.target.value)} placeholder="Es. Un blu che non passa inosservato." />
+                    </Field>
                     <Field label="Prezzo sulla targhetta (facoltativo)">
                       <input className="rs-input" value={importPrice} onChange={(e) => setImportPrice(e.target.value)} placeholder="Es. 39 €" />
                     </Field>
@@ -892,11 +908,23 @@ export default function ReelStudioPage() {
                     </Field>
                   </div>
                 )}
+                {importGraphics && (
+                  <>
+                    <label className="rs-check">
+                      <input type="checkbox" checked={importStory} onChange={(e) => setImportStory(e.target.checked)} />
+                      <span>Crea anche la <strong>versione Storia</strong> (targhetta e chiusura più in alto, fuori dalle zone coperte da Instagram).</span>
+                    </label>
+                    <label className="rs-check">
+                      <input type="checkbox" checked={importKeepAudio} onChange={(e) => setImportKeepAudio(e.target.checked)} />
+                      <span>Tieni l&apos;audio del video (utile per l&apos;ASMR). Un audio quasi muto resta com&apos;è.</span>
+                    </label>
+                  </>
+                )}
               </div>
             )}
             <label className="rs-check">
               <input type="checkbox" checked={importClosing} onChange={(e) => setImportClosing(e.target.checked)} />
-              <span>Aggiungi la chiusura &quot;Ti piace? Scrivici, ti diciamo se è disponibile.&quot; (2,5 s su fondo crema)</span>
+              <span>Aggiungi la chiusura &quot;Ti piace? Scrivici, ti diciamo se è disponibile.&quot; (2,5 s su fondo crema; 1,5 s con la grafica Monili)</span>
             </label>
             <button type="button" className="btn-mission rs-cta" disabled={busy || !importFiles.length} onClick={importVideo}>
               {busy ? 'Preparazione...' : 'Importa video'}
@@ -1359,6 +1387,23 @@ function ResultView({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
               {saving.endsWith('.mp4') ? 'Salvo...' : 'Salva video'}
             </button>
           </div>
+          {results.story_video && (
+            <div className="rs-story-version">
+              <div className="label-eyebrow">Versione Storia</div>
+              <video src={fileUrl(results.story_video)} controls playsInline loop />
+              <InstagramShare
+                files={[{ url: fileUrl(results.story_video), filename: 'monili-storia.mp4' }]}
+                caption={fullCaption}
+                kind="Storia"
+                hasAiWoman={Boolean(reel.storyboard?.shots.some((shot) => shot.use_model))}
+              />
+              <div className="rs-actions">
+                <button type="button" className="btn-secondary rs-small-btn" onClick={() => save(results.story_video!, 'monili-storia.mp4')}>
+                  {saving === 'monili-storia.mp4' ? 'Salvo...' : 'Salva Storia'}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="rs-covers">
             {[results.cover, results.cover_plain].filter((c, i, arr): c is string => !!c && arr.indexOf(c) === i).map((cover, i) => (
               <button key={cover} type="button" className="rs-cover" onClick={() => save(cover, i === 0 ? 'copertina.jpg' : 'copertina-foto.jpg')}>

@@ -3534,6 +3534,10 @@ async def reel_import(
     graphics: bool = Form(default=False),
     price: str = Form(default=""),
     location: str = Form(default=""),
+    detail: str = Form(default=""),
+    hook: str = Form(default=""),
+    story: bool = Form(default=False),
+    keep_audio: bool = Form(default=False),
 ):
     """Video già pronto (Gemini/Veo, telefono): diventa un Reel finito, con chiusura, copertina e testi."""
     content_type = (video.content_type or "").lower().strip()
@@ -3558,6 +3562,10 @@ async def reel_import(
             graphics and remotion_graphics.is_available(),
             price,
             location,
+            detail,
+            hook,
+            story,
+            keep_audio,
         )
     except (ValueError, RuntimeError) as exc:
         if not reel_studio.load_state(reel_id):
