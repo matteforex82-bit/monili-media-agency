@@ -98,6 +98,27 @@ def shot_settings(shots: list[dict]) -> list[dict]:
     return result
 
 
+KEYWORDS = (
+    ("Anello", r"anell"), ("Orecchini", r"orecchin"), ("Bracciale", r"braccial"), ("Collana", r"collan|ciondol|girocoll"),
+    ("Cavigliera", r"cavigli"), ("Pochette", r"pochette|clutch"), ("Borsa", r"bors|zain|tracoll"),
+    ("Cintura", r"cintur"), ("Sciarpa, stola o scialle", r"sciarp|stola|scial"), ("Foulard o bandana", r"foulard|bandana"),
+    ("Cappello", r"cappell|basco|berretto"), ("Giacca o gilet", r"giacc|gilet|blazer|cappott"),
+    ("Outfit completo", r"outfit|completo"), ("Capo singolo", r"vestit|abito|gonn|camicia|top|maglia|pantalon"),
+)
+
+
+def template_for(draft: dict) -> str:
+    """La scheda del prodotto: quella riconosciuta dalle foto, altrimenti dedotta dal nome e dal brief."""
+    recognised = (draft.get("recognition") or {}).get("template")
+    if recognised:
+        return recognised
+    text = f"{draft.get('product', '')} {draft.get('brief', '')}".casefold()
+    for template, pattern in KEYWORDS:
+        if re.search(pattern, text):
+            return template
+    return "Regia libera"
+
+
 def score_accents(shots: list[dict]) -> list[tuple[int, str]]:
     starts = [0, *(shot["end_ms"] for shot in shots[:-1])]
     return [(start, shot["accent"]) for start, shot in zip(starts, shots) if shot["accent"] != "none"]

@@ -16,7 +16,7 @@ ProductName = Annotated[str, StringConstraints(strip_whitespace=True, min_length
 Template = Literal[
     "Outfit completo", "Giacca o gilet", "Anello", "Orecchini", "Bracciale", "Collana", "Borsa", "Cintura",
     "Capo singolo", "Cavigliera", "Pochette", "Sciarpa, stola o scialle", "Foulard o bandana", "Cappello",
-    "Occhiali", "Regia libera",
+    "Regia libera",
 ]
 DIRECTION_GUIDE = Path(__file__).resolve().parent / "knowledge" / "reel-blender-regia.md"
 PRODUCT_TEMPLATES = DIRECTION_GUIDE.with_name("reel-blender-template-prodotti.md")
@@ -55,6 +55,7 @@ class ShotDesign(BaseModel):
     lens_mm: int = Field(default=50, ge=28, le=120)
     yaw_deg: int = Field(default=0, ge=-35, le=35)
     pitch_deg: int = Field(default=0, ge=-20, le=20)
+    stage_action: Literal["rest", "reveal", "handle", "worn", "turn"] | None = None
     motion: Literal["fixed", "push", "slide", "orbit"] = "fixed"
     light: Literal["soft", "texture", "jewelry"] = "soft"
     key_side: Literal["left", "front", "right"] = "left"
@@ -189,7 +190,13 @@ Preferisci uno shot che permetta di giudicare insieme fedeltà del prodotto, pos
 Compila direction e design per ogni shot: sono i comandi che la scena Blender legge, oltre alle note per il montatore.
 focus_x e focus_y sono il centro d'interesse sulla foto (origine in alto a sinistra, 0–1); reference_photo è l'indice 1–3.
 Usa scale look/medium/detail/macro; motion fixed/push/slide/orbit; luce soft/texture/jewelry; key_side left/front/right.
-lens_mm 28–120, yaw_deg -35–35, pitch_deg -20–20. Se hai solo foto piatte scegli movimenti e angoli moderati.
+lens_mm 28–120, yaw_deg -35–35, pitch_deg -20–20.
+Blender costruisce per ogni inquadratura una scena 3D stilizzata adatta al tipo di accessorio (banco del negozio, scrigno, mano, busto,
+manichino) e ci muove la camera: non usa le foto, che servono solo a te. Scegli per ogni shot stage_action, cosa succede nella scena:
+rest (il pezzo è fermo sul banco o sul manichino), reveal (lo scrigno si apre sul pezzo, per i gioielli piccoli), handle (una mano
+arriva, prende il pezzo e lo solleva), worn (il pezzo è indossato e la camera gira intorno), turn (il pezzo o il manichino ruota piano).
+Per un gioiello piccolo apri con reveal o rest in macro, usa handle a metà e chiudi con worn. Per un capo o una borsa su manichino usa turn e worn.
+Una scena dentro un portico o una strada non serve: il pezzo sta sul suo banco, non nel quartiere.
 Usa set_mood warm_cream/deep_charcoal/neutral, BPM 72–130. accent fa risuonare none/soft/strong all'inizio dello shot.
 Specifica il perché di ogni inquadratura, il punto d'interesse e il raccordo col prossimo taglio. Scegli pochi accenti, anche solo quello della rivelazione.
 Scrivi due prompt specifici in inglese per ogni ripresa. photo_prompt_en prepara il primo fotogramma, con posa, crop e luce.
@@ -199,7 +206,7 @@ Schema: {{"storyboard":"...", "assets":"...", "audio":"...", "blender":"...", "h
 "shots":[{{"end_ms":1200, "framing":"...", "camera":"...", "lighting":"...", "action":"...", "cut":"...",
 "design":{{"purpose":"...", "scale":"macro", "reference_photo":1, "focus_x":0.5, "focus_y":0.5,
 "lens_mm":85, "yaw_deg":0, "pitch_deg":0, "motion":"push", "light":"texture",
-"key_side":"left", "sound":"...", "accent":"none"}}, "photo_prompt_en":"...", "video_prompt_en":"..."}}]}}
+"key_side":"left", "stage_action":"reveal", "sound":"...", "accent":"none"}}, "photo_prompt_en":"...", "video_prompt_en":"..."}}]}}
 Servono 3-6 shot. end_ms è il tempo assoluto di fine in millisecondi, strettamente crescente, a partire da 0.
 L'ultimo end_ms è esattamente {duration_ms}.""", images, recognition=draft.get("recognition"))
     package = Handoff.model_validate(result).model_dump(exclude_none=True)

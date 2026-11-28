@@ -55,7 +55,6 @@ def test_a_type_without_its_sheet_would_be_caught(monkeypatch):
         ("foulard di seta stampato", "foulard"),
         ("cintura in cuoio con fibbia", "cintura"),
         ("cappello di paglia a tesa larga", "cappello"),
-        ("occhiali da sole tartarugati", "occhiali"),
     ],
 )
 def test_each_new_type_is_recognised_on_its_own(text, expected):

@@ -565,3 +565,63 @@ def test_blender_render_packages_music_and_individual_seedance_shots(monkeypatch
     newer = {**reopened["draft"], "package_revision": "regia-aggiornata"}
     meta.write_text(json.dumps(newer), encoding="utf-8")
     assert client.post(review, json={"shot_index": 1}).status_code == 409
+
+
+def test_blender_template_is_taken_from_recognition_or_guessed_from_the_name():
+    import blender_scene
+
+    assert blender_scene.template_for({"recognition": {"template": "Borsa"}, "product": "Anello"}) == "Borsa"
+    assert blender_scene.template_for({"product": "Anello con pietre viola", "brief": ""}) == "Anello"
+    assert blender_scene.template_for({"product": "Girocollo in argento"}) == "Collana"
+    assert blender_scene.template_for({"product": "Qualcosa di strano", "brief": ""}) == "Regia libera"
+
+
+def test_every_product_template_has_a_3d_stage_and_a_stage_action_sequence():
+    import re
+    import sys
+    from pathlib import Path
+
+    templates = re.findall(r"^## (.+)$", Path("knowledge/reel-blender-template-prodotti.md").read_text(encoding="utf-8"), flags=re.M)
+    templates = [name for name in templates if name != "Procedura comune"]
+    sys.path.insert(0, str(Path("scripts").resolve()))
+    # reel_props usa bpy: leggiamo la tabella senza importarlo
+    source = Path("scripts/reel_props.py").read_text(encoding="utf-8")
+    for name in templates:
+        assert f'"{name}":' in source, name
+    assert "Occhiali" not in source
+    from reel_blender import Template
+    assert set(Template.__args__) == set(templates) | {"Regia libera"}
+
+
+def test_blender_builds_a_3d_set_for_each_kind_of_accessory(tmp_path):
+    import json
+    import subprocess
+
+    import blender_scene
+
+    binary = blender_scene.executable()
+    if not binary:
+        import pytest
+        pytest.skip("Blender non installato")
+    shots = blender_scene.shot_settings([
+        {"end_ms": 2000, "framing": "macro", "camera": "fisso", "action": "", "design": {"scale": "macro", "stage_action": "reveal"}},
+        {"end_ms": 5000, "framing": "medio", "camera": "push", "action": "", "design": {"scale": "medium", "stage_action": "handle"}},
+        {"end_ms": 8000, "framing": "indossato", "camera": "fisso", "action": "", "design": {"scale": "detail", "stage_action": "worn"}},
+    ])
+    audio = tmp_path / "musica.wav"
+    blender_scene.guide_track(audio, 8000, [], 100)
+    for template in ("Anello", "Giacca o gilet"):
+        spec = {"shots": shots, "fps": 30, "photos": [], "audio": str(audio), "audio_title": "t", "audio_accents": [],
+                "set_mood": "warm_cream", "notes": "x", "template": template}
+        destination = tmp_path / f"{template[:4]}.blend"
+        blender_scene.build(binary, destination, spec)
+        check = tmp_path / "check.py"
+        check.write_text(
+            "import bpy\nscene = bpy.data.scenes['Set e camere']\n"
+            "print('CAMERE', len([m for m in scene.timeline_markers if m.camera]))\n"
+            "print('OGGETTI', len([o for o in scene.objects if o.type == 'MESH']))\n", encoding="utf-8",
+        )
+        out = subprocess.run([binary, "-b", str(destination), "--python", str(check)], capture_output=True, text=True, timeout=120).stdout
+        assert "CAMERE 3" in out
+        meshes = int(out.split("OGGETTI")[1].split()[0])
+        assert meshes > 30, f"{template}: scena troppo povera ({meshes} oggetti)"

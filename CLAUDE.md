@@ -41,7 +41,7 @@ qualsiasi file in questa directory senza chiedere conferma.
 
 ## Categorie Prodotto
 - **Bijoux**: anelli, orecchini (cerchio, pendente, lobo), collane, bracciali, cavigliere
-- **Accessori**: borse, pochette, cinture, sciarpe, cappelli, occhiali, foulard
+- **Accessori**: borse, pochette, cinture, sciarpe, cappelli, foulard
 - **Abbigliamento**: top, camicie, vestiti, gonne, pantaloni, giacche leggere P/E
 
 ## Performance Data

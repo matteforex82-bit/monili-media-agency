@@ -34,8 +34,6 @@ Dal busto a metà coscia, la cintura in vita sopra un abito o un pantalone sempl
 ## cappello
 Da spalle in su o mezzo busto, il viso in parte sotto la tesa, capelli naturali che escono sotto. Prompt: "the hat sits firmly on her head, brim casting soft shade on the upper face, eyes still visible". Scala: tesa larga quanto le spalle se il cappello è a tesa larga. [ipotesi]
 
-## occhiali
-Ritratto da spalle in su, di fronte o tre quarti, occhiali ben appoggiati su naso e orecchie. Prompt: "head-and-shoulders portrait, glasses resting on the bridge of the nose, temples over the ears, no reflections hiding the eyes". [ipotesi]
 
 ## capo sopra
 Giacche, gilet, camicie, maglie: mezzo busto o tre quarti (dalla testa a metà coscia), si vedono spalle, maniche e lunghezza; sotto un pantalone o una gonna semplici. [verificato: scelta del negozio per l'abbigliamento]

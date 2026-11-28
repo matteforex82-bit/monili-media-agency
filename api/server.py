@@ -3030,6 +3030,7 @@ async def blender_create_scene(draft_id: uuid.UUID, music: UploadFile | None = F
                 "audio_title": title,
                 "audio_accents": accents,
                 "set_mood": direction.get("set_mood", "warm_cream"),
+                "template": blender_scene.template_for(draft),
                 "notes": reel_blender.markdown(draft),
             })
             with _blender_lock:

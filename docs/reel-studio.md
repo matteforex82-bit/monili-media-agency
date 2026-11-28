@@ -248,3 +248,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 python -m pytest tests
 ```
 I test girano senza chiavi e senza internet (AI simulata, storage temporaneo).
+
+### Scena 3D di Blender per tipo di accessorio
+Il passo Blender non usa più le foto come pannelli: costruisce un set 3D stilizzato dalla scheda del prodotto (banco, scrigno, mano, busto, manichino) e muove la camera secondo la regia (`design` di ogni shot, compreso `stage_action`). Le foto servono a Codex e a Seedance, non al render. Vedi `scripts/reel_props.py` e `docs/STATO_PROGETTO.md`.
+

@@ -19,7 +19,6 @@ export const SUBTYPE_GROUPS: Array<{ label: string; items: Array<[string, string
       ['foulard', 'Foulard'],
       ['cintura', 'Cintura'],
       ['cappello', 'Cappello'],
-      ['occhiali', 'Occhiali'],
     ],
   },
   { label: 'Abbigliamento', items: [['capo', 'Capo di abbigliamento']] },

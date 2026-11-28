@@ -183,15 +183,3 @@ Ogni scheda è un punto di partenza per un Reel 9:16 da 12 secondi. Parti dal pr
 | 6,0–12 s | Profilo documentato oppure ritorno all'intero a 70–85 mm. | Mantieni il profilo fermo durante la scritta. |
 
 **Prima verifica.** Indossato. Controlla altezza, tesa, copertura e contatto con i capelli. Una vista del retro richiede il relativo riferimento reale.
-
-## Occhiali
-
-**Obiettivo.** Mostrare forma della montatura, scala sul viso e asta, se visibile nelle foto. **Foto utili.** Frontale del prodotto, tre quarti con asta e foto indossata.
-
-| Montato | Inquadratura e luce | Azione e taglio |
-|---|---|---|
-| 0–1,3 s | Frontale del prodotto a 75–90 mm, softbox fuori dal riflesso principale. | Mostra l'intera sagoma al primo colpo. |
-| 1,3–6,0 s | Ritratto da spalle in su a 70–85 mm, luce ampia e controllata sulle lenti. | Viso già in posa. Accento sul passaggio al viso. |
-| 6,0–12 s | Tre quarti o dettaglio asta a 85–100 mm. | Piccolo movimento camera solo sul lato documentato. Grafica fuori dalla montatura. |
-
-**Prima verifica.** Indossato. Confronta ponte, spessore, forma e tinta delle lenti, contatto di aste e naso. Rispetta la trasparenza o l'oscurità effettiva delle lenti.

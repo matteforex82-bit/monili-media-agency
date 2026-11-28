@@ -8,6 +8,9 @@ import sys
 import bpy
 from mathutils import Vector
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import reel_props  # noqa: E402  (set e oggetti 3D per tipo di accessorio)
+
 
 def track(obj, point):
     obj.rotation_euler = (Vector(point) - obj.location).to_track_quat("-Z", "Y").to_euler()
@@ -82,36 +85,29 @@ LIGHTS = {
 }
 
 
-def camera_motion(camera, shot, center_x, width, height, has_photo, start, end):
+def stage_camera(camera, shot, target, frame_height, start, end):
+    """Camera su un bersaglio 3D: frame_height è l'altezza (in metri) di ciò che deve entrare nel quadro."""
     lens = shot["lens_mm"]
     camera.data.lens = lens
     camera.data.sensor_fit = "VERTICAL"
     camera.data.sensor_height = 24
-    frame_height = {
-        "look": max(height, width * 16 / 9) * 1.13,
-        "medium": max(height * 0.78, width * 16 / 9 * 0.78),
-        "detail": height * 0.51,
-        "macro": height * 0.30,
-    }[shot["scale"]]
-    margin_x = max(0.0, (width - frame_height * 9 / 16) / 2)
-    margin_z = max(0.0, (height - frame_height) / 2)
-    focus_x = min(margin_x, max(-margin_x, (shot["focus_x"] - 0.5) * width))
-    focus_z = min(margin_z, max(-margin_z, (0.5 - shot["focus_y"]) * height))
-    target = (center_x + focus_x, 0, 1.04 + focus_z)
+    camera.data.clip_start = 0.004
+    camera.data.clip_end = 60
     distance = frame_height * lens / 24
-    yaw_limit, pitch_limit = (8, 6) if has_photo else (45, 25)
-    yaw = min(yaw_limit, max(-yaw_limit, shot["yaw_deg"]))
-    pitch = math.radians(min(pitch_limit, max(-pitch_limit, shot["pitch_deg"])))
-
+    yaw = min(45, max(-45, shot["yaw_deg"]))
+    pitch = math.radians(min(25, max(-25, shot["pitch_deg"])))
     motion = shot["motion"]
+    camera.data.dof.use_dof = True
+    camera.data.dof.focus_distance = distance
+    camera.data.dof.aperture_fstop = 2.8 if shot["scale"] in ("macro", "detail") else 8
     for frame, phase in ((start, 0), (end, 1)):
-        angle = math.radians(yaw + (phase * (3 if has_photo else 10) if motion == "orbit" else 0))
-        radius = distance * (1 - 0.08 * phase) if motion == "push" else distance
+        angle = math.radians(yaw + (phase * 16 if motion == "orbit" else 0))
+        radius = distance * (1 - 0.12 * phase) if motion == "push" else distance
         slide = frame_height * 0.12 * phase if motion == "slide" else 0
         horizontal = radius * math.cos(pitch)
         camera.location = (
             target[0] + math.sin(angle) * horizontal + slide,
-            -math.cos(angle) * horizontal,
+            target[1] - math.cos(angle) * horizontal,
             target[2] + math.sin(pitch) * radius,
         )
         track(camera, target)
@@ -137,57 +133,39 @@ def build(spec, output):
     for name in ("Set", "Riferimenti", "Luci", "Camere"):
         collections[name] = bpy.data.collections.new(name)
         studio.collection.children.link(collections[name])
-    images = [bpy.data.images.load(name, check_existing=True) for name in spec["photos"]]
-    backdrop = material("Palette del set", SET_COLORS[spec["set_mood"]])
-    proxy = material("Segnaposto", (0.10, 0.24, 0.30))
-    photo_materials = [material(f"Foto {i + 1}", (1, 1, 1), image) for i, image in enumerate(images)]
+    template = spec.get("template") or "Regia libera"
+    kind, body = reel_props.STAGES.get(template, reel_props.STAGES["Regia libera"])
+    M = reel_props.make_materials(SET_COLORS[spec["set_mood"]], tuple(spec.get("hero_color") or (0.72, 0.32, 0.22)))
     notes = bpy.data.texts.new("Regia e audio")
     notes.write(spec["notes"])
+    defaults = reel_props.default_actions(kind, body, len(spec["shots"]))
     start = 1
     marks = []
     for number, shot in enumerate(spec["shots"], 1):
         end = round(shot["end_ms"] * fps / 1000)
         x = (number - 1) * 18
         name = f"{number:02d} {shot['framing'][:54]}"
-        surface(collections["Set"], f"Fondale {number}", [
-            (x - 5, 1, -1), (x + 5, 1, -1), (x + 5, 1, 6), (x - 5, 1, 6),
-        ], backdrop)
-        surface(collections["Set"], f"Piano {number}", [
-            (x - 5, -6, 0), (x + 5, -6, 0), (x + 5, 1, 0), (x - 5, 1, 0),
-        ], backdrop)
-        if images:
-            index = min(shot["reference_photo"] - 1, len(images) - 1)
-            image_width, image_height = images[index].size
-            height = 1.56
-            width = height * image_width / image_height
-            half_width = width / 2
-            surface(collections["Riferimenti"], f"Foto {index + 1} · shot {number}", [
-                (x - half_width, 0, 0.26), (x + half_width, 0, 0.26),
-                (x + half_width, 0, 1.82), (x - half_width, 0, 1.82),
-            ], photo_materials[index])
-        else:
-            width, height = 0.68, 1.26
-            bpy.ops.mesh.primitive_uv_sphere_add(location=(x, 0, 1.04))
-            obj = bpy.context.object
-            obj.name = f"Volume segnaposto {number}"
-            obj.scale = (0.34, 0.23, 0.63)
-            obj.data.materials.append(proxy)
-            collections["Riferimenti"].objects.link(obj)
-            for original in list(obj.users_collection):
-                if original != collections["Riferimenti"]:
-                    original.objects.unlink(obj)
+        action = shot.get("stage_action")
+        if action not in reel_props.ACTIONS:
+            action = defaults[number - 1]
+        focus = reel_props.build_stage(collections["Set"], M, kind, body, action, x, start, max(end, start + 1))
+        target, frame_height = focus[shot["scale"]]
         size, power, fill = LIGHTS[shot["light"]]
+        # banco: pezzi piccoli e vicini, serve meno luce; manichino: i bianchi si bruciano facilmente
+        scale_light = 0.35 if body not in ("mannequin", "none") else 0.5
+        power, fill = power * scale_light, fill * scale_light
         side = {"left": -1, "front": 0, "right": 1}[shot["key_side"]]
         key_x = x + side * (2.3 if shot["light"] == "texture" else 1.9)
-        light(collections["Luci"], f"Chiave {number} · {shot['light']}", (key_x, -2.2, 3.1),
-              (x, 0, 1.04), power, size, (1, 0.93, 0.85))
-        light(collections["Luci"], f"Riempimento {number}", (x - (side or -1) * 2, -1, 2.6),
-              (x, 0, 1.04), fill, 3.5, (0.94, 0.96, 1))
+        centre = focus["medium"][0]
+        light(collections["Luci"], f"Chiave {number} · {shot['light']}", (key_x, -2.2, 3.1), centre, power, size, (1, 0.93, 0.85))
+        light(collections["Luci"], f"Riempimento {number}", (x - (side or -1) * 2, -1, 2.6), centre, fill, 3.5, (0.94, 0.96, 1))
         data = bpy.data.cameras.new(name)
         data.show_safe_areas = True
         camera = bpy.data.objects.new(name, data)
         collections["Camere"].objects.link(camera)
-        camera_motion(camera, shot, x, width, height, bool(images), start, end)
+        if body not in ("mannequin", "none") and not shot["pitch_deg"]:
+            shot = {**shot, "pitch_deg": 12}  # banco: si guarda un po' dall'alto, come il banco di un negozio
+        stage_camera(camera, shot, target, frame_height, start, end)
         marker = studio.timeline_markers.new(name, frame=start)
         marker.camera = camera
         marks.append((name, start))
@@ -218,7 +196,7 @@ def build(spec, output):
         for area in screen.areas:
             if area.type == "VIEW_3D" and area.spaces.active.region_3d:
                 area.spaces.active.region_3d.view_perspective = "CAMERA"
-                area.spaces.active.shading.color_type = "TEXTURE"
+                area.spaces.active.shading.color_type = "MATERIAL"
     bpy.ops.wm.save_as_mainfile(filepath=str(output))
 
 

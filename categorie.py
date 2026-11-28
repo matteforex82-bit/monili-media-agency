@@ -10,7 +10,7 @@ import re
 CATEGORY_WORDS = {
     "abbigliamento": r"giacc|gilet|kimono|cappott|giubb|camici|abit[oi]\b|vestit|magli|cardigan|blus|gonn|pantalon"
     r"|poncho|kaftan|caftan|tunic|felp|trench|blazer|top\b",
-    "accessori": r"\bbors|pochette|cintur|foulard|sciarp|cappell|occhial|portafogl|zain|stola|scial",
+    "accessori": r"\bbors|pochette|cintur|foulard|sciarp|cappell|portafogl|zain|stola|scial",
     "gioielli": r"collan|braccial|anell|orecchin|cavigliera|ciondol|spilla|gioiell|parure",
 }
 
@@ -79,7 +79,6 @@ SUBTYPE_WORDS = {
     "foulard": r"foulard|bandana",
     "cintura": r"cintur",
     "cappello": r"cappell|basco|berretto",
-    "occhiali": r"occhial",
 }
 
 SUBTYPES = {
@@ -95,7 +94,6 @@ SUBTYPES = {
     "foulard": {"category": "accessori", "label": "Foulard", "body": "collo e spalle", "fill": 0.74},
     "cintura": {"category": "accessori", "label": "Cintura", "body": "vita e fianchi", "fill": 0.80},
     "cappello": {"category": "accessori", "label": "Cappello", "body": "testa e viso", "fill": 0.70},
-    "occhiali": {"category": "accessori", "label": "Occhiali", "body": "viso", "fill": 0.70},
     "capo": {"category": "abbigliamento", "label": "Capo di abbigliamento", "body": "figura (vedi taglio)", "fill": 0.80},
 }
 
