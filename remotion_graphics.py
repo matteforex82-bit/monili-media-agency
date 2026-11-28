@@ -41,9 +41,11 @@ def render_graphics(
     *,
     hook: str = "",
     title: str = "",
+    detail: str = "",
     price: str = "",
     place: str = DEFAULT_PLACE,
     closing: bool = True,
+    extra: dict | None = None,
 ) -> Path:
     """Render del video con la grafica. Solleva RuntimeError se non riesce."""
     if not is_available():
@@ -62,11 +64,13 @@ def render_graphics(
             "videoSeconds": round(float(seconds), 2),
             "hook": (hook or "").strip()[:80],
             "title": (title or "").strip()[:70],
+            "detail": (detail or "").strip()[:90],
             "price": (price or "").strip()[:20],
             "place": place or DEFAULT_PLACE,
             "closing": bool(closing),
             "titleFrom": 2.5,
         }
+        props.update(extra or {})  # facoltativi: plateUntil, closingSeconds, zoom, layout
         props_file = work / "props.json"
         props_file.write_text(json.dumps(props, ensure_ascii=False), encoding="utf-8")
         output.parent.mkdir(parents=True, exist_ok=True)

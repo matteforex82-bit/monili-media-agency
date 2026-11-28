@@ -2,7 +2,7 @@
 
 File di passaggio di consegne, condiviso con Hermes. Aggiornare a ogni sessione di lavoro.
 
-**Ultimo aggiornamento:** 2026-11-03 · branch `master`
+**Ultimo aggiornamento:** 2026-11-28 · branch `master`
 
 ## Cos'è
 App per creare contenuti social de I Monili Ravenna a partire dalle foto prodotto.
@@ -246,3 +246,14 @@ PRD: `docs/prd-prompt-completi.md`. Decisioni: D1 prezzo = quello vero della sch
 - **Reel**: lo storyboard legge struttura video, regia, modello video, tipo, difetti video, struttura foto e modello immagine del fotogramma. Fucina: scene per Seedance, Kling o Genjutsu (Genjutsu non è nell'API, solo prompt a mano).
 - **Post con testo** (`post_grafica.py`, Pubblica → Instagram Post → "Crea un post con testo"): Outfit con prezzi (foto vera), Titolo editoriale, Look con Aurora, Carosello da 3.
 - Test: `tests/test_prompt_completi.py`; suite 228 verdi. Prove reali: `docs/pacchetto-prova-prompt.md`.
+
+## Post-produzione Remotion sui Reel (27-28/11/2026, non committato)
+Verificato: Remotion 4.0.545 è installato in `remotion/` (Node 24), `remotion_graphics.is_available()` è vero. Prima di oggi la grafica Remotion partiva **solo** dal percorso "Carica un video esterno" (`reel_studio._finish_external`); Blender, Seedance e kit Higgsfield non passavano da Remotion.
+- **Composizione `ReelGrafica`** (`remotion/src/ReelGrafica.tsx`, `Root.tsx`): nuove opzioni **facoltative** (senza, esce come prima): `detail` (riga sotto il nome: materiale e pietre), `plateUntil` (secondi a cui sparisce la targhetta), `closingSeconds` (default 2,5), `zoom` (zoom lento, es. 1.1), `layout` `reel` | `story` (zone sicure di Instagram; la Storia ha targhetta e chiusura più in alto e il pulsante "Scrivici" disegnato, non è un adesivo vero di Instagram).
+- **Grafiche più dinamiche**: frase d'apertura con striscia che si apre e parole che entrano una a una; targhetta con barra terracotta, righe scalate e riflesso; linea della chiusura che si allarga. **Cambia anche per i Reel esistenti**: frase e targhetta un po' più piccole, targhetta più bassa (bottom 380 invece di 470).
+- `remotion_graphics.render_graphics(..., detail="", extra={...})`: `extra` passa le opzioni facoltative alla composizione.
+- Verifiche: `tsc --noEmit` pulito; `tests/test_remotion_graphics.py` e `tests/test_reel_import.py` passano (7). Nella suite completa un test Blender cade con un `PermissionError` di Windows su un file temporaneo (`musica.wav`): non legato a queste modifiche, non indagato.
+- Prove (fuori dal repo, cartella temporanea): video ASMR orecchini argento 925 con rubino e zirconi (Reel + Storia, 8,5 s) e video anello argento 925 con zaffiro cabochon, misura 17,5 (Reel + Storia, 11,5 s, nessun taglio né cambio di velocità, audio originale quasi muto lasciato com'era). Pre-passaggio ffmpeg: 360p a 1080x1920 (lanczos + nitidezza), 30 fps, colore leggero. Un test con musica (mp3 WhatsApp, 120 BPM) è stato scartato da Matteo: **niente musica** sui Reel di prova.
+- **Non fatto / da decidere**: il pre-passaggio ffmpeg (upscale, grading, audio) è ancora fuori dallo Studio; `_finish_external` non passa ancora `detail`, `zoom`, `layout`, `plateUntil`, `closingSeconds`; i percorsi Blender/Seedance/kit non usano ancora Remotion; la Storia non è esposta nell'interfaccia. Upscale Higgsfield non provato (Matteo ha interrotto la chiamata; costo non stimabile in anticipo). Frasi d'apertura "Un blu che non passa inosservato." e "Un regalo da scartare piano." sono bozze scritte dall'AI; prezzo vuoto perché non fornito.
+- **Decisioni (22-28/11)**: Google Flow non ha API ufficiale; esistono MCP/CLI non ufficiali che pilotano il Chrome di Matteo ([gflow-cli](https://github.com/ffroliva/gflow-cli), [google-flow-mcp](https://github.com/ParkSangGwon/google-flow-mcp)), consumano crediti Flow e il rischio ToS non è chiarito: **non installati**, in sospeso. Plugin `instagram-agent` (13 skill `/ig-*`): valutato, **non integrato** (inglese, pensato per creator, programmi Python che falliscono con le emoji su Windows); idee da copiare eventualmente: controllo caption (125 battute), checklist frase d'apertura, audit Insights per multiplo sulla propria media in `/risultati`. Collegamento ufficiale a Instagram (API Meta): **non necessario ora**, rivalutare dopo le 6 settimane di pilota solo per la lettura automatica degli Insights; `ZERNIO_API_KEY` in `.env` non è usata dal codice.
+

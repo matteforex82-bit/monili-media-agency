@@ -13,7 +13,7 @@ const defaultProps: ReelGraficaProps = {
 };
 
 const metadata: CalculateMetadataFunction<ReelGraficaProps> = ({props}) => ({
-  durationInFrames: Math.max(1, Math.round((props.videoSeconds + (props.closing ? CLOSING_SECONDS : 0)) * FPS)),
+  durationInFrames: Math.max(1, Math.round((props.videoSeconds + (props.closing ? (props.closingSeconds ?? CLOSING_SECONDS) : 0)) * FPS)),
 });
 
 export const Root = () => (
