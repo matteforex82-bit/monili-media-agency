@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import FileDropzone from '@/components/FileDropzone';
 import InstagramShare from '@/components/InstagramShare';
+import InstagramPublish from '@/components/InstagramPublish';
 import ReelBlenderBrief from '@/components/ReelBlenderBrief';
 import './reel-blender.css';
 import { API_URL } from '@/lib/apiUrl';
@@ -328,6 +329,8 @@ export default function ReelStudioPage() {
   const [importTitle, setImportTitle] = useState('');
   const [importNote, setImportNote] = useState('');
   const [importClosing, setImportClosing] = useState(true);
+  // Reel già finito: si pubblica com'è, l'AI lo guarda e scrive solo caption e hashtag.
+  const [importAsIs, setImportAsIs] = useState(false);
   // Grafica Monili con Remotion: frase d'apertura, targhetta col prezzo, chiusura animata.
   const [importGraphics, setImportGraphics] = useState(true);
   const [importPrice, setImportPrice] = useState('');
@@ -539,9 +542,10 @@ export default function ReelStudioPage() {
       form.append('video', importFiles[0]);
       form.append('title', importTitle);
       form.append('note', importNote);
-      form.append('add_closing', importClosing ? 'true' : 'false');
+      form.append('add_closing', importClosing && !importAsIs ? 'true' : 'false');
+      form.append('as_is', importAsIs ? 'true' : 'false');
       if (piece) form.append('scheda_run_id', piece.runId);
-      form.append('graphics', importGraphics && config?.remotion_available ? 'true' : 'false');
+      form.append('graphics', importGraphics && !importAsIs && config?.remotion_available ? 'true' : 'false');
       form.append('price', importPrice);
       form.append('location', importPlace);
       form.append('detail', importDetail);
@@ -852,6 +856,13 @@ export default function ReelStudioPage() {
               Fatto con Gemini (Veo) o girato col telefono, in verticale 9:16. Lo Studio aggiunge la chiusura, la
               copertina e i testi: poi lo mandi sul sito e su Instagram come gli altri Reel. Non costa crediti video.
             </p>
+            <label className="rs-check">
+              <input type="checkbox" checked={importAsIs} onChange={(e) => setImportAsIs(e.target.checked)} />
+              <span>
+                <strong>Reel già finito: pubblicalo com&apos;è.</strong> Il video non viene toccato (niente chiusura, grafica o
+                ricodifica): l&apos;AI lo guarda e scrive solo caption, hashtag e primo commento. Poi lo pubblichi su Instagram.
+              </span>
+            </label>
             <FileDropzone
               files={importFiles}
               onFiles={setImportFiles}
@@ -862,7 +873,7 @@ export default function ReelStudioPage() {
               hint="MP4 o MOV, fino a 57 secondi."
             />
             <div className="rs-grid-2">
-              <Field label="Titolo">
+              <Field label={importAsIs ? "Titolo (vuoto = lo sceglie l'AI)" : 'Titolo'}>
                 <input
                   className="rs-input"
                   value={importTitle}
@@ -879,7 +890,7 @@ export default function ReelStudioPage() {
                 />
               </Field>
             </div>
-            {config?.remotion_available && (
+            {config?.remotion_available && !importAsIs && (
               <div className="rs-graphics">
                 <label className="rs-check">
                   <input type="checkbox" checked={importGraphics} onChange={(e) => setImportGraphics(e.target.checked)} />
@@ -922,12 +933,12 @@ export default function ReelStudioPage() {
                 )}
               </div>
             )}
-            <label className="rs-check">
+            {!importAsIs && <label className="rs-check">
               <input type="checkbox" checked={importClosing} onChange={(e) => setImportClosing(e.target.checked)} />
               <span>Aggiungi la chiusura &quot;Ti piace? Scrivici, ti diciamo se è disponibile.&quot; (2,5 s su fondo crema; 1,5 s con la grafica Monili)</span>
-            </label>
+            </label>}
             <button type="button" className="btn-mission rs-cta" disabled={busy || !importFiles.length} onClick={importVideo}>
-              {busy ? 'Preparazione...' : 'Importa video'}
+              {busy ? (importAsIs ? 'Guardo il video e scrivo i testi...' : 'Preparazione...') : importAsIs ? 'Scrivi caption e hashtag' : 'Importa video'}
             </button>
           </section>
         )}
@@ -1327,7 +1338,8 @@ function ResultView({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
   const results = reel.results;
   const copy = results.copy || {};
   const [saving, setSaving] = useState('');
-  const hashtags = (copy.hashtags || []).join(' ');
+  // L'AI a volte scrive già gli hashtag nella caption: si aggiungono solo quelli che mancano.
+  const hashtags = (copy.hashtags || []).filter((tag) => !(copy.caption || '').toLowerCase().includes(tag.toLowerCase())).join(' ');
   const fullCaption = [copy.caption, hashtags].filter(Boolean).join('\n\n');
 
   const save = async (path: string, filename: string) => {
@@ -1382,6 +1394,13 @@ function ResultView({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
             kind={reel.format === 'story' ? 'Storia' : 'Reel'}
             hasAiWoman={Boolean(reel.storyboard?.shots.some((shot) => shot.use_model))}
           />
+          <InstagramPublish
+            reelId={reel.id}
+            kind="reel"
+            caption={fullCaption}
+            firstComment={copy.first_comment ?? ''}
+            hasAiWoman={Boolean(reel.storyboard?.shots.some((shot) => shot.use_model))}
+          />
           <div className="rs-actions">
             <button type="button" className="btn-secondary rs-small-btn" onClick={() => save(results.final_video!, `monili-${reel.format}.mp4`)}>
               {saving.endsWith('.mp4') ? 'Salvo...' : 'Salva video'}
@@ -1395,6 +1414,12 @@ function ResultView({ reel, onSent }: { reel: ReelState; onSent: () => void }) {
                 files={[{ url: fileUrl(results.story_video), filename: 'monili-storia.mp4' }]}
                 caption={fullCaption}
                 kind="Storia"
+                hasAiWoman={Boolean(reel.storyboard?.shots.some((shot) => shot.use_model))}
+              />
+              <InstagramPublish
+                reelId={reel.id}
+                kind="story"
+                caption=""
                 hasAiWoman={Boolean(reel.storyboard?.shots.some((shot) => shot.use_model))}
               />
               <div className="rs-actions">

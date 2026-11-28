@@ -155,3 +155,59 @@ def test_failed_graphics_falls_back_to_simple_assembly(vertical_video, monkeypat
     state = rs.import_external_video(rs.new_reel_id(), vertical_video, "x", graphics=True, story=True)
     assert state["status"] == "done" and state["results"]["graphics_applied"] is False
     assert "story_video" not in state["results"]
+
+
+def test_ready_video_is_kept_as_is_and_the_ai_only_writes_the_texts(vertical_video, monkeypatch):
+    import fucina_codex
+
+    seen = {}
+
+    def fake_codex(prompt, images, model=""):
+        seen["images"] = [path.name for path in images]
+        seen["prompt"] = prompt
+        import json
+
+        return json.dumps({
+            "title": "Orecchini rubino",
+            "caption": "Rubino al viso. Scrivici, ti diciamo se è disponibile",
+            "hashtags": ["#rubino"],
+            "first_comment": "Ti piacciono?",
+        })
+
+    monkeypatch.setattr(fucina_codex, "executable", lambda: "codex")
+    monkeypatch.setattr(fucina_codex, "run", fake_codex)
+    reel_id = rs.new_reel_id()
+    state = rs.import_external_video(reel_id, vertical_video, "", "orecchini argento 925", True, as_is=True)
+    results = state["results"]
+    final = rs._abs(results["final_video"])
+    assert state["status"] == "done" and results["ready_as_is"] is True and results["graphics_applied"] is False
+    assert final.read_bytes() == vertical_video.read_bytes()  # il video non è stato toccato: niente chiusura, niente ricodifica
+    assert abs(rs.probe_duration(final) - 3) < 0.15
+    assert len(seen["images"]) == rs.READY_FRAMES and "orecchini argento 925" in seen["prompt"]
+    assert results["copy"]["caption"].startswith("Rubino al viso")
+    assert results["copy"]["hashtags"][: len(rs.FIXED_HASHTAGS)] == rs.FIXED_HASHTAGS and "#rubino" in results["copy"]["hashtags"]
+    assert results["copy"]["first_comment"] == "Ti piacciono?"
+    assert state["storyboard"]["title"] == "Orecchini rubino"  # titolo vuoto: lo sceglie l'AI
+
+
+def test_ready_video_keeps_the_title_typed_by_the_owner(vertical_video, monkeypatch):
+    import fucina_codex
+
+    monkeypatch.setattr(fucina_codex, "executable", lambda: "codex")
+    monkeypatch.setattr(fucina_codex, "run", lambda prompt, images, model="": '{"title": "Altro", "caption": "Testo"}')
+    state = rs.import_external_video(rs.new_reel_id(), vertical_video, "Anello zaffiro", "", True, as_is=True)
+    assert state["storyboard"]["title"] == "Anello zaffiro"
+
+
+def test_ready_video_without_codex_fails_clearly_and_via_the_api(vertical_video, monkeypatch):
+    import fucina_codex
+
+    monkeypatch.setattr(fucina_codex, "executable", lambda: None)
+    with pytest.raises(RuntimeError, match="Codex"):
+        rs.import_external_video(rs.new_reel_id(), vertical_video, "", "", True, as_is=True)
+    response = client.post(
+        "/reel/import",
+        files={"video": ("v.mp4", vertical_video.read_bytes(), "video/mp4")},
+        data={"as_is": "true"},
+    )
+    assert response.status_code == 400 and "Codex" in response.json()["error"]

@@ -598,23 +598,27 @@ def import_external_video(
     hook: str = "",
     story: bool = False,
     keep_audio: bool = False,
+    as_is: bool = False,
 ) -> dict:
     """Importa un video verticale fatto fuori dallo Studio (Gemini/Veo, telefono) come Reel finito.
 
     Con la grafica: `detail` è la riga sotto il nome (materiale, pietre, misura), `hook` la frase d'apertura
-    (se vuota la scrive l'AI), `story` crea anche la versione Storia, `keep_audio` tiene l'audio del video."""
+    (se vuota la scrive l'AI), `story` crea anche la versione Storia, `keep_audio` tiene l'audio del video.
+    Con `as_is` il video resta com'è (niente chiusura, grafica o ricodifica): l'AI lo guarda e scrive caption e hashtag."""
     width, height = probe_size(source)
     if width > height:
         raise ValueError("Serve un video verticale 9:16: questo è orizzontale. Rigeneralo in verticale (in Gemini: formato 9:16).")
     seconds = probe_duration(source)
     if seconds > EXTERNAL_MAX_SECONDS:
         raise ValueError(f"Video troppo lungo: massimo {EXTERNAL_MAX_SECONDS:.0f} secondi.")
+    title_given = bool((title or "").strip())
     title = (title or "").strip()[:120] or "Reel I Monili"
     note = (note or "").strip()[:1500]
     state = {
         "id": reel_id,
         "status": "rendering",
         "source": "esterno",
+        "title_given": title_given,
         "graphics": {
             "on": bool(graphics),
             "price": (price or "").strip()[:20],
@@ -630,7 +634,7 @@ def import_external_video(
         "format": "reel",
         "recipe": "",
         "poster_cover": False,
-        "target_seconds": round(seconds + ((REMOTION_CLOSING_SECONDS if graphics else CLOSING_SECONDS) if add_closing else 0)),
+        "target_seconds": round(seconds + ((REMOTION_CLOSING_SECONDS if graphics else CLOSING_SECONDS) if add_closing and not as_is else 0)),
         "text_model": select_openrouter_text_model(text_model),
         "higgsfield_configured": hf.is_configured(),
         "photos": [],
@@ -647,10 +651,109 @@ def import_external_video(
         save_state(state)
     log(reel_id, "IMPORT", f"Video esterno {width}x{height}, {seconds:.1f}s")
     try:
+        if as_is:
+            return _finish_ready(state, source, seconds)
         return _finish_external(state, source, seconds, add_closing, api_key)
     except Exception as exc:
         _fail(reel_id, "IMPORT", exc)
         raise RuntimeError(str(exc)) from exc
+
+
+READY_FRAMES = 4
+
+
+def _video_copy(state: dict, frames: list[Path]) -> dict:
+    """Caption, hashtag e testi scritti guardando il video (fotogrammi), con Codex locale: nessun costo per token."""
+    import fucina_codex
+
+    if not fucina_codex.executable():
+        raise RuntimeError("Per analizzare il video serve Codex installato sul PC: non lo trovo.")
+    note = state.get("brief", "")
+    hints = _performance_hints()
+    prompt = f"""Sei la social media manager di I Monili Ravenna. Ti allego {len(frames)} fotogrammi in ordine di un Reel già finito, che
+verrà pubblicato così com'è su Instagram. Guarda i fotogrammi e scrivi i testi per questo Reel.
+{BRAND}
+Stagione: {SEASON}
+
+COSA SI VEDE: descrivi solo ciò che è visibile (pezzo, colori, pietre, gesto, luogo). Non inventare materiali, misure, prezzi o
+disponibilità che non si vedono: se non sono sicuri, restano fuori dai testi.
+{('NOTA DI CHI PUBBLICA (da usare per i fatti sul pezzo): ' + note) if note else 'Nessuna nota di chi pubblica: ricava tutto dal video.'}
+{('DATI PERFORMANCE STORICI:' + chr(10) + hints) if hints else ''}
+
+REGOLE:
+{skills.base_template("testi")}
+
+REGOLE DELLA PIATTAFORMA E DELLA VOCE (Instagram, scritto come una persona):
+{platform_rules(["stile-umano", "instagram"])}
+
+Rispondi SOLO con JSON valido:
+{{
+  "title": "nome breve del pezzo o del Reel, max 8 parole",
+  "caption": "caption principale completa con a capo, chiude con un invito concreto (scrivici, ti diciamo se è disponibile)",
+  "caption_short": "versione breve per story/condivisione",
+  "hashtags": ["#imoniliravenna", "#ravenna", "#romagnastyle"],
+  "cover_text": "testo copertina max 5 parole",
+  "first_comment": "primo commento da pubblicare",
+  "story_stickers": ["idea sticker sondaggio/domanda 1", "idea 2"],
+  "music_suggestion": "che tipo di audio cercare su Instagram, se il video non ha già l'audio giusto",
+  "best_slot": "momento consigliato per pubblicare; se non sei sicuro scrivi 'da verificare'",
+  "alt_text": "descrizione accessibile del video"
+}}"""
+    raw = fucina_codex.run(prompt, frames)
+    copy = extract_json_object(raw)
+    if not copy:
+        copy = {"caption": raw}
+    fixed = list(FIXED_HASHTAGS)
+    tags = [str(t).strip() for t in copy.get("hashtags") or [] if str(t).strip()]
+    copy["hashtags"] = (fixed + [t for t in tags if t.lower() not in fixed])[: len(fixed) + MAX_REEL_EXTRA_HASHTAGS]
+    return _with_piece_code(state, copy)
+
+
+def _finish_ready(state: dict, source: Path, seconds: float) -> dict:
+    """Reel già finito: il video non si tocca. L'AI lo guarda e scrive caption, hashtag e primo commento."""
+    reel_id = state["id"]
+    out_dir = reel_dir(reel_id)
+    final_video = out_dir / f"monili_reel_{reel_id}.mp4"
+    if source.suffix.lower() in (".mp4", ".m4v"):
+        shutil.copyfile(source, final_video)
+    else:  # .mov: stesso video e stesso audio in un contenitore MP4, senza ricodificare
+        try:
+            _run_ffmpeg(["-i", str(source), "-c", "copy", "-movflags", "+faststart", str(final_video)])
+        except RuntimeError:
+            normalize_clip(source, final_video, seconds)
+    frames_dir = out_dir / "analisi"
+    frames_dir.mkdir(exist_ok=True)
+    frames = [
+        _frame_at(final_video, seconds * (index + 0.5) / READY_FRAMES, frames_dir / f"fotogramma-{index + 1}.jpg")
+        for index in range(READY_FRAMES)
+    ]
+    log(reel_id, "ANALISI", "Guardo il video per scrivere caption e hashtag...")
+    copy = _video_copy(state, frames)
+    if not state.get("title_given"):
+        state["storyboard"]["title"] = str(copy.get("title") or "Reel I Monili")[:120]
+    (out_dir / "testi.md").write_text(_copy_markdown(state, copy), encoding="utf-8")
+    cover = make_cover(frames[-1], out_dir / "cover_foto.jpg")
+
+    def _done(s: dict):
+        s["status"] = "done"
+        s["storyboard"]["title"] = state["storyboard"]["title"]
+        s["results"] = {
+            "final_video": rel(final_video),
+            "cover": rel(cover),
+            "cover_plain": rel(cover),
+            "copy_markdown": rel(out_dir / "testi.md"),
+            "copy": copy,
+            "shots": [],
+            "preview_only": False,
+            "external": True,
+            "ready_as_is": True,
+            "graphics_applied": False,
+            "completed_at": datetime.now().isoformat(),
+        }
+
+    state = _mutate(reel_id, _done)
+    log(reel_id, "IMPORT", f"Reel pronto così com'è ({probe_duration(final_video):.1f}s)", "success")
+    return load_state(reel_id) or state
 
 
 def _finish_external(state: dict, source: Path, seconds: float, add_closing: bool, api_key: str) -> dict:

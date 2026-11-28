@@ -2358,6 +2358,7 @@ import reel_higgsfield_handoff  # noqa: E402
 import reel_blender_render  # noqa: E402
 import reel_seedance_kit  # noqa: E402
 import blender_scene  # noqa: E402
+import zernio  # noqa: E402
 import skills_loader  # noqa: E402
 import reel_studio  # noqa: E402
 import remotion_graphics  # noqa: E402
@@ -3539,8 +3540,10 @@ async def reel_import(
     hook: str = Form(default=""),
     story: bool = Form(default=False),
     keep_audio: bool = Form(default=False),
+    as_is: bool = Form(default=False),
 ):
-    """Video già pronto (Gemini/Veo, telefono): diventa un Reel finito, con chiusura, copertina e testi."""
+    """Video già pronto (Gemini/Veo, telefono): diventa un Reel finito, con chiusura, copertina e testi.
+    Con as_is il video resta com'è e l'AI lo guarda per scrivere solo caption, hashtag e primo commento."""
     content_type = (video.content_type or "").lower().strip()
     ext = Path(video.filename or "").suffix.lower()
     if ext not in ALLOWED_CLIP_EXTENSIONS and content_type not in ALLOWED_CLIP_CONTENT_TYPES:
@@ -3560,15 +3563,16 @@ async def reel_import(
             os.environ.get("OPENROUTER_API_KEY", "").strip(),
             text_model,
             scheda_run_id.strip() if scheda_run_id.strip() and _find_manifest_by_run_id(scheda_run_id.strip()) else "",
-            graphics and remotion_graphics.is_available(),
+            graphics and not as_is and remotion_graphics.is_available(),
             price,
             location,
             detail,
             hook,
             story,
             keep_audio,
+            as_is,
         )
-    except (ValueError, RuntimeError) as exc:
+    except (ValueError, RuntimeError, fucina_codex.CodexError) as exc:
         if not reel_studio.load_state(reel_id):
             shutil.rmtree(reel_studio.reel_dir(reel_id), ignore_errors=True)
         return JSONResponse({"error": str(exc)}, status_code=400)
@@ -3581,6 +3585,90 @@ def reel_get(reel_id: str):
     if not state:
         return JSONResponse({"error": "Reel non trovato"}, status_code=404)
     return _public_reel(state)
+
+
+@app.get("/instagram/status")
+def instagram_status():
+    """Zernio è configurato? Instagram è collegato? (Serve per mostrare il pulsante Pubblica.)"""
+    if not zernio.configured():
+        return {"configured": False, "connected": False}
+    try:
+        account = zernio.instagram_account()
+    except zernio.ZernioError as error:
+        return {"configured": True, "connected": False, "error": str(error)}
+    return {"configured": True, "connected": bool(account), "username": (account or {}).get("username", "")}
+
+
+@app.get("/instagram/connect")
+def instagram_connect():
+    """Il link per collegare Instagram a Zernio (si apre una volta sola)."""
+    try:
+        return {"url": zernio.connect_url()}
+    except zernio.ZernioError as error:
+        return JSONResponse({"error": str(error)}, status_code=502)
+
+
+class InstagramPublish(BaseModel):
+    kind: Literal["reel", "story"]
+    caption: str = Field(default="", max_length=5000)
+    first_comment: str = Field(default="", max_length=2200)
+    ai_generated: bool = False
+    confirm: bool = False
+
+
+_REEL_ID = re.compile(r"^[A-Za-z0-9_-]{4,64}$")
+
+
+@app.get("/reel/{reel_id}/instagram")
+def reel_instagram_state(reel_id: str):
+    state = reel_studio.load_state(reel_id) if _REEL_ID.match(reel_id) else None
+    if not state:
+        return JSONResponse({"error": "Reel non trovato"}, status_code=404)
+    return state.get("instagram", {})
+
+
+@app.post("/reel/{reel_id}/instagram")
+def reel_instagram_publish(reel_id: str, body: InstagramPublish):
+    """Pubblica il Reel (o la Storia) sull'account Instagram collegato a Zernio. Solo dopo la conferma di Matteo."""
+    if not body.confirm:
+        return JSONResponse({"error": "Serve la conferma prima di pubblicare su Instagram."}, status_code=400)
+    state = reel_studio.load_state(reel_id) if _REEL_ID.match(reel_id) else None
+    if not state:
+        return JSONResponse({"error": "Reel non trovato"}, status_code=404)
+    results = state.get("results") or {}
+    relative = results.get("story_video" if body.kind == "story" else "final_video")
+    if not relative:
+        return JSONResponse({"error": "Questo Reel non ha ancora il video pronto."}, status_code=409)
+    root = reel_studio.OUTPUT_ROOT.resolve()
+    video = (root / relative).resolve()
+    if root not in video.parents:
+        return JSONResponse({"error": "Video non valido."}, status_code=400)
+    previous = (state.get("instagram") or {}).get(body.kind) or {}
+    if previous.get("status") in ("publishing", "published", "scheduled"):
+        return JSONResponse({"error": "Questo video è già stato mandato a Instagram.", **previous}, status_code=409)
+    try:
+        sent = zernio.publish(body.kind, reel_id, video, body.caption, body.first_comment, body.ai_generated)
+    except zernio.ZernioError as error:
+        return JSONResponse({"error": str(error)}, status_code=502)
+    record = {**sent, "at": datetime.now().isoformat(timespec="seconds"), "url": ""}
+    reel_studio._mutate(reel_id, lambda current: current.setdefault("instagram", {}).__setitem__(body.kind, record))
+    return record
+
+
+@app.get("/reel/{reel_id}/instagram/{kind}/status")
+def reel_instagram_status(reel_id: str, kind: Literal["reel", "story"]):
+    """Controlla a che punto è la pubblicazione e salva il link quando è online."""
+    state = reel_studio.load_state(reel_id) if _REEL_ID.match(reel_id) else None
+    record = ((state or {}).get("instagram") or {}).get(kind)
+    if not record or not record.get("post_id"):
+        return JSONResponse({"error": "Nessuna pubblicazione per questo video."}, status_code=404)
+    try:
+        live = zernio.post_status(record["post_id"])
+    except zernio.ZernioError as error:
+        return JSONResponse({"error": str(error)}, status_code=502)
+    updated = {**record, "status": live["status"] or record["status"], "url": live["url"], "error": live["error"]}
+    reel_studio._mutate(reel_id, lambda current: current.setdefault("instagram", {}).__setitem__(kind, updated))
+    return updated
 
 
 @app.put("/reel/{reel_id}/storyboard")
